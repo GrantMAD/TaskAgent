@@ -6,7 +6,7 @@ export const userService = {
             .from('users')
             .select('*')
             .eq('id', userId)
-            .single()
+            .maybeSingle()
         if (error) throw error
         return data
     },
@@ -28,5 +28,14 @@ export const userService = {
             .order('created_at', { ascending: false })
         if (error) throw error
         return data
+    },
+
+    submitReview: async (reviewData) => {
+        const { data, error } = await supabase
+            .from('reviews')
+            .insert([reviewData])
+            .select()
+        if (error) throw error
+        return data[0]
     }
 }

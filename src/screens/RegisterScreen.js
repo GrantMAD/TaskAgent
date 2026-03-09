@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
 import { supabase } from '../services/supabaseClient';
+import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
 
 export const RegisterScreen = ({ navigation }) => {
     const [name, setName] = useState('');
@@ -23,78 +24,189 @@ export const RegisterScreen = ({ navigation }) => {
             }
         });
 
+        setLoading(false);
         if (error) {
-            setLoading(false);
             Alert.alert('Error', error.message);
             return;
         }
 
         if (data.user) {
-            setLoading(false);
-            // Check if user is already "active" (e.g. if email confirmation is off)
-            // or if they need to check their email.
             if (data.session) {
-                Alert.alert('Success', 'Registered and logged in!');
+                Alert.alert('Success', 'Welcome to the community!');
             } else {
-                Alert.alert('Success', 'Registration successful! Please check your email for a confirmation link.');
+                Alert.alert('Success', 'Check your email for a confirmation link.');
                 navigation.navigate('Login');
             }
         }
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Register</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                value={name}
-                onChangeText={setName}
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Phone"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-            />
-            <Button title={loading ? 'Loading...' : 'Register'} onPress={handleRegister} disabled={loading} />
-        </ScrollView>
+        <KeyboardAvoidingView 
+            style={styles.container} 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                    <Image 
+                        source={require('../../assets/images/TaskLogo.png')} 
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                    <Text style={styles.title}>Join Us</Text>
+                    <Text style={styles.subtitle}>Create an account to get started</Text>
+                </View>
+
+                <View style={styles.card}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Full Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="John Doe"
+                            placeholderTextColor={Colors.textMuted}
+                            value={name}
+                            onChangeText={setName}
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Email Address</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="neighbor@example.com"
+                            placeholderTextColor={Colors.textMuted}
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Phone Number</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="0400 000 000"
+                            placeholderTextColor={Colors.textMuted}
+                            value={phone}
+                            onChangeText={setPhone}
+                            keyboardType="phone-pad"
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Password</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Create a password"
+                            placeholderTextColor={Colors.textMuted}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                        />
+                    </View>
+
+                    <TouchableOpacity 
+                        style={[styles.button, loading && styles.buttonDisabled]} 
+                        onPress={handleRegister} 
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color={Colors.white} />
+                        ) : (
+                            <Text style={styles.buttonText}>Create Account</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    <View style={styles.footer}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                            <Text style={styles.footerLink}>Already have an account? Sign In</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        padding: 24,
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
+    scrollContent: {
+        padding: Spacing.lg,
+        paddingBottom: Spacing.xl,
         justifyContent: 'center',
         flexGrow: 1,
     },
+    header: {
+        marginBottom: Spacing.xl,
+        alignItems: 'center',
+    },
+    logo: {
+        width: 100,
+        height: 100,
+        marginBottom: Spacing.md,
+    },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginBottom: 24,
-        textAlign: 'center',
+        fontSize: 32,
+        fontWeight: '800',
+        color: Colors.primary,
+        marginBottom: Spacing.xs,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: Colors.textMuted,
+        fontWeight: '500',
+    },
+    card: {
+        backgroundColor: Colors.white,
+        padding: Spacing.xl,
+        borderRadius: Rounding.soft,
+        ...Shadow.medium,
+    },
+    inputGroup: {
+        marginBottom: Spacing.md,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: Colors.text,
+        marginBottom: Spacing.xs,
+        marginLeft: 4,
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 12,
-        marginBottom: 16,
-        borderRadius: 8,
+        borderWidth: 1.5,
+        borderColor: Colors.border,
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+        fontSize: 16,
+        color: Colors.text,
+        backgroundColor: '#FAFBFA',
+    },
+    button: {
+        backgroundColor: Colors.primary,
+        padding: Spacing.md,
+        borderRadius: Rounding.pill,
+        alignItems: 'center',
+        marginTop: Spacing.lg,
+        ...Shadow.accent,
+    },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
+    buttonText: {
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    footer: {
+        alignItems: 'center',
+        marginTop: Spacing.xl,
+    },
+    footerLink: {
+        color: Colors.accent,
+        fontWeight: '700',
+        fontSize: 14,
     }
 });

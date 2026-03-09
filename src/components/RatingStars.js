@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Colors } from '../utils/theme';
 
 export const RatingStars = ({ rating }) => {
     const roundedRating = Math.round(rating);
@@ -19,12 +20,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     stars: {
-        color: '#FFD700',
-        fontSize: 16,
+        color: Colors.accent,
+        fontSize: 18,
         marginRight: 4,
     },
     text: {
-        color: '#666',
+        color: Colors.textMuted,
         fontSize: 14,
+        fontWeight: '600',
     }
 });

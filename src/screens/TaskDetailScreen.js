@@ -1,14 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Platform } from 'react-native';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
+import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
+import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { FontAwesome } from '@expo/vector-icons';
+import { UserAvatar } from '../components/UserAvatar';
+import { RatingStars } from '../components/RatingStars';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { ReviewModal } from '../components/ReviewModal';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
+    const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [session, setSession] = useState(null);
+    
+    // Modal State
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', or 'APPROVE'
+    const [selectedApplicant, setSelectedApplicant] = useState(null);
+
+    // Review Modal State
+    const [reviewModalVisible, setReviewModalVisible] = useState(false);
+    const [reviewLoading, setReviewLoading] = useState(false);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -21,6 +38,13 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         try {
             const data = await taskService.getTaskDetails(taskId);
             setTask(data);
+            
+            // If the user is the poster, fetch applications
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && session.user.id === data.poster_id) {
+                const apps = await taskService.getTaskApplications(taskId);
+                setApplications(apps);
+            }
         } catch (error) {
             console.error(error);
             Alert.alert('Error', 'Could not load task details');
@@ -33,7 +57,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         try {
             if (!session) return;
             await taskService.applyForTask(taskId, session.user.id, "I would like to apply for this task!");
-            Alert.alert('Success', 'Applied successfully');
+            Alert.alert('Success', 'Application submitted successfully!');
         } catch (error) {
             Alert.alert('Error', error.message);
         }
@@ -48,76 +72,549 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         }
     };
 
-    if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
-    if (!task) return <Text style={{ flex: 1, textAlign: 'center' }}>Task not found</Text>;
+    const triggerHireModal = (workerId, workerName) => {
+        setModalVisibleType('HIRE');
+        setSelectedApplicant({ id: workerId, name: workerName });
+        setModalVisible(true);
+    };
+
+    const triggerCompleteModal = () => {
+        setModalVisibleType('COMPLETE');
+        setModalVisible(true);
+    };
+
+    const triggerApproveModal = () => {
+        setModalVisibleType('APPROVE');
+        setModalVisible(true);
+    };
+
+    const handleModalConfirm = () => {
+        if (modalType === 'HIRE') {
+            handleConfirmHire();
+        } else if (modalType === 'COMPLETE') {
+            handleConfirmComplete();
+        } else {
+            handleConfirmApprove();
+        }
+    };
+
+    const handleConfirmHire = async () => {
+        if (!selectedApplicant) return;
+        setModalVisible(false);
+        setLoading(true);
+        try {
+            await taskService.assignWorker(taskId, selectedApplicant.id);
+            Alert.alert('Success', `${selectedApplicant.name} has been hired!`);
+            fetchTaskDetails();
+        } catch (error) {
+            Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
+            setSelectedApplicant(null);
+        }
+    };
+
+    const handleConfirmComplete = async () => {
+        setModalVisible(false);
+        setLoading(true);
+        try {
+            await taskService.markTaskComplete(taskId);
+            Alert.alert('Success', 'Work submitted for confirmation!');
+            fetchTaskDetails();
+        } catch (error) {
+            Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmApprove = async () => {
+        setModalVisible(false);
+        setLoading(true);
+        try {
+            await taskService.confirmCompletion(taskId);
+            // On success, show review modal
+            setReviewModalVisible(true);
+            fetchTaskDetails();
+        } catch (error) {
+            Alert.alert('Error', error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleReviewSubmit = async (rating, comment) => {
+        setReviewLoading(true);
+        try {
+            await userService.submitReview({
+                reviewer_id: session.user.id,
+                reviewed_user_id: task.assigned_worker_id,
+                task_id: taskId,
+                rating,
+                comment
+            });
+            setReviewModalVisible(false);
+            Alert.alert('Success', 'Thank you for your feedback!');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save review: ' + error.message);
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
+    if (loading && !task) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
+    if (!task) {
+        return (
+            <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Task not found</Text>
+            </View>
+        );
+    }
+
+    const isPoster = session?.user?.id === task.poster_id;
+    const isWorker = session?.user?.id === task.assigned_worker_id;
 
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.title}>{task.title}</Text>
-            <Text style={styles.payment}>${task.payment_amount}</Text>
-            <Text style={styles.category}>{task.category}</Text>
-            <Text style={styles.status}>{task.status}</Text>
-
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{task.description}</Text>
-
-            <Text style={styles.sectionTitle}>Posted By</Text>
-            {task.poster && (
-                <Text style={styles.posterName}>{task.poster.name} (Rating: {task.poster.rating})</Text>
-            )}
-
-            {session && session.user.id !== task.poster_id && task.status === 'OPEN' && (
-                <View style={styles.actions}>
-                    <Button title="Apply for Task" onPress={handleApply} />
-                    <View style={{ height: 16 }} />
-                    <Button title="Message Poster" onPress={handleMessagePoster} color="#4CD964" />
+        <View style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <FontAwesome name="chevron-left" size={20} color={Colors.white} />
+                </TouchableOpacity>
+                <View style={styles.headerTitleContainer}>
+                    <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
-            )}
-        </ScrollView>
+                <View style={styles.headerSpacer} />
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={styles.titleSection}>
+                    <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText}>{task.category}</Text>
+                    </View>
+                    <Text style={styles.title}>{task.title}</Text>
+                    <View style={styles.priceRow}>
+                        <View>
+                            <Text style={styles.priceLabel}>Status</Text>
+                            <Text style={[styles.statusText, { 
+                                color: task.status === 'OPEN' ? Colors.success : 
+                                       task.status === 'COMPLETED' ? Colors.success : Colors.accent 
+                            }]}>
+                                {task.status.replace('_', ' ')}
+                            </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.priceLabel}>Budget</Text>
+                            <Text style={styles.payment}>${task.payment_amount}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Description</Text>
+                    <View style={styles.card}>
+                        <Text style={styles.description}>{task.description}</Text>
+                    </View>
+                </View>
+
+                {/* Poster View: Applicants List */}
+                {isPoster && task.status === 'OPEN' && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Applicants ({applications.length})</Text>
+                        {applications.length > 0 ? (
+                            applications.map((app) => (
+                                <View key={app.id} style={styles.applicantCard}>
+                                    <UserAvatar user={app.worker} size={40} />
+                                    <View style={styles.applicantInfo}>
+                                        <Text style={styles.applicantName}>{app.worker.name}</Text>
+                                        <RatingStars rating={app.worker.rating || 5} />
+                                    </View>
+                                    <TouchableOpacity 
+                                        style={styles.acceptButtonSmall}
+                                        onPress={() => triggerHireModal(app.worker_id, app.worker.name)}
+                                    >
+                                        <Text style={styles.acceptButtonTextSmall}>Hire</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))
+                        ) : (
+                            <View style={styles.card}>
+                                <Text style={styles.emptyTextSmall}>No applicants yet.</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* General View: Posted By */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Posted By</Text>
+                    {task.poster && (
+                        <TouchableOpacity 
+                            style={styles.posterCard}
+                            onPress={() => Alert.alert('WIP', 'View Public Profile')}
+                        >
+                            <UserAvatar user={task.poster} size={50} />
+                            <View style={styles.posterInfo}>
+                                <Text style={styles.posterName}>{task.poster.name}</Text>
+                                <RatingStars rating={task.poster.rating || 5} />
+                            </View>
+                            <FontAwesome name="chevron-right" size={14} color={Colors.border} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Action Area */}
+                <View style={styles.actions}>
+                    {/* Poster Action: Confirm Completion */}
+                    {isPoster && task.status === 'PENDING_CONFIRMATION' && (
+                        <TouchableOpacity style={styles.completeButton} onPress={triggerApproveModal}>
+                            <FontAwesome name="check-square-o" size={18} color={Colors.white} style={styles.buttonIcon} />
+                            <Text style={styles.applyButtonText}>Confirm Completion</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Worker Action: Mark as Complete */}
+                    {isWorker && task.status === 'ASSIGNED' && (
+                        <TouchableOpacity style={[styles.completeButton, { backgroundColor: Colors.success }]} onPress={triggerCompleteModal}>
+                            <FontAwesome name="check-circle" size={18} color={Colors.white} style={styles.buttonIcon} />
+                            <Text style={styles.applyButtonText}>Mark as Complete</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Tasker Action: Apply */}
+                    {!isPoster && !isWorker && task.status === 'OPEN' && (
+                        <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
+                            <FontAwesome name="check-circle" size={18} color={Colors.white} style={styles.buttonIcon} />
+                            <Text style={styles.applyButtonText}>Apply for Task</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Universal Action: Message */}
+                    {session && (
+                        <TouchableOpacity style={styles.messageButton} onPress={handleMessagePoster}>
+                            <FontAwesome name="envelope" size={18} color={Colors.primary} style={styles.buttonIcon} />
+                            <Text style={styles.messageButtonText}>
+                                {isPoster ? 'Message Worker' : 'Message Neighbor'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Informational Badges */}
+                {isPoster && task.status === 'ASSIGNED' && (
+                    <View style={styles.infoBadge}>
+                        <FontAwesome name="handshake-o" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
+                        <Text style={styles.infoBadgeText}>Worker Assigned & In Progress</Text>
+                    </View>
+                )}
+
+                {task.status === 'PENDING_CONFIRMATION' && (
+                    <View style={[styles.infoBadge, { backgroundColor: '#FFF4E5' }]}>
+                        <FontAwesome name="clock-o" size={16} color={Colors.accent} style={{ marginRight: 8 }} />
+                        <Text style={[styles.infoBadgeText, { color: Colors.accent }]}>
+                            {isWorker ? 'Waiting for Poster to confirm completion' : 'Worker has marked this as complete. Confirm?'}
+                        </Text>
+                    </View>
+                )}
+
+                {task.status === 'COMPLETED' && (
+                    <View style={[styles.infoBadge, { backgroundColor: '#E8F3ED' }]}>
+                        <FontAwesome name="check-circle" size={16} color={Colors.success} style={{ marginRight: 8 }} />
+                        <Text style={[styles.infoBadgeText, { color: Colors.success }]}>
+                            This task is successfully completed!
+                        </Text>
+                    </View>
+                )}
+            </ScrollView>
+
+            <ConfirmationModal 
+                visible={modalVisible}
+                title={
+                    modalType === 'HIRE' ? "Hire Applicant" : 
+                    modalType === 'COMPLETE' ? "Mark Task Complete" : 
+                    "Confirm Completion"
+                }
+                message={
+                    modalType === 'HIRE' ? `Are you sure you want to hire ${selectedApplicant?.name} for this task?` : 
+                    modalType === 'COMPLETE' ? "Are you finished with this task? This will notify the poster to confirm." : 
+                    "Has the work been completed to your satisfaction? This will officially close the task."
+                }
+                confirmText={
+                    modalType === 'HIRE' ? "Hire Neighbor" : 
+                    modalType === 'COMPLETE' ? "Submit Work" : 
+                    "Approve & Close"
+                }
+                type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : 'primary'}
+                onConfirm={handleModalConfirm}
+                onCancel={() => setModalVisible(false)}
+            />
+
+            <ReviewModal 
+                visible={reviewModalVisible}
+                userName={task.worker?.name || "your neighbor"}
+                loading={reviewLoading}
+                onSubmit={handleReviewSubmit}
+                onCancel={() => setReviewModalVisible(false)}
+            />
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.background,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.background,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.background,
+    },
+    emptyText: {
+        color: Colors.textMuted,
+        fontSize: 16,
+    },
+    header: {
+        backgroundColor: Colors.primary,
+        paddingTop: 60,
+        paddingBottom: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomLeftRadius: Rounding.soft,
+        borderBottomRightRadius: Rounding.soft,
+        ...Shadow.medium,
+        zIndex: 10,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+    },
+    headerTitleContainer: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: Colors.white,
+    },
+    headerSpacer: {
+        width: 40,
+    },
+    scrollContent: {
+        paddingBottom: 120,
+    },
+    titleSection: {
+        padding: Spacing.lg,
+        backgroundColor: Colors.white,
+        borderBottomLeftRadius: Rounding.soft,
+        borderBottomRightRadius: Rounding.soft,
+        ...Shadow.subtle,
+        marginBottom: Spacing.md,
+    },
+    categoryBadge: {
+        backgroundColor: '#E8EFF4',
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        alignSelf: 'flex-start',
+        marginBottom: Spacing.sm,
+    },
+    categoryText: {
+        color: Colors.primary,
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     title: {
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 26,
+        fontWeight: '800',
+        color: Colors.primary,
+        marginBottom: Spacing.md,
+    },
+    priceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+        paddingTop: Spacing.md,
+    },
+    priceLabel: {
+        fontSize: 12,
+        color: Colors.textMuted,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    statusText: {
+        fontSize: 16,
+        fontWeight: '800',
+        textTransform: 'capitalize',
     },
     payment: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: 'green',
-        marginVertical: 8,
+        fontSize: 28,
+        fontWeight: '900',
+        color: Colors.accent,
     },
-    category: {
-        fontSize: 16,
-        color: '#666',
-    },
-    status: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
-        marginBottom: 16,
+    section: {
+        paddingHorizontal: Spacing.lg,
+        marginTop: Spacing.md,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 16,
-        marginBottom: 8,
+        fontWeight: '700',
+        color: Colors.primary,
+        marginBottom: Spacing.sm,
+        marginLeft: 4,
+    },
+    card: {
+        backgroundColor: Colors.white,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
+        ...Shadow.subtle,
+        borderWidth: 1,
+        borderColor: Colors.border,
     },
     description: {
         fontSize: 16,
+        color: Colors.text,
         lineHeight: 24,
+    },
+    posterCard: {
+        flexDirection: 'row',
+        backgroundColor: Colors.white,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
+        alignItems: 'center',
+        ...Shadow.subtle,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    posterInfo: {
+        flex: 1,
+        marginLeft: Spacing.md,
     },
     posterName: {
         fontSize: 16,
+        fontWeight: '700',
+        color: Colors.primary,
+        marginBottom: 2,
+    },
+    applicantCard: {
+        flexDirection: 'row',
+        backgroundColor: Colors.white,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
+        alignItems: 'center',
+        ...Shadow.subtle,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        marginBottom: Spacing.sm,
+    },
+    applicantInfo: {
+        flex: 1,
+        marginLeft: Spacing.md,
+    },
+    applicantName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.text,
+    },
+    acceptButtonSmall: {
+        backgroundColor: Colors.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: Rounding.pill,
+    },
+    acceptButtonTextSmall: {
+        color: Colors.white,
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    emptyTextSmall: {
+        color: Colors.textMuted,
+        fontSize: 14,
+        fontStyle: 'italic',
     },
     actions: {
-        marginTop: 32,
-        marginBottom: 64,
+        padding: Spacing.lg,
+        marginTop: Spacing.xl,
+    },
+    applyButton: {
+        backgroundColor: Colors.accent,
+        flexDirection: 'row',
+        padding: Spacing.md,
+        borderRadius: Rounding.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: Spacing.md,
+        ...Shadow.accent,
+    },
+    completeButton: {
+        backgroundColor: Colors.primary, // Using primary navy for approval
+        flexDirection: 'row',
+        padding: Spacing.md,
+        borderRadius: Rounding.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: Spacing.md,
+        ...Shadow.subtle,
+    },
+    applyButtonText: {
+        color: Colors.white,
+        fontWeight: '700',
+        fontSize: 18,
+    },
+    messageButton: {
+        backgroundColor: Colors.white,
+        flexDirection: 'row',
+        padding: Spacing.md,
+        borderRadius: Rounding.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: Colors.primary,
+    },
+    messageButtonText: {
+        color: Colors.primary,
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    buttonIcon: {
+        marginRight: 10,
+    },
+    infoBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: Spacing.xl,
+        backgroundColor: '#E8EFF4',
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        borderRadius: Rounding.standard,
+    },
+    infoBadgeText: {
+        color: Colors.primary,
+        fontWeight: '600',
+        fontSize: 14,
+        textAlign: 'center',
+        flex: 1,
     }
 });

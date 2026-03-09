@@ -28,6 +28,48 @@ export const taskService = {
         return data
     },
 
+    getTaskApplications: async (taskId) => {
+        const { data, error } = await supabase
+            .from('task_applications')
+            .select('*, worker:users!worker_id(id, name, profile_image, rating)')
+            .eq('task_id', taskId)
+        if (error) throw error
+        return data
+    },
+
+    getMyAssignedTasks: async (workerId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, poster:users!poster_id(id, name, profile_image, rating)')
+            .eq('assigned_worker_id', workerId)
+            .in('status', ['ASSIGNED', 'PENDING_CONFIRMATION'])
+            .order('created_at', { ascending: false })
+        if (error) throw error
+        return data
+    },
+
+    getMyPostedTasks: async (posterId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, worker:users!assigned_worker_id(id, name, profile_image, rating)')
+            .eq('poster_id', posterId)
+            .in('status', ['ASSIGNED', 'PENDING_CONFIRMATION'])
+            .order('created_at', { ascending: false })
+        if (error) throw error
+        return data
+    },
+
+    getTaskHistory: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, poster:users!poster_id(id, name, profile_image, rating), worker:users!assigned_worker_id(id, name, profile_image, rating)')
+            .eq('status', 'COMPLETED')
+            .or(`poster_id.eq.${userId},assigned_worker_id.eq.${userId}`)
+            .order('created_at', { ascending: false })
+        if (error) throw error
+        return data
+    },
+
     applyForTask: async (taskId, workerId, message) => {
         const { data, error } = await supabase
             .from('task_applications')
