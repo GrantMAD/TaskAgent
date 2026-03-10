@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { notificationService } from './notificationService'
 
 export const messageService = {
     getConversations: async (userId) => {
@@ -22,6 +23,21 @@ export const messageService = {
     },
 
     sendMessage: async (conversationId, senderId, text, imageUrl = null) => {
+        // Fetch conversation to find the other_user_id
+        const { data: conv, error: convError } = await supabase
+            .from('conversations')
+            .select('*, task:tasks(poster_id, assigned_worker_id)')
+            .eq('id', conversationId)
+            .single()
+        
+        if (convError) throw convError
+
+        // Determine recipient
+        let otherId = conv.user1_id === senderId ? conv.user2_id : conv.user1_id;
+        if (!otherId && conv.task) {
+            otherId = conv.task.poster_id === senderId ? conv.task.assigned_worker_id : conv.task.poster_id;
+        }
+
         const { data, error } = await supabase
             .from('messages')
             .insert([{
@@ -31,6 +47,17 @@ export const messageService = {
                 image_url: imageUrl
             }])
         if (error) throw error
+
+        if (otherId) {
+            await notificationService.createNotification(
+                otherId,
+                'New Message',
+                text.substring(0, 30) + (text.length > 30 ? '...' : ''),
+                'MESSAGE',
+                conversationId
+            )
+        }
+
         return data
     },
 

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { notificationService } from './notificationService'
 
 export const taskService = {
     createTask: async (taskData) => {
@@ -71,37 +72,109 @@ export const taskService = {
     },
 
     applyForTask: async (taskId, workerId, message) => {
+        // Fetch poster_id for notification
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('poster_id')
+            .eq('id', taskId)
+            .single()
+        
+        if (fetchError) throw fetchError
+
         const { data, error } = await supabase
             .from('task_applications')
             .insert([{ task_id: taskId, worker_id: workerId, message }])
         if (error) throw error
+
+        await notificationService.createNotification(
+            task.poster_id,
+            'New Application',
+            'Someone applied for your job...',
+            'APPLICATION',
+            taskId
+        )
+
         return data
     },
 
     assignWorker: async (taskId, workerId) => {
+        // Fetch title for notification
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('title')
+            .eq('id', taskId)
+            .single()
+        
+        if (fetchError) throw fetchError
+
         const { data, error } = await supabase
             .from('tasks')
             .update({ assigned_worker_id: workerId, status: 'ASSIGNED' })
             .eq('id', taskId)
         if (error) throw error
+
+        await notificationService.createNotification(
+            workerId,
+            'You are hired!',
+            `You have been assigned to: ${task.title}`,
+            'HIRED',
+            taskId
+        )
+
         return data
     },
 
     markTaskComplete: async (taskId) => {
+        // Fetch poster_id and title for notification
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('poster_id, title')
+            .eq('id', taskId)
+            .single()
+        
+        if (fetchError) throw fetchError
+
         const { data, error } = await supabase
             .from('tasks')
             .update({ status: 'PENDING_CONFIRMATION' })
             .eq('id', taskId)
         if (error) throw error
+
+        await notificationService.createNotification(
+            task.poster_id,
+            'Work Submitted',
+            `Tasker marked ${task.title} as complete.`,
+            'COMPLETED',
+            taskId
+        )
+
         return data
     },
 
     confirmCompletion: async (taskId) => {
+        // Fetch worker_id and title for notification
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('assigned_worker_id, title')
+            .eq('id', taskId)
+            .single()
+        
+        if (fetchError) throw fetchError
+
         const { data, error } = await supabase
             .from('tasks')
             .update({ status: 'COMPLETED' })
             .eq('id', taskId)
         if (error) throw error
+
+        await notificationService.createNotification(
+            task.assigned_worker_id,
+            'Payment Released',
+            `Job ${task.title} is officially complete!`,
+            'COMPLETED',
+            taskId
+        )
+
         return data
     },
 

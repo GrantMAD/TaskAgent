@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { FontAwesome } from '@expo/vector-icons';
 
 export const HomeScreen = ({ navigation }) => {
-    const [nearbyTasks, setNearbyTasks] = useState([]);
+    const { theme, shadows } = useTheme();
     const [myGigs, setMyGigs] = useState([]);
     const [myPostedTasks, setMyPostedTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [profile, setProfile] = useState(null);
+
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
         fetchAllData();
@@ -21,16 +25,20 @@ export const HomeScreen = ({ navigation }) => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             
-            // 1. Get Public Feed
-            const nearbyData = await taskService.getNearbyTasks();
-            setNearbyTasks(nearbyData.slice(0, 3));
-
             if (session) {
-                // 2. Get Tasks I'm Hired For (Worker Role)
+                // Fetch Profile for stats
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                setProfile(userData);
+
+                // 1. Get Tasks I'm Hired For (Worker Role)
                 const gigsData = await taskService.getMyAssignedTasks(session.user.id);
                 setMyGigs(gigsData);
 
-                // 3. Get Tasks I Created (Poster Role)
+                // 2. Get Tasks I Created (Poster Role)
                 const postedData = await taskService.getMyPostedTasks(session.user.id);
                 setMyPostedTasks(postedData);
             }
@@ -47,15 +55,10 @@ export const HomeScreen = ({ navigation }) => {
         fetchAllData();
     };
 
-    const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) Alert.alert('Error', error.message);
-    };
-
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -65,138 +68,163 @@ export const HomeScreen = ({ navigation }) => {
             style={styles.container} 
             showsVerticalScrollIndicator={false}
             refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
             }
         >
             <View style={styles.welcomeSection}>
                 <View style={styles.welcomeHeader}>
-                    <Text style={styles.welcomeText}>Your Hub</Text>
-                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                        <FontAwesome name="sign-out" size={22} color={Colors.white} />
+                    <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                </View>
+                <Text style={styles.subtitleText}>Your neighborhood task hub</Text>
+                
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statNumber}>{profile?.completed_tasks || 0}</Text>
+                        <Text style={styles.statLabel}>Jobs Done</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statNumber}>{profile?.rating?.toFixed(1) || '5.0'}</Text>
+                        <Text style={styles.statLabel}>Rating</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* In Progress Sections */}
+            {(myPostedTasks.length > 0 || myGigs.length > 0) ? (
+                <>
+                    {myPostedTasks.length > 0 && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>My Active Postings</Text>
+                            </View>
+                            {myPostedTasks.map((item) => (
+                                <TaskCard
+                                    key={item.id}
+                                    task={item}
+                                    onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                                />
+                            ))}
+                        </View>
+                    )}
+
+                    {myGigs.length > 0 && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Jobs In Progress</Text>
+                            </View>
+                            {myGigs.map((item) => (
+                                <TaskCard
+                                    key={item.id}
+                                    task={item}
+                                    onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                                />
+                            ))}
+                        </View>
+                    )}
+                </>
+            ) : (
+                <View style={styles.emptyHub}>
+                    <FontAwesome name="calendar-check-o" size={50} color={theme.border} />
+                    <Text style={styles.emptyHubText}>No active tasks right now.</Text>
+                    <TouchableOpacity 
+                        style={styles.browseButton}
+                        onPress={() => navigation.navigate('TasksTab')}
+                    >
+                        <Text style={styles.browseButtonText}>Browse Local Jobs</Text>
                     </TouchableOpacity>
                 </View>
-                <Text style={styles.subtitleText}>Ready to help or get things done?</Text>
-            </View>
+            )}
 
-            {/* My Postings Section (Tasks I created that are in progress) */}
-            {myPostedTasks.length > 0 && (
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>My Task Postings</Text>
+            {/* Quick Tips Section */}
+            <View style={styles.tipsSection}>
+                <Text style={styles.sectionTitleAlt}>Neighborhood Tips</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
+                    <View style={styles.tipCard}>
+                        <FontAwesome name="shield" size={24} color={theme.accent} />
+                        <Text style={styles.tipTitle}>Stay Safe</Text>
+                        <Text style={styles.tipDesc}>Always meet in public places for the first time.</Text>
                     </View>
-                    {myPostedTasks.map((item) => (
-                        <TaskCard
-                            key={item.id}
-                            task={item}
-                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                        />
-                    ))}
-                </View>
-            )}
-
-            {/* My Active Gigs Section (Tasks I'm working on) */}
-            {myGigs.length > 0 && (
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Tasks I'm Doing</Text>
+                    <View style={styles.tipCard}>
+                        <FontAwesome name="star" size={24} color={theme.accent} />
+                        <Text style={styles.tipTitle}>Build Trust</Text>
+                        <Text style={styles.tipDesc}>Complete tasks on time to earn 5-star reviews.</Text>
                     </View>
-                    {myGigs.map((item) => (
-                        <TaskCard
-                            key={item.id}
-                            task={item}
-                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                        />
-                    ))}
-                </View>
-            )}
-
-            {/* Nearby Tasks Section */}
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Browse New Tasks</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('TasksTab')}>
-                    <Text style={styles.viewAllLink}>See all</Text>
-                </TouchableOpacity>
-            </View>
-
-            {nearbyTasks.length > 0 ? (
-                nearbyTasks.map((item) => (
-                    <TaskCard
-                        key={item.id}
-                        task={item}
-                        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                    />
-                ))
-            ) : (
-                <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateText}>No new tasks nearby yet!</Text>
-                </View>
-            )}
-
-            <View style={styles.actionSection}>
-                <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => navigation.navigate('CreateTab')}
-                >
-                    <Text style={styles.primaryButtonText}>Post a Task</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => navigation.navigate('TasksTab')}
-                >
-                    <Text style={styles.secondaryButtonText}>Browse Gigs</Text>
-                </TouchableOpacity>
+                    <View style={styles.tipCard}>
+                        <FontAwesome name="comments" size={24} color={theme.accent} />
+                        <Text style={styles.tipTitle}>Communicate</Text>
+                        <Text style={styles.tipDesc}>Keep neighbors updated through the chat.</Text>
+                    </View>
+                </ScrollView>
             </View>
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     welcomeSection: {
         paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.lg,
-        paddingTop: 60,
-        backgroundColor: Colors.primary,
+        paddingBottom: Spacing.xl,
+        paddingTop: Spacing.lg,
+        backgroundColor: theme.primary,
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
         marginBottom: Spacing.md,
-        ...Shadow.medium,
-    },
-    welcomeHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    logoutButton: {
-        padding: 4,
+        ...shadows.medium,
     },
     welcomeText: {
         fontSize: 28,
         fontWeight: '800',
-        color: Colors.white,
+        color: theme.white,
     },
     subtitleText: {
         fontSize: 16,
         color: 'rgba(255, 255, 255, 0.8)',
         marginTop: 4,
     },
+    statsRow: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        marginTop: Spacing.lg,
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+        alignItems: 'center',
+        justifyContent: 'space-around',
+    },
+    statItem: {
+        alignItems: 'center',
+    },
+    statNumber: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: theme.white,
+    },
+    statLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.6)',
+        textTransform: 'uppercase',
+        marginTop: 2,
+    },
+    statDivider: {
+        width: 1,
+        height: 30,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+    },
     section: {
         marginBottom: Spacing.md,
     },
     sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         paddingHorizontal: Spacing.lg,
         marginTop: Spacing.md,
         marginBottom: Spacing.sm,
@@ -204,50 +232,67 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: Colors.primary,
+        color: theme.primary,
     },
-    viewAllLink: {
-        color: Colors.accent,
+    sectionTitleAlt: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: theme.primary,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+    },
+    emptyHub: {
+        padding: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyHubText: {
+        color: theme.textMuted,
+        fontSize: 16,
+        marginTop: Spacing.md,
+        marginBottom: Spacing.lg,
+    },
+    browseButton: {
+        backgroundColor: theme.surface,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: Rounding.pill,
+        borderWidth: 2,
+        borderColor: theme.primary,
+    },
+    browseButtonText: {
+        color: theme.primary,
         fontWeight: '700',
         fontSize: 14,
     },
-    actionSection: {
-        padding: Spacing.lg,
+    tipsSection: {
         marginTop: Spacing.md,
         paddingBottom: 120,
     },
-    primaryButton: {
-        backgroundColor: Colors.accent,
+    tipsScroll: {
+        paddingLeft: Spacing.lg,
+        paddingRight: Spacing.md,
+    },
+    tipCard: {
+        backgroundColor: theme.card,
+        width: 200,
         padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        marginBottom: Spacing.sm,
-        ...Shadow.accent,
+        borderRadius: Rounding.soft,
+        marginRight: Spacing.md,
+        ...shadows.subtle,
+        borderWidth: 1,
+        borderColor: theme.border,
     },
-    primaryButtonText: {
-        color: Colors.white,
-        fontWeight: '700',
-        fontSize: 18,
-    },
-    secondaryButton: {
-        backgroundColor: Colors.white,
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: Colors.primary,
-    },
-    secondaryButtonText: {
-        color: Colors.primary,
-        fontWeight: '700',
+    tipTitle: {
         fontSize: 16,
+        fontWeight: '700',
+        color: theme.primary,
+        marginTop: Spacing.sm,
     },
-    emptyState: {
-        padding: Spacing.xl,
-        alignItems: 'center',
-    },
-    emptyStateText: {
-        color: Colors.textMuted,
-        fontSize: 16,
+    tipDesc: {
+        fontSize: 12,
+        color: theme.textMuted,
+        marginTop: 4,
+        lineHeight: 18,
     }
 });

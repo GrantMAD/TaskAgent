@@ -1,23 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
 import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { UserAvatar } from '../components/UserAvatar';
 import { RatingStars } from '../components/RatingStars';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { ReviewModal } from '../components/ReviewModal';
+import { useToast } from '../components/ToastContext';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
+    const { theme, shadows } = useTheme();
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [session, setSession] = useState(null);
+    const { showToast } = useToast();
     
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', or 'APPROVE'
@@ -47,7 +53,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Could not load task details');
+            showToast('Could not load task details', 'error');
         } finally {
             setLoading(false);
         }
@@ -57,9 +63,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         try {
             if (!session) return;
             await taskService.applyForTask(taskId, session.user.id, "I would like to apply for this task!");
-            Alert.alert('Success', 'Application submitted successfully!');
+            showToast('Application submitted successfully!', 'success');
         } catch (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         }
     };
 
@@ -68,7 +74,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             const conv = await messageService.createConversation(taskId);
             navigation.navigate('Chat', { conversationId: conv.id });
         } catch (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         }
     };
 
@@ -104,10 +110,10 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         setLoading(true);
         try {
             await taskService.assignWorker(taskId, selectedApplicant.id);
-            Alert.alert('Success', `${selectedApplicant.name} has been hired!`);
+            showToast(`${selectedApplicant.name} has been hired!`, 'success');
             fetchTaskDetails();
         } catch (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         } finally {
             setLoading(false);
             setSelectedApplicant(null);
@@ -119,10 +125,10 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         setLoading(true);
         try {
             await taskService.markTaskComplete(taskId);
-            Alert.alert('Success', 'Work submitted for confirmation!');
+            showToast('Work submitted for confirmation!', 'success');
             fetchTaskDetails();
         } catch (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         } finally {
             setLoading(false);
         }
@@ -137,7 +143,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setReviewModalVisible(true);
             fetchTaskDetails();
         } catch (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         } finally {
             setLoading(false);
         }
@@ -154,9 +160,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 comment
             });
             setReviewModalVisible(false);
-            Alert.alert('Success', 'Thank you for your feedback!');
+            showToast('Thank you for your feedback!', 'success');
         } catch (error) {
-            Alert.alert('Error', 'Failed to save review: ' + error.message);
+            showToast('Failed to save review: ' + error.message, 'error');
         } finally {
             setReviewLoading(false);
         }
@@ -165,7 +171,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     if (loading && !task) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -185,7 +191,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <FontAwesome name="chevron-left" size={20} color={Colors.white} />
+                    <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
@@ -203,16 +209,25 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         <View>
                             <Text style={styles.priceLabel}>Status</Text>
                             <Text style={[styles.statusText, { 
-                                color: task.status === 'OPEN' ? Colors.success : 
-                                       task.status === 'COMPLETED' ? Colors.success : Colors.accent 
+                                color: task.status === 'OPEN' ? theme.success : 
+                                       task.status === 'COMPLETED' ? theme.success : theme.accent 
                             }]}>
                                 {task.status.replace('_', ' ')}
                             </Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.priceLabel}>Budget</Text>
-                            <Text style={styles.payment}>${task.payment_amount}</Text>
+                            <Text style={styles.payment}>{task.payment_amount}</Text>
                         </View>
+                    </View>
+                </View>
+
+                {/* Location Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Location</Text>
+                    <View style={styles.posterCard}>
+                        <FontAwesome name="map-marker" size={24} color={theme.accent} style={{ marginRight: 15 }} />
+                        <Text style={styles.addressText}>{task.address || 'Location details will be shared once hired.'}</Text>
                     </View>
                 </View>
 
@@ -257,14 +272,14 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     {task.poster && (
                         <TouchableOpacity 
                             style={styles.posterCard}
-                            onPress={() => Alert.alert('WIP', 'View Public Profile')}
+                            onPress={() => showToast('This feature is coming soon!', 'info')}
                         >
                             <UserAvatar user={task.poster} size={50} />
                             <View style={styles.posterInfo}>
                                 <Text style={styles.posterName}>{task.poster.name}</Text>
                                 <RatingStars rating={task.poster.rating || 5} />
                             </View>
-                            <FontAwesome name="chevron-right" size={14} color={Colors.border} />
+                            <FontAwesome name="chevron-right" size={14} color={theme.border} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -274,15 +289,15 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     {/* Poster Action: Confirm Completion */}
                     {isPoster && task.status === 'PENDING_CONFIRMATION' && (
                         <TouchableOpacity style={styles.completeButton} onPress={triggerApproveModal}>
-                            <FontAwesome name="check-square-o" size={18} color={Colors.white} style={styles.buttonIcon} />
+                            <FontAwesome name="check-square-o" size={18} color={theme.white} style={styles.buttonIcon} />
                             <Text style={styles.applyButtonText}>Confirm Completion</Text>
                         </TouchableOpacity>
                     )}
 
                     {/* Worker Action: Mark as Complete */}
                     {isWorker && task.status === 'ASSIGNED' && (
-                        <TouchableOpacity style={[styles.completeButton, { backgroundColor: Colors.success }]} onPress={triggerCompleteModal}>
-                            <FontAwesome name="check-circle" size={18} color={Colors.white} style={styles.buttonIcon} />
+                        <TouchableOpacity style={[styles.completeButton, { backgroundColor: theme.success }]} onPress={triggerCompleteModal}>
+                            <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
                             <Text style={styles.applyButtonText}>Mark as Complete</Text>
                         </TouchableOpacity>
                     )}
@@ -290,7 +305,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     {/* Tasker Action: Apply */}
                     {!isPoster && !isWorker && task.status === 'OPEN' && (
                         <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-                            <FontAwesome name="check-circle" size={18} color={Colors.white} style={styles.buttonIcon} />
+                            <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
                             <Text style={styles.applyButtonText}>Apply for Task</Text>
                         </TouchableOpacity>
                     )}
@@ -298,7 +313,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     {/* Universal Action: Message */}
                     {session && (
                         <TouchableOpacity style={styles.messageButton} onPress={handleMessagePoster}>
-                            <FontAwesome name="envelope" size={18} color={Colors.primary} style={styles.buttonIcon} />
+                            <FontAwesome name="envelope" size={18} color={theme.primary} style={styles.buttonIcon} />
                             <Text style={styles.messageButtonText}>
                                 {isPoster ? 'Message Worker' : 'Message Neighbor'}
                             </Text>
@@ -309,24 +324,24 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 {/* Informational Badges */}
                 {isPoster && task.status === 'ASSIGNED' && (
                     <View style={styles.infoBadge}>
-                        <FontAwesome name="handshake-o" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
+                        <FontAwesome name="handshake-o" size={16} color={theme.primary} style={{ marginRight: 8 }} />
                         <Text style={styles.infoBadgeText}>Worker Assigned & In Progress</Text>
                     </View>
                 )}
 
                 {task.status === 'PENDING_CONFIRMATION' && (
-                    <View style={[styles.infoBadge, { backgroundColor: '#FFF4E5' }]}>
-                        <FontAwesome name="clock-o" size={16} color={Colors.accent} style={{ marginRight: 8 }} />
-                        <Text style={[styles.infoBadgeText, { color: Colors.accent }]}>
+                    <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(230, 138, 0, 0.2)' : '#FFF4E5' }]}>
+                        <FontAwesome name="clock-o" size={16} color={theme.accent} style={{ marginRight: 8 }} />
+                        <Text style={[styles.infoBadgeText, { color: theme.accent }]}>
                             {isWorker ? 'Waiting for Poster to confirm completion' : 'Worker has marked this as complete. Confirm?'}
                         </Text>
                     </View>
                 )}
 
                 {task.status === 'COMPLETED' && (
-                    <View style={[styles.infoBadge, { backgroundColor: '#E8F3ED' }]}>
-                        <FontAwesome name="check-circle" size={16} color={Colors.success} style={{ marginRight: 8 }} />
-                        <Text style={[styles.infoBadgeText, { color: Colors.success }]}>
+                    <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(40, 167, 69, 0.2)' : '#E8F3ED' }]}>
+                        <FontAwesome name="check-circle" size={16} color={theme.success} style={{ marginRight: 8 }} />
+                        <Text style={[styles.infoBadgeText, { color: theme.success }]}>
                             This task is successfully completed!
                         </Text>
                     </View>
@@ -346,7 +361,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     "Has the work been completed to your satisfaction? This will officially close the task."
                 }
                 confirmText={
-                    modalType === 'HIRE' ? "Hire Neighbor" : 
+                    modalType === 'HIRE' ? "Approve" : 
                     modalType === 'COMPLETE' ? "Submit Work" : 
                     "Approve & Close"
                 }
@@ -366,37 +381,37 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     emptyText: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontSize: 16,
     },
     header: {
-        backgroundColor: Colors.primary,
-        paddingTop: 60,
+        backgroundColor: theme.primary,
+        paddingTop: Spacing.lg,
         paddingBottom: Spacing.md,
         paddingHorizontal: Spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
         zIndex: 10,
     },
     backButton: {
@@ -411,7 +426,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '800',
-        color: Colors.white,
+        color: theme.white,
     },
     headerSpacer: {
         width: 40,
@@ -421,14 +436,14 @@ const styles = StyleSheet.create({
     },
     titleSection: {
         padding: Spacing.lg,
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.subtle,
+        ...shadows.subtle,
         marginBottom: Spacing.md,
     },
     categoryBadge: {
-        backgroundColor: '#E8EFF4',
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
         paddingHorizontal: Spacing.sm,
         paddingVertical: 4,
         borderRadius: Rounding.pill,
@@ -436,7 +451,7 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.sm,
     },
     categoryText: {
-        color: Colors.primary,
+        color: theme.primary,
         fontSize: 11,
         fontWeight: '800',
         textTransform: 'uppercase',
@@ -445,7 +460,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 26,
         fontWeight: '800',
-        color: Colors.primary,
+        color: theme.primary,
         marginBottom: Spacing.md,
     },
     priceRow: {
@@ -453,12 +468,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
+        borderTopColor: theme.border,
         paddingTop: Spacing.md,
     },
     priceLabel: {
         fontSize: 12,
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontWeight: '700',
         textTransform: 'uppercase',
         marginBottom: 2,
@@ -471,7 +486,7 @@ const styles = StyleSheet.create({
     payment: {
         fontSize: 28,
         fontWeight: '900',
-        color: Colors.accent,
+        color: theme.accent,
     },
     section: {
         paddingHorizontal: Spacing.lg,
@@ -480,32 +495,38 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.primary,
+        color: theme.primary,
         marginBottom: Spacing.sm,
         marginLeft: 4,
     },
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.md,
         borderRadius: Rounding.soft,
-        ...Shadow.subtle,
+        ...shadows.subtle,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.border,
     },
     description: {
         fontSize: 16,
-        color: Colors.text,
+        color: theme.text,
         lineHeight: 24,
+    },
+    addressText: {
+        fontSize: 16,
+        color: theme.text,
+        fontWeight: '600',
+        flex: 1,
     },
     posterCard: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.md,
         borderRadius: Rounding.soft,
         alignItems: 'center',
-        ...Shadow.subtle,
+        ...shadows.subtle,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.border,
     },
     posterInfo: {
         flex: 1,
@@ -514,18 +535,18 @@ const styles = StyleSheet.create({
     posterName: {
         fontSize: 16,
         fontWeight: '700',
-        color: Colors.primary,
+        color: theme.primary,
         marginBottom: 2,
     },
     applicantCard: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.md,
         borderRadius: Rounding.soft,
         alignItems: 'center',
-        ...Shadow.subtle,
+        ...shadows.subtle,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.border,
         marginBottom: Spacing.sm,
     },
     applicantInfo: {
@@ -535,21 +556,21 @@ const styles = StyleSheet.create({
     applicantName: {
         fontSize: 15,
         fontWeight: '700',
-        color: Colors.text,
+        color: theme.text,
     },
     acceptButtonSmall: {
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.primary,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: Rounding.pill,
     },
     acceptButtonTextSmall: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: '700',
         fontSize: 13,
     },
     emptyTextSmall: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontSize: 14,
         fontStyle: 'italic',
     },
@@ -558,42 +579,42 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xl,
     },
     applyButton: {
-        backgroundColor: Colors.accent,
+        backgroundColor: theme.accent,
         flexDirection: 'row',
         padding: Spacing.md,
         borderRadius: Rounding.pill,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: Spacing.md,
-        ...Shadow.accent,
+        ...shadows.accent,
     },
     completeButton: {
-        backgroundColor: Colors.primary, // Using primary navy for approval
+        backgroundColor: theme.primary, // Using primary navy for approval
         flexDirection: 'row',
         padding: Spacing.md,
         borderRadius: Rounding.pill,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: Spacing.md,
-        ...Shadow.subtle,
+        ...shadows.subtle,
     },
     applyButtonText: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: '700',
         fontSize: 18,
     },
     messageButton: {
-        backgroundColor: Colors.white,
+        backgroundColor: theme.surface,
         flexDirection: 'row',
         padding: Spacing.md,
         borderRadius: Rounding.pill,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
-        borderColor: Colors.primary,
+        borderColor: theme.primary,
     },
     messageButtonText: {
-        color: Colors.primary,
+        color: theme.primary,
         fontWeight: '700',
         fontSize: 16,
     },
@@ -605,13 +626,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: Spacing.xl,
-        backgroundColor: '#E8EFF4',
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
         padding: Spacing.md,
         marginHorizontal: Spacing.lg,
         borderRadius: Rounding.standard,
     },
     infoBadgeText: {
-        color: Colors.primary,
+        color: theme.primary,
         fontWeight: '600',
         fontSize: 14,
         textAlign: 'center',

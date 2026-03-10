@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { supabase } from '../services/supabaseClient';
 import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { useToast } from '../components/ToastContext';
 
 export const LoginScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const { showToast } = useToast();
 
     const handleLogin = async () => {
         if (loading) return;
@@ -15,7 +17,7 @@ export const LoginScreen = ({ navigation }) => {
         setLoading(false);
         if (error) {
             console.error('Login error details:', error);
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
         } else {
             console.log('Login success:', data.session ? 'Session established' : 'No session');
         }
@@ -79,7 +81,7 @@ export const LoginScreen = ({ navigation }) => {
                         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                             <Text style={styles.footerLink}>New here? Join us</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => Alert.alert('WIP', 'Forgot Password Flow')}>
+                        <TouchableOpacity onPress={() => showToast('This feature is coming soon!', 'info')}>
                             <Text style={styles.footerLinkMuted}>Forgot Password?</Text>
                         </TouchableOpacity>
                     </View>

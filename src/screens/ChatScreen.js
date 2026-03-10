@@ -1,18 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
 import { MessageBubble } from '../components/MessageBubble';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
+import { useToast } from '../components/ToastContext';
 
 export const ChatScreen = ({ route, navigation }) => {
+    const { theme, shadows } = useTheme();
     const { conversationId } = route.params;
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState('');
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
     const flatListRef = useRef(null);
+
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,14 +63,14 @@ export const ChatScreen = ({ route, navigation }) => {
             await messageService.sendMessage(conversationId, userId, messageText);
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to send message');
+            showToast('Failed to send message', 'error');
         }
     };
 
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -77,7 +83,7 @@ export const ChatScreen = ({ route, navigation }) => {
         >
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <FontAwesome name="chevron-left" size={20} color={Colors.white} />
+                    <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle}>Chat</Text>
@@ -98,13 +104,13 @@ export const ChatScreen = ({ route, navigation }) => {
                 onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
             />
 
-            <View style={[styles.inputContainer, Shadow.medium]}>
+            <View style={[styles.inputContainer, shadows.medium]}>
                 <TextInput
                     style={styles.input}
                     value={text}
                     onChangeText={setText}
                     placeholder="Type a message..."
-                    placeholderTextColor={Colors.textMuted}
+                    placeholderTextColor={theme.textMuted}
                     multiline
                 />
                 <TouchableOpacity 
@@ -112,26 +118,26 @@ export const ChatScreen = ({ route, navigation }) => {
                     onPress={handleSend}
                     disabled={!text.trim()}
                 >
-                    <FontAwesome name="send" size={18} color={Colors.white} />
+                    <FontAwesome name="send" size={18} color={theme.white} />
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.primary,
         paddingTop: 60,
         paddingBottom: Spacing.md,
         paddingHorizontal: Spacing.lg,
@@ -139,7 +145,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
         zIndex: 10,
     },
     backButton: {
@@ -154,7 +160,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '800',
-        color: Colors.white,
+        color: theme.white,
     },
     headerSpacer: {
         width: 40,
@@ -167,17 +173,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         padding: Spacing.sm,
         paddingHorizontal: Spacing.md,
-        backgroundColor: Colors.white,
+        backgroundColor: theme.surface,
         alignItems: 'flex-end',
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
+        borderTopColor: theme.border,
         paddingBottom: Platform.OS === 'ios' ? 30 : Spacing.sm, // Adjust for tab bar overlap if needed
     },
     input: {
         flex: 1,
-        backgroundColor: '#FAFBFA',
+        backgroundColor: theme.input,
         borderWidth: 1.5,
-        borderColor: Colors.border,
+        borderColor: theme.border,
         borderRadius: Rounding.standard,
         paddingHorizontal: 16,
         paddingTop: 10,
@@ -185,20 +191,20 @@ const styles = StyleSheet.create({
         marginRight: 10,
         fontSize: 16,
         maxHeight: 100,
-        color: Colors.text,
+        color: theme.text,
     },
     sendButton: {
-        backgroundColor: Colors.accent,
+        backgroundColor: theme.accent,
         width: 48,
         height: 48,
         borderRadius: Rounding.pill,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 2,
-        ...Shadow.accent,
+        ...shadows.accent,
     },
     sendButtonDisabled: {
-        backgroundColor: Colors.border,
+        backgroundColor: theme.border,
         opacity: 0.6,
     }
 });

@@ -1,297 +1,323 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
-import { UserAvatar } from '../components/UserAvatar';
-import { RatingStars } from '../components/RatingStars';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
+import { UserAvatar } from '../components/UserAvatar';
+import { useToast } from '../components/ToastContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const ProfileScreen = ({ navigation }) => {
+    const { theme, shadows } = useTheme();
     const [profile, setProfile] = useState(null);
+    const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    const fetchProfile = async () => {
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchProfileData();
+        }, [])
+    );
+
+    const fetchProfileData = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const data = await userService.getUserProfile(session.user.id);
-            setProfile(data);
+
+            const [userData, reviewData] = await Promise.all([
+                userService.getUserProfile(session.user.id),
+                userService.getUserReviews(session.user.id)
+            ]);
+
+            setProfile(userData);
+            setReviews(reviewData);
         } catch (error) {
             console.error(error);
+            showToast('Could not load profile', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) Alert.alert('Error', error.message);
-    };
-
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-            </View>
-        );
-    }
-    
-    if (!profile) {
-        return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Profile not found</Text>
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-                <View style={styles.avatarWrapper}>
-                    <UserAvatar user={profile} size={120} />
-                </View>
-                <Text style={styles.name}>{profile.name}</Text>
-                <RatingStars rating={profile.rating || 5} />
-                
-                <View style={styles.statsContainer}>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>{profile.completed_tasks || 0}</Text>
-                        <Text style={styles.statLabel}>COMPLETED</Text>
+                <View style={styles.profileHeader}>
+                    {profile?.profile_image ? (
+                        <Image source={{ uri: profile.profile_image }} style={styles.profileImage} />
+                    ) : (
+                        <UserAvatar user={profile} size={100} />
+                    )}
+                    <Text style={styles.name}>{profile?.name}</Text>
+                    <Text style={styles.phone}>{profile?.phone}</Text>
+                    
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{profile?.rating?.toFixed(1) || '0.0'}</Text>
+                            <Text style={styles.statLabel}>Rating</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{profile?.completed_tasks || 0}</Text>
+                            <Text style={styles.statLabel}>Jobs Done</Text>
+                        </View>
                     </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>{profile.rating?.toFixed(1) || '5.0'}</Text>
-                        <Text style={styles.statLabel}>RATING</Text>
-                    </View>
-                </View>
-            </View>
 
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>About Me</Text>
-                <View style={styles.card}>
-                    <Text style={styles.bio}>{profile.bio || 'No bio provided.'}</Text>
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Contact Information</Text>
-                <View style={styles.card}>
-                    <View style={styles.contactItem}>
-                        <FontAwesome name="envelope" size={16} color={Colors.primary} style={styles.contactIcon} />
-                        <Text style={styles.contactText}>{profile.email}</Text>
-                    </View>
-                    <View style={styles.contactDivider} />
-                    <View style={styles.contactItem}>
-                        <FontAwesome name="phone" size={16} color={Colors.primary} style={styles.contactIcon} />
-                        <Text style={styles.contactText}>{profile.phone || 'No phone provided'}</Text>
-                    </View>
+                    <TouchableOpacity 
+                        style={styles.editButton}
+                        onPress={() => navigation.navigate('EditProfile')}
+                    >
+                        <FontAwesome name="edit" size={16} color={theme.white} style={{ marginRight: 8 }} />
+                        <Text style={styles.editButtonText}>Edit Profile</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
 
-            <View style={styles.actions}>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => Alert.alert('WIP')}>
-                    <FontAwesome name="edit" size={18} color={Colors.white} style={styles.buttonIcon} />
-                    <Text style={styles.primaryButtonText}>Edit Profile</Text>
-                </TouchableOpacity>
+            <View style={styles.content}>
+                {/* Bio Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>About Me</Text>
+                    <View style={styles.card}>
+                        <Text style={styles.bioText}>
+                            {profile?.bio || "No bio added yet. Tell your neighbors about yourself!"}
+                        </Text>
+                    </View>
+                </View>
 
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('TaskHistory')}>
-                    <FontAwesome name="history" size={18} color={Colors.primary} style={styles.buttonIcon} />
-                    <Text style={styles.secondaryButtonText}>Task History</Text>
-                </TouchableOpacity>
+                {/* Skills Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Skills</Text>
+                    <View style={styles.skillsContainer}>
+                        {profile?.skills && profile.skills.length > 0 ? (
+                            profile.skills.map((skill, index) => (
+                                <View key={index} style={styles.skillBadge}>
+                                    <Text style={styles.skillText}>{skill}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={styles.emptyText}>No skills listed yet.</Text>
+                        )}
+                    </View>
+                </View>
 
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => Alert.alert('WIP')}>
-                    <FontAwesome name="star" size={18} color={Colors.primary} style={styles.buttonIcon} />
-                    <Text style={styles.secondaryButtonText}>View Reviews</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <FontAwesome name="sign-out" size={18} color={Colors.error} style={styles.buttonIcon} />
-                    <Text style={styles.logoutButtonText}>Sign Out</Text>
-                </TouchableOpacity>
+                {/* Reviews Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
+                    {reviews.length > 0 ? (
+                        reviews.map((review) => (
+                            <View key={review.id} style={styles.reviewCard}>
+                                <View style={styles.reviewHeader}>
+                                    <UserAvatar user={review.reviewer} size={30} />
+                                    <View style={styles.reviewInfo}>
+                                        <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                        <View style={styles.ratingRow}>
+                                            {[1, 2, 3, 4, 5].map((s) => (
+                                                <FontAwesome 
+                                                    key={s} 
+                                                    name={s <= review.rating ? "star" : "star-o"} 
+                                                    size={12} 
+                                                    color={theme.accent} 
+                                                />
+                                            ))}
+                                        </View>
+                                    </View>
+                                    <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
+                                </View>
+                                <Text style={styles.reviewComment}>{review.comment}</Text>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.card}>
+                            <Text style={styles.emptyText}>No reviews yet.</Text>
+                        </View>
+                    )}
+                </View>
             </View>
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: Colors.background,
-    },
-    emptyText: {
-        color: Colors.textMuted,
-        fontSize: 16,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingBottom: 100, // Extra space for tab bar
+        backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: Colors.primary,
-        paddingTop: 60,
+        backgroundColor: theme.primary,
         paddingBottom: Spacing.xl,
-        paddingHorizontal: Spacing.lg,
-        alignItems: 'center',
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
     },
-    avatarWrapper: {
-        borderWidth: 4,
-        borderColor: Colors.white,
-        borderRadius: 100,
-        ...Shadow.subtle,
+    profileHeader: {
+        alignItems: 'center',
+        paddingTop: Spacing.lg,
+    },
+    profileImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: theme.white,
+        marginBottom: Spacing.md,
     },
     name: {
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: '800',
-        color: Colors.white,
-        marginTop: Spacing.md,
-        marginBottom: Spacing.xs,
-        textAlign: 'center',
+        color: theme.white,
     },
-    statsContainer: {
+    phone: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.7)',
+        marginTop: 4,
+    },
+    statsRow: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
         marginTop: Spacing.lg,
-        paddingVertical: Spacing.md,
-        paddingHorizontal: Spacing.xl,
-        borderRadius: Rounding.standard,
-        ...Shadow.subtle,
+        alignItems: 'center',
         width: '80%',
         justifyContent: 'space-around',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+    },
+    statItem: {
         alignItems: 'center',
     },
-    statBox: {
-        alignItems: 'center',
-    },
-    statNumber: {
+    statValue: {
         fontSize: 20,
         fontWeight: '800',
-        color: Colors.primary,
+        color: theme.white,
     },
     statLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: Colors.textMuted,
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.6)',
         marginTop: 2,
     },
     statDivider: {
         width: 1,
-        height: '80%',
-        backgroundColor: Colors.border,
+        height: 30,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    editButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.accent,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: Rounding.pill,
+        marginTop: Spacing.lg,
+        ...shadows.subtle,
+    },
+    editButtonText: {
+        color: theme.white,
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    content: {
+        padding: Spacing.lg,
+        paddingBottom: 100,
     },
     section: {
-        padding: Spacing.lg,
+        marginBottom: Spacing.xl,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: Colors.primary,
-        marginBottom: Spacing.sm,
+        color: theme.primary,
+        marginBottom: Spacing.md,
         marginLeft: 4,
     },
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.md,
         borderRadius: Rounding.soft,
-        ...Shadow.subtle,
+        ...shadows.subtle,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.border,
     },
-    bio: {
+    bioText: {
         fontSize: 15,
-        color: Colors.text,
+        color: theme.text,
         lineHeight: 22,
     },
-    contactItem: {
+    skillsContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 4,
+        flexWrap: 'wrap',
     },
-    contactIcon: {
-        width: 24,
-        marginRight: Spacing.sm,
-    },
-    contactText: {
-        fontSize: 15,
-        color: Colors.text,
-        fontWeight: '500',
-    },
-    contactDivider: {
-        height: 1,
-        backgroundColor: Colors.border,
-        marginVertical: Spacing.sm,
-    },
-    actions: {
-        padding: Spacing.lg,
-        marginTop: Spacing.sm,
-    },
-    primaryButton: {
-        backgroundColor: Colors.accent,
-        flexDirection: 'row',
-        padding: Spacing.md,
+    skillBadge: {
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
         borderRadius: Rounding.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
+        marginRight: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    skillText: {
+        color: theme.primary,
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    reviewCard: {
+        backgroundColor: theme.card,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
         marginBottom: Spacing.md,
-        ...Shadow.accent,
+        ...shadows.subtle,
+        borderWidth: 1,
+        borderColor: theme.border,
     },
-    primaryButtonText: {
-        color: Colors.white,
-        fontWeight: '700',
-        fontSize: 16,
-    },
-    secondaryButton: {
-        backgroundColor: Colors.white,
+    reviewHeader: {
         flexDirection: 'row',
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
         alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: Colors.primary,
-        marginBottom: Spacing.md,
+        marginBottom: Spacing.sm,
     },
-    secondaryButtonText: {
-        color: Colors.primary,
+    reviewInfo: {
+        flex: 1,
+        marginLeft: Spacing.sm,
+    },
+    reviewerName: {
+        fontSize: 14,
         fontWeight: '700',
-        fontSize: 16,
+        color: theme.primary,
     },
-    logoutButton: {
-        backgroundColor: 'transparent',
+    ratingRow: {
         flexDirection: 'row',
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: Colors.error,
-        marginTop: Spacing.md,
+        marginTop: 2,
     },
-    logoutButtonText: {
-        color: Colors.error,
-        fontWeight: '700',
-        fontSize: 16,
+    reviewDate: {
+        fontSize: 12,
+        color: theme.textMuted,
     },
-    buttonIcon: {
-        marginRight: 10,
+    reviewComment: {
+        fontSize: 14,
+        color: theme.text,
+        lineHeight: 20,
+    },
+    emptyText: {
+        color: theme.textMuted,
+        fontSize: 14,
+        fontStyle: 'italic',
     }
 });

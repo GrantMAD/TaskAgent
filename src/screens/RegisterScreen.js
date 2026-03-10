@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
 import { supabase } from '../services/supabaseClient';
 import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { useToast } from '../components/ToastContext';
 
 export const RegisterScreen = ({ navigation }) => {
     const [name, setName] = useState('');
@@ -9,6 +10,7 @@ export const RegisterScreen = ({ navigation }) => {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const { showToast } = useToast();
 
     const handleRegister = async () => {
         if (loading) return;
@@ -26,15 +28,15 @@ export const RegisterScreen = ({ navigation }) => {
 
         setLoading(false);
         if (error) {
-            Alert.alert('Error', error.message);
+            showToast(error.message, 'error');
             return;
         }
 
         if (data.user) {
             if (data.session) {
-                Alert.alert('Success', 'Welcome to the community!');
+                showToast('Welcome to the community!', 'success');
             } else {
-                Alert.alert('Success', 'Check your email for a confirmation link.');
+                showToast('Check your email for a confirmation link.', 'success');
                 navigation.navigate('Login');
             }
         }

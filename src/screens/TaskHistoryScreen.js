@@ -1,31 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { taskService } from '../services/taskService';
-import { supabase } from '../services/supabaseClient';
 import { TaskCard } from '../components/TaskCard';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { supabase } from '../services/supabaseClient';
+import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTheme } from '../components/ThemeContext';
 
 export const TaskHistoryScreen = ({ navigation }) => {
-    const [history, setHistory] = useState([]);
+    const { theme, shadows } = useTheme();
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [userId, setUserId] = useState(null);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                setUserId(session.user.id);
-                fetchHistory(session.user.id);
-            }
-        });
+        fetchHistory();
     }, []);
 
-    const fetchHistory = async (uid, isRefreshing = false) => {
-        if (isRefreshing) setRefreshing(true);
+    const fetchHistory = async () => {
         try {
-            const data = await taskService.getTaskHistory(uid);
-            setHistory(data);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const data = await taskService.getTaskHistory(session.user.id);
+                setTasks(data);
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -35,13 +35,14 @@ export const TaskHistoryScreen = ({ navigation }) => {
     };
 
     const onRefresh = () => {
-        if (userId) fetchHistory(userId, true);
+        setRefreshing(true);
+        fetchHistory();
     };
 
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -49,42 +50,30 @@ export const TaskHistoryScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <FontAwesome name="chevron-left" size={20} color={Colors.white} />
-                </TouchableOpacity>
-                <View style={styles.headerTitleContainer}>
-                    <Text style={styles.headerTitle}>Task History</Text>
-                </View>
-                <View style={styles.headerSpacer} />
+                <Text style={styles.headerTitle}>Task History</Text>
+                <Text style={styles.headerSubtitle}>A record of your completed neighborhood jobs.</Text>
             </View>
 
             <FlatList
-                data={history}
+                data={tasks}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
                 }
-                renderItem={({ item }) => {
-                    const isPoster = item.poster_id === userId;
-                    return (
-                        <View style={styles.historyItemWrapper}>
-                            <View style={[styles.roleBadge, { backgroundColor: isPoster ? Colors.primary : Colors.accent }]}>
-                                <Text style={styles.roleText}>{isPoster ? 'HIRING' : 'WORKING'}</Text>
-                            </View>
-                            <TaskCard
-                                task={item}
-                                onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                            />
-                        </View>
-                    );
-                }}
+                renderItem={({ item }) => (
+                    <TaskCard
+                        task={item}
+                        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                    />
+                )}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <FontAwesome name="history" size={48} color={Colors.border} style={styles.emptyIcon} />
-                        <Text style={styles.emptyText}>No completed tasks yet.</Text>
-                        <Text style={styles.emptySubtext}>Your journey in the marketplace starts here!</Text>
+                        <View style={styles.emptyIconCircle}>
+                            <FontAwesome name="history" size={40} color={theme.textMuted} />
+                        </View>
+                        <Text style={styles.emptyTitle}>No history yet</Text>
+                        <Text style={styles.emptySubtext}>Completed tasks will appear here.</Text>
                     </View>
                 }
             />
@@ -92,85 +81,65 @@ export const TaskHistoryScreen = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: Colors.primary,
-        paddingTop: 60,
-        paddingBottom: Spacing.md,
+        backgroundColor: theme.primary,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.lg,
         paddingHorizontal: Spacing.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
         zIndex: 10,
     },
-    backButton: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-    },
-    headerTitleContainer: {
-        flex: 1,
-        alignItems: 'center',
-    },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 28,
         fontWeight: '800',
-        color: Colors.white,
+        color: theme.white,
     },
-    headerSpacer: {
-        width: 40,
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.7)',
+        marginTop: 4,
+        fontWeight: '600',
     },
     listContent: {
         paddingVertical: Spacing.md,
         paddingBottom: 100,
-    },
-    historyItemWrapper: {
-        position: 'relative',
-    },
-    roleBadge: {
-        position: 'absolute',
-        top: 12,
-        right: 24,
-        zIndex: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 2,
-        borderRadius: Rounding.tight,
-        ...Shadow.subtle,
-    },
-    roleText: {
-        color: Colors.white,
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 0.5,
     },
     emptyState: {
         padding: Spacing.xl,
         alignItems: 'center',
         marginTop: 60,
     },
-    emptyIcon: {
+    emptyIconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: theme.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: Spacing.md,
+        ...shadows.subtle,
     },
-    emptyText: {
-        color: Colors.text,
+    emptyTitle: {
+        color: theme.text,
         fontSize: 18,
         fontWeight: '700',
         textAlign: 'center',
     },
     emptySubtext: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontSize: 14,
         textAlign: 'center',
         marginTop: 8,

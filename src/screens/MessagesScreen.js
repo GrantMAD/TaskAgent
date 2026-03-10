@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
 import { UserAvatar } from '../components/UserAvatar';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 
 export const MessagesScreen = ({ navigation }) => {
+    const { theme, shadows } = useTheme();
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
         fetchConversations();
@@ -37,7 +41,7 @@ export const MessagesScreen = ({ navigation }) => {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -58,8 +62,8 @@ export const MessagesScreen = ({ navigation }) => {
                     <RefreshControl 
                         refreshing={refreshing} 
                         onRefresh={onRefresh} 
-                        colors={[Colors.accent]}
-                        tintColor={Colors.accent}
+                        colors={[theme.accent]}
+                        tintColor={theme.accent}
                     />
                 }
                 renderItem={({ item }) => (
@@ -72,7 +76,7 @@ export const MessagesScreen = ({ navigation }) => {
                         <View style={styles.textContainer}>
                             <View style={styles.rowHeader}>
                                 <Text style={styles.taskTitle} numberOfLines={1}>{item.task?.title || 'Unknown Task'}</Text>
-                                <FontAwesome name="chevron-right" size={12} color={Colors.border} />
+                                <FontAwesome name="chevron-right" size={12} color={theme.border} />
                             </View>
                             <Text style={styles.preview} numberOfLines={1}>Tap to view messages...</Text>
                         </View>
@@ -80,7 +84,7 @@ export const MessagesScreen = ({ navigation }) => {
                 )}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <FontAwesome name="comments-o" size={48} color={Colors.border} style={styles.emptyIcon} />
+                        <FontAwesome name="comments-o" size={48} color={theme.border} style={styles.emptyIcon} />
                         <Text style={styles.emptyText}>No conversations yet.</Text>
                         <Text style={styles.emptySubtext}>Message a neighbor about a task to start!</Text>
                     </View>
@@ -90,31 +94,31 @@ export const MessagesScreen = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: Colors.primary,
-        paddingTop: 60,
+        backgroundColor: theme.primary,
+        paddingTop: Spacing.lg,
         paddingBottom: Spacing.lg,
         paddingHorizontal: Spacing.lg,
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
         zIndex: 10,
     },
     headerTitle: {
         fontSize: 28,
         fontWeight: '800',
-        color: Colors.white,
+        color: theme.white,
     },
     headerSubtitle: {
         fontSize: 15,
@@ -127,15 +131,15 @@ const styles = StyleSheet.create({
     },
     conversationRow: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.md,
         marginHorizontal: Spacing.md,
         marginVertical: 4,
         borderRadius: Rounding.soft,
         alignItems: 'center',
-        ...Shadow.subtle,
+        ...shadows.subtle,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.border,
     },
     textContainer: {
         marginLeft: Spacing.md,
@@ -149,12 +153,12 @@ const styles = StyleSheet.create({
     taskTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: Colors.primary,
+        color: theme.primary,
         flex: 1,
         marginRight: 8,
     },
     preview: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         marginTop: 2,
         fontSize: 14,
     },
@@ -167,13 +171,13 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.md,
     },
     emptyText: {
-        color: Colors.text,
+        color: theme.text,
         fontSize: 18,
         fontWeight: '700',
         textAlign: 'center',
     },
     emptySubtext: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontSize: 14,
         textAlign: 'center',
         marginTop: 8,
