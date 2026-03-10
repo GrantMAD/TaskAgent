@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Platform, Alert } from 'react-native';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
 import { userService } from '../services/userService';
@@ -12,9 +12,12 @@ import { RatingStars } from '../components/RatingStars';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { ReviewModal } from '../components/ReviewModal';
 import { useToast } from '../components/ToastContext';
+import { useLocation } from '../components/LocationContext';
+import TaskMap from '../components/TaskMap';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
+    const { userLocation, calculateDistance } = useLocation();
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
     const [applications, setApplications] = useState([]);
@@ -23,6 +26,18 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const { showToast } = useToast();
     
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const distance = useMemo(() => {
+        if (userLocation && task?.location_lat && task?.location_lng) {
+            return calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                task.location_lat,
+                task.location_lng
+            );
+        }
+        return null;
+    }, [userLocation, task?.location_lat, task?.location_lng]);
 
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -227,8 +242,25 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.posterCard}>
                         <FontAwesome name="map-marker" size={24} color={theme.accent} style={{ marginRight: 15 }} />
-                        <Text style={styles.addressText}>{task.address || 'Location details will be shared once hired.'}</Text>
+                        <Text style={styles.addressText}>
+                            {isPoster || isWorker 
+                                ? (task.address || 'Address not set') 
+                                : (distance ? `${distance.toFixed(1)} km away` : 'Location shared when hired')
+                            }
+                        </Text>
                     </View>
+
+                    {/* Map - Only show if coordinates are available AND (isPoster OR isWorker) */}
+                    {(isPoster || isWorker) && task.location_lat && task.location_lng && (
+                        <View style={styles.mapContainer}>
+                            <TaskMap 
+                                latitude={task.location_lat}
+                                longitude={task.location_lng}
+                                title={task.title}
+                                Rounding={Rounding.soft}
+                            />
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.section}>
@@ -637,5 +669,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 14,
         textAlign: 'center',
         flex: 1,
+    },
+    mapContainer: {
+        marginTop: Spacing.md,
+        borderRadius: Rounding.soft,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: theme.border,
+        height: 200,
+        ...shadows.subtle,
+    },
+    mapView: {
+        width: '100%',
+        height: '100%',
     }
 });

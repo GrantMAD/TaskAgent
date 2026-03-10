@@ -3,10 +3,24 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
+import { useLocation } from './LocationContext';
 
 export const TaskCard = ({ task, onPress }) => {
     const { theme, shadows } = useTheme();
+    const { userLocation, calculateDistance } = useLocation();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const distance = useMemo(() => {
+        if (userLocation && task.location_lat && task.location_lng) {
+            return calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                task.location_lat,
+                task.location_lng
+            );
+        }
+        return null;
+    }, [userLocation, task.location_lat, task.location_lng]);
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress}>
@@ -15,12 +29,12 @@ export const TaskCard = ({ task, onPress }) => {
                 <Text style={styles.payment}>{task.payment_amount}</Text>
             </View>
             
-            {task.address && (
-                <View style={styles.locationRow}>
-                    <FontAwesome name="map-marker" size={14} color={theme.textMuted} />
-                    <Text style={styles.locationText} numberOfLines={1}>{task.address}</Text>
-                </View>
-            )}
+            <View style={styles.locationRow}>
+                <FontAwesome name="map-marker" size={14} color={theme.accent} />
+                <Text style={styles.locationText} numberOfLines={1}>
+                    {distance ? `${distance.toFixed(1)} km away` : 'Location shared when hired'}
+                </Text>
+            </View>
 
             <View style={styles.details}>
                 <View style={styles.categoryBadge}>

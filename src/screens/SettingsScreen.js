@@ -4,9 +4,11 @@ import { useTheme } from '../components/ThemeContext';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
+import { useLocation } from '../components/LocationContext';
 
 export const SettingsScreen = ({ navigation }) => {
     const { theme, isDarkMode, toggleTheme, shadows } = useTheme();
+    const { searchRadius, updateSearchRadius } = useLocation();
     const { showToast } = useToast();
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
@@ -19,6 +21,14 @@ export const SettingsScreen = ({ navigation }) => {
             showToast('Failed to update preference', 'error');
         }
     };
+
+    const radiusOptions = [
+        { label: '5km', value: 5 },
+        { label: '10km', value: 10 },
+        { label: '25km', value: 25 },
+        { label: '50km', value: 50 },
+        { label: 'All', value: 99999 },
+    ];
 
     return (
         <View style={styles.container}>
@@ -49,6 +59,38 @@ export const SettingsScreen = ({ navigation }) => {
                         trackColor={{ false: theme.border, true: theme.accent }}
                         thumbColor={theme.white}
                     />
+                </View>
+
+                <View style={[styles.settingCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                    <View style={styles.settingInfo}>
+                        <View style={[styles.iconBox, { backgroundColor: theme.accent }]}>
+                            <FontAwesome name="map-marker" size={18} color={theme.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.settingLabel}>Job Search Distance</Text>
+                            <Text style={styles.settingSublabel}>Show tasks within this radius</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.radiusSelector}>
+                        {radiusOptions.map((opt) => (
+                            <TouchableOpacity 
+                                key={opt.value}
+                                style={[
+                                    styles.radiusButton,
+                                    searchRadius === opt.value && styles.radiusButtonActive
+                                ]}
+                                onPress={() => updateSearchRadius(opt.value)}
+                            >
+                                <Text style={[
+                                    styles.radiusText,
+                                    searchRadius === opt.value && styles.radiusTextActive
+                                ]}>
+                                    {opt.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
 
                 <Text style={styles.sectionTitle}>Account</Text>
@@ -173,5 +215,34 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 12,
         color: theme.textMuted,
         fontWeight: '600',
+    },
+    radiusSelector: {
+        flexDirection: 'row',
+        marginTop: Spacing.md,
+        width: '100%',
+        justifyContent: 'space-between',
+        paddingTop: Spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: theme.border,
+    },
+    radiusButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: Rounding.pill,
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#F0F0F0',
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    radiusButtonActive: {
+        backgroundColor: theme.accent,
+        borderColor: theme.accent,
+    },
+    radiusText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.textMuted,
+    },
+    radiusTextActive: {
+        color: theme.white,
     }
 });

@@ -6,6 +6,8 @@ import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { FontAwesome } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const HomeScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -19,7 +21,28 @@ export const HomeScreen = ({ navigation }) => {
 
     useEffect(() => {
         fetchAllData();
+        checkLocationPermission();
     }, []);
+
+    const checkLocationPermission = async () => {
+        try {
+            const hasSeenPrompt = await AsyncStorage.getItem('hasSeenLocationPrompt');
+            if (hasSeenPrompt) return;
+
+            const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+            
+            if (existingStatus !== 'granted') {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    console.log('Location permission granted');
+                }
+            }
+            
+            await AsyncStorage.setItem('hasSeenLocationPrompt', 'true');
+        } catch (error) {
+            console.error('Error checking location permission:', error);
+        }
+    };
 
     const fetchAllData = async () => {
         try {

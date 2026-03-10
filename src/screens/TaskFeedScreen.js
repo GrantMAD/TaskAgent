@@ -4,14 +4,33 @@ import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
+import { useLocation } from '../components/LocationContext';
 
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
-    const [tasks, setTasks] = useState([]);
+    const { userLocation, calculateDistance, searchRadius } = useLocation();
+    const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const filteredTasks = useMemo(() => {
+        if (!userLocation) return allTasks;
+
+        return allTasks.filter(task => {
+            if (!task.location_lat || !task.location_lng) return true; // Show tasks with no location data
+
+            const distance = calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                task.location_lat,
+                task.location_lng
+            );
+
+            return distance <= searchRadius;
+        });
+    }, [allTasks, userLocation, searchRadius, calculateDistance]);
 
     useEffect(() => {
         fetchTasks();
@@ -20,7 +39,7 @@ export const TaskFeedScreen = ({ navigation }) => {
     const fetchTasks = async () => {
         try {
             const data = await taskService.getNearbyTasks();
-            setTasks(data);
+            setAllTasks(data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -45,7 +64,12 @@ export const TaskFeedScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Local Jobs</Text>
+                <View style={styles.headerTop}>
+                    <Text style={styles.headerTitle}>Local Jobs</Text>
+                    <View style={styles.radiusBadge}>
+                        <Text style={styles.radiusBadgeText}>{searchRadius > 1000 ? 'All' : `${searchRadius}km`}</Text>
+                    </View>
+                </View>
                 <Text style={styles.headerSubtitle}>Discover opportunities to help your neighbors and earn.</Text>
             </View>
 
@@ -57,7 +81,7 @@ export const TaskFeedScreen = ({ navigation }) => {
             </View>
 
             <FlatList
-                data={tasks}
+                data={filteredTasks}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
@@ -104,6 +128,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 28,
         fontWeight: '800',
         color: theme.white,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    radiusBadge: {
+        backgroundColor: theme.accent,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        ...shadows.subtle,
+    },
+    radiusBadgeText: {
+        color: theme.white,
+        fontSize: 12,
+        fontWeight: '800',
     },
     headerSubtitle: {
         fontSize: 14,
