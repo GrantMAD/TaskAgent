@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
 import { MessageBubble } from '../components/MessageBubble';
+import { MessageSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
@@ -58,22 +59,33 @@ export const ChatScreen = ({ route, navigation }) => {
     const handleSend = async () => {
         if (!text.trim() || !userId) return;
         const messageText = text.trim();
+        const tempId = `temp-${Date.now()}`;
         setText('');
+
+        // Optimistic UI Update
+        const optimisticMessage = {
+            id: tempId,
+            conversation_id: conversationId,
+            sender_id: userId,
+            message_text: messageText,
+            created_at: new Date().toISOString(),
+            status: 'sending'
+        };
+
+        setMessages((prev) => [...prev, optimisticMessage]);
+
         try {
             await messageService.sendMessage(conversationId, userId, messageText);
+            // The real-time subscription will handle replacing this or adding the real one
+            // We'll update the optimistic message status to 'sent' or just let the real one arrive
+            setMessages((prev) => prev.map(msg => msg.id === tempId ? { ...msg, status: 'sent' } : msg));
         } catch (error) {
             console.error(error);
             showToast('Failed to send message', 'error');
+            // Rollback: Remove the optimistic message
+            setMessages((prev) => prev.filter(msg => msg.id !== tempId));
         }
     };
-
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-        );
-    }
 
     return (
         <KeyboardAvoidingView
@@ -91,18 +103,26 @@ export const ChatScreen = ({ route, navigation }) => {
                 <View style={styles.headerSpacer} />
             </View>
 
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.messageList}
-                showsVerticalScrollIndicator={false}
-                renderItem={({ item }) => (
-                    <MessageBubble message={item} isMine={item.sender_id === userId} />
-                )}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            />
+            {loading ? (
+                <MessageSkeleton />
+            ) : (
+                <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.messageList}
+                    showsVerticalScrollIndicator={false}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    renderItem={({ item }) => (
+                        <MessageBubble
+                            message={item}
+                            isMine={item.sender_id === userId}
+                            status={item.status}
+                        />
+                    )}
+                />
+            )}
 
             <View style={[styles.inputContainer, shadows.medium]}>
                 <TextInput

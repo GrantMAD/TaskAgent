@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
+import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { useLocation } from '../components/LocationContext';
@@ -53,14 +54,6 @@ export const TaskFeedScreen = ({ navigation }) => {
         fetchTasks();
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -80,25 +73,33 @@ export const TaskFeedScreen = ({ navigation }) => {
                 </Text>
             </View>
 
-            <FlatList
-                data={filteredTasks}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
-                }
-                renderItem={({ item }) => (
-                    <TaskCard
-                        task={item}
-                        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                    />
-                )}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>No open tasks in your area right now. Check back later!</Text>
-                    </View>
-                }
-            />
+            {loading ? (
+                <View style={styles.listContent}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <TaskCardSkeleton key={i} />
+                    ))}
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredTasks}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
+                    }
+                    renderItem={({ item }) => (
+                        <TaskCard
+                            task={item}
+                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                        />
+                    )}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyText}>No open tasks in your area right now. Check back later!</Text>
+                        </View>
+                    }
+                />
+            )}
         </View>
     );
 };

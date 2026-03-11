@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
+import { ConversationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { UserAvatar } from '../components/UserAvatar';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
@@ -40,8 +41,16 @@ export const MessagesScreen = ({ navigation }) => {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Neighbor Chat</Text>
+                    <Text style={styles.headerSubtitle}>Manage your task communications</Text>
+                </View>
+                <View style={styles.listContent}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <ConversationSkeleton key={i} />
+                    ))}
+                </View>
             </View>
         );
     }

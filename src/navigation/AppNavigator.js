@@ -10,6 +10,7 @@ import { Spacing, Rounding } from '../utils/theme';
 import { notificationService } from '../services/notificationService';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { NotificationProvider, useNotifications } from '../components/NotificationContext';
 
 // Screens
 import { LoginScreen } from '../screens/LoginScreen';
@@ -47,14 +48,15 @@ const formatTime = (dateString) => {
 };
 
 // Notification Dropdown Component
-const NotificationDropdown = ({ visible, onClose, notifications, onMarkAllRead, loading, navigation }) => {
+const NotificationDropdown = ({ visible, onClose, navigation }) => {
     const { theme, shadows } = useTheme();
+    const { notifications, markAsRead, markAllAsRead, loading } = useNotifications();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const handleNotificationPress = (item) => {
         onClose();
         if (!item.is_read) {
-            notificationService.markAsRead(item.id);
+            markAsRead(item.id);
         }
 
         // Navigation logic for dropdown
@@ -101,7 +103,7 @@ const NotificationDropdown = ({ visible, onClose, notifications, onMarkAllRead, 
                         <View style={styles.dropdownContainer}>
                             <View style={styles.dropdownHeader}>
                                 <Text style={styles.dropdownTitle}>Notifications</Text>
-                                <TouchableOpacity onPress={onMarkAllRead}>
+                                <TouchableOpacity onPress={markAllAsRead}>
                                     <Text style={styles.clearAll}>Mark all read</Text>
                                 </TouchableOpacity>
                             </View>
@@ -283,61 +285,9 @@ const MainDrawer = () => {
     const navigation = useNavigation();
     const { theme, shadows } = useTheme();
     const [notifVisible, setNotifVisible] = useState(false);
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const { showToast } = useToast();
+    const { unreadCount } = useNotifications();
     
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
-
-    useEffect(() => {
-        loadNotifications();
-        
-        // Subscribe to real-time notifications
-        let subscription;
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                subscription = notificationService.subscribeToNotifications(session.user.id, (newNotif) => {
-                    setNotifications(prev => [newNotif, ...prev]);
-                    setUnreadCount(prev => prev + 1);
-                    showToast(`New ${newNotif.title}`, 'info');
-                });
-            }
-        });
-
-        return () => {
-            if (subscription) subscription.unsubscribe();
-        };
-    }, []);
-
-    const loadNotifications = async () => {
-        setLoading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const data = await notificationService.getNotifications(session.user.id);
-                setNotifications(data);
-                setUnreadCount(data.filter(n => !n.is_read).length);
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleMarkAllRead = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                await notificationService.markAllAsRead(session.user.id);
-                setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-                setUnreadCount(0);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
 
     return (
         <>
@@ -434,9 +384,6 @@ const MainDrawer = () => {
             <NotificationDropdown 
                 visible={notifVisible} 
                 onClose={() => setNotifVisible(false)} 
-                notifications={notifications}
-                onMarkAllRead={handleMarkAllRead}
-                loading={loading}
                 navigation={navigation}
             />
         </>
@@ -465,9 +412,11 @@ export const AppNavigator = () => {
     }, []);
 
     return (
-        <NavigationContainer>
-            {session && session.user ? <MainDrawer /> : <AuthStack />}
-        </NavigationContainer>
+        <NotificationProvider>
+            <NavigationContainer>
+                {session && session.user ? <MainDrawer /> : <AuthStack />}
+            </NavigationContainer>
+        </NotificationProvider>
     );
 };
 

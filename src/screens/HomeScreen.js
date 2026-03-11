@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
+import { Skeleton } from '../components/skeletons/Skeleton';
+import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { supabase } from '../services/supabaseClient';
@@ -78,14 +80,6 @@ export const HomeScreen = ({ navigation }) => {
         fetchAllData();
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-        );
-    }
-
     return (
         <ScrollView 
             style={styles.container} 
@@ -96,67 +90,91 @@ export const HomeScreen = ({ navigation }) => {
         >
             <View style={styles.welcomeSection}>
                 <View style={styles.welcomeHeader}>
-                    <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                    {loading ? (
+                        <Skeleton width={150} height={28} />
+                    ) : (
+                        <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                    )}
                 </View>
                 <Text style={styles.subtitleText}>Your neighborhood task hub</Text>
                 
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>{profile?.completed_tasks || 0}</Text>
+                        {loading ? (
+                            <Skeleton width={30} height={20} style={{ marginBottom: 4 }} />
+                        ) : (
+                            <Text style={styles.statNumber}>{profile?.completed_tasks || 0}</Text>
+                        )}
                         <Text style={styles.statLabel}>Jobs Done</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={styles.statNumber}>{profile?.rating?.toFixed(1) || '5.0'}</Text>
+                        {loading ? (
+                            <Skeleton width={30} height={20} style={{ marginBottom: 4 }} />
+                        ) : (
+                            <Text style={styles.statNumber}>{profile?.rating?.toFixed(1) || '5.0'}</Text>
+                        )}
                         <Text style={styles.statLabel}>Rating</Text>
                     </View>
                 </View>
             </View>
 
-            {/* In Progress Sections */}
-            {(myPostedTasks.length > 0 || myGigs.length > 0) ? (
+            {loading ? (
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Skeleton width={120} height={20} />
+                    </View>
+                    <TaskCardSkeleton />
+                    <TaskCardSkeleton />
+                </View>
+            ) : (
                 <>
-                    {myPostedTasks.length > 0 && (
-                        <View style={styles.section}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>My Active Postings</Text>
-                            </View>
-                            {myPostedTasks.map((item) => (
-                                <TaskCard
-                                    key={item.id}
-                                    task={item}
-                                    onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                                />
-                            ))}
-                        </View>
-                    )}
+                    {/* In Progress Sections */}
+                    {(myPostedTasks.length > 0 || myGigs.length > 0) ? (
+                        <>
+                            {myPostedTasks.length > 0 && (
+                                <View style={styles.section}>
+                                    <View style={styles.sectionHeader}>
+                                        <Text style={styles.sectionTitle}>My Active Postings</Text>
+                                    </View>
+                                    {myPostedTasks.map((item) => (
+                                        <TaskCard
+                                            key={item.id}
+                                            task={item}
+                                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                                        />
+                                    ))}
+                                </View>
+                            )}
 
-                    {myGigs.length > 0 && (
-                        <View style={styles.section}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Jobs In Progress</Text>
-                            </View>
-                            {myGigs.map((item) => (
-                                <TaskCard
-                                    key={item.id}
-                                    task={item}
-                                    onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                                />
-                            ))}
+                            {myGigs.length > 0 && (
+                                <View style={styles.section}>
+                                    <View style={styles.sectionHeader}>
+                                        <Text style={styles.sectionTitle}>Jobs In Progress</Text>
+                                    </View>
+                                    {myGigs.map((item) => (
+                                        <TaskCard
+                                            key={item.id}
+                                            task={item}
+                                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                        </>
+                    ) : (
+                        <View style={styles.emptyHub}>
+                            <FontAwesome name="calendar-check-o" size={50} color={theme.border} />
+                            <Text style={styles.emptyHubText}>No active tasks right now.</Text>
+                            <TouchableOpacity 
+                                style={styles.browseButton}
+                                onPress={() => navigation.navigate('TasksTab')}
+                            >
+                                <Text style={styles.browseButtonText}>Browse Local Jobs</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </>
-            ) : (
-                <View style={styles.emptyHub}>
-                    <FontAwesome name="calendar-check-o" size={50} color={theme.border} />
-                    <Text style={styles.emptyHubText}>No active tasks right now.</Text>
-                    <TouchableOpacity 
-                        style={styles.browseButton}
-                        onPress={() => navigation.navigate('TasksTab')}
-                    >
-                        <Text style={styles.browseButtonText}>Browse Local Jobs</Text>
-                    </TouchableOpacity>
-                </View>
             )}
 
             {/* Quick Tips Section */}

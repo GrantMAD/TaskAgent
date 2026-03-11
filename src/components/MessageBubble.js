@@ -1,18 +1,38 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from './ThemeContext';
+import { FontAwesome } from '@expo/vector-icons';
 
-export const MessageBubble = ({ message, isMine }) => {
+export const MessageBubble = ({ message, isMine, status }) => {
+    const { theme, shadows } = useTheme();
+    const isSending = status === 'sending';
+
     return (
         <View style={[styles.container, isMine ? styles.myContainer : styles.theirContainer]}>
             <View style={[
                 styles.bubble, 
-                isMine ? styles.myBubble : styles.theirBubble,
-                Shadow.subtle
+                isMine ? 
+                    { backgroundColor: theme.primary, borderColor: theme.primary, borderBottomRightRadius: 2 } : 
+                    { backgroundColor: theme.surface, borderColor: theme.border, borderBottomLeftRadius: 2 },
+                isSending && { opacity: 0.7 },
+                shadows.subtle
             ]}>
-                <Text style={[styles.text, isMine ? styles.myText : styles.theirText]}>
+                <Text style={[
+                    styles.text, 
+                    isMine ? { color: theme.white } : { color: theme.text }
+                ]}>
                     {message.message_text}
                 </Text>
+                {isMine && (
+                    <View style={styles.statusContainer}>
+                        <FontAwesome 
+                            name={isSending ? "clock-o" : "check"} 
+                            size={10} 
+                            color={isSending ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.8)"} 
+                        />
+                    </View>
+                )}
             </View>
         </View>
     );
@@ -20,7 +40,7 @@ export const MessageBubble = ({ message, isMine }) => {
 
 const styles = StyleSheet.create({
     container: {
-        marginVertical: 6,
+        marginVertical: 4,
         paddingHorizontal: Spacing.md,
         flexDirection: 'row',
     },
@@ -31,31 +51,20 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     bubble: {
-        maxWidth: '75%',
-        padding: 12,
+        maxWidth: '80%',
+        padding: 10,
+        paddingHorizontal: 12,
         borderRadius: Rounding.standard,
         borderWidth: 1,
-    },
-    myBubble: {
-        backgroundColor: Colors.primary,
-        borderColor: Colors.primary,
-        borderBottomRightRadius: 2,
-    },
-    theirBubble: {
-        backgroundColor: Colors.white,
-        borderColor: Colors.border,
-        borderBottomLeftRadius: 2,
     },
     text: {
         fontSize: 15,
         lineHeight: 20,
-    },
-    myText: {
-        color: Colors.white,
         fontWeight: '500',
     },
-    theirText: {
-        color: Colors.primary,
-        fontWeight: '500',
+    statusContainer: {
+        alignSelf: 'flex-end',
+        marginTop: 2,
+        marginRight: -4,
     }
 });

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
+import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
@@ -39,14 +40,6 @@ export const TaskHistoryScreen = ({ navigation }) => {
         fetchHistory();
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -54,29 +47,37 @@ export const TaskHistoryScreen = ({ navigation }) => {
                 <Text style={styles.headerSubtitle}>A record of your completed neighborhood jobs.</Text>
             </View>
 
-            <FlatList
-                data={tasks}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
-                }
-                renderItem={({ item }) => (
-                    <TaskCard
-                        task={item}
-                        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
-                    />
-                )}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIconCircle}>
-                            <FontAwesome name="history" size={40} color={theme.textMuted} />
+            {loading ? (
+                <View style={styles.listContent}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <TaskCardSkeleton key={i} />
+                    ))}
+                </View>
+            ) : (
+                <FlatList
+                    data={tasks}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
+                    }
+                    renderItem={({ item }) => (
+                        <TaskCard
+                            task={item}
+                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                        />
+                    )}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIconCircle}>
+                                <FontAwesome name="history" size={40} color={theme.textMuted} />
+                            </View>
+                            <Text style={styles.emptyTitle}>No history yet</Text>
+                            <Text style={styles.emptySubtext}>Completed tasks will appear here.</Text>
                         </View>
-                        <Text style={styles.emptyTitle}>No history yet</Text>
-                        <Text style={styles.emptySubtext}>Completed tasks will appear here.</Text>
-                    </View>
-                }
-            />
+                    }
+                />
+            )}
         </View>
     );
 };

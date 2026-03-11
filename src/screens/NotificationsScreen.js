@@ -1,66 +1,27 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
-import { notificationService } from '../services/notificationService';
-import { supabase } from '../services/supabaseClient';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { NotificationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
-import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { useNotifications } from '../components/NotificationContext';
 
 export const NotificationsScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
-    const { showToast } = useToast();
-
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-
-    const unreadCount = notifications.filter(n => !n.is_read).length;
-
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
-
-    const fetchNotifications = async (isRefreshing = false) => {
-        if (isRefreshing) setRefreshing(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const data = await notificationService.getNotifications(session.user.id);
-            setNotifications(data);
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to load notifications', 'error');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    const handleMarkRead = async (id) => {
-        try {
-            await notificationService.markAsRead(id);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const handleDelete = async (id) => {
-        try {
-            await notificationService.deleteNotification(id);
-            setNotifications(prev => prev.filter(n => n.id !== id));
-            showToast('Notification deleted', 'info');
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to delete notification', 'error');
-        }
-    };
+    const { 
+        notifications, 
+        loading, 
+        unreadCount, 
+        markAsRead, 
+        markAllAsRead, 
+        deleteNotification,
+        refreshNotifications 
+    } = useNotifications();
 
     const handleNotificationPress = async (item) => {
         if (!item.is_read) {
-            handleMarkRead(item.id);
+            markAsRead(item.id);
         }
 
         // Navigation Logic
@@ -99,14 +60,6 @@ export const NotificationsScreen = ({ navigation }) => {
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -121,59 +74,61 @@ export const NotificationsScreen = ({ navigation }) => {
                         </View>
                     )}
                 </View>
-                <TouchableOpacity 
-                    onPress={async () => {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        await notificationService.markAllAsRead(session.user.id);
-                        fetchNotifications();
-                    }}
-                >
+                <TouchableOpacity onPress={markAllAsRead}>
                     <Text style={styles.markAllText}>Mark all read</Text>
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={notifications}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={() => fetchNotifications(true)} tintColor={theme.accent} />
-                }
-                renderItem={({ item }) => (
-                    <TouchableOpacity 
-                        style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
-                        onPress={() => handleNotificationPress(item)}
-                    >
-                        <View style={[styles.iconContainer, { backgroundColor: item.is_read ? theme.border : theme.primary }]}>
-                            <FontAwesome 
-                                name={item.type === 'MESSAGE' ? 'envelope' : 'bell'} 
-                                size={18} 
-                                color={item.is_read ? theme.textMuted : theme.white} 
-                            />
+            {loading && notifications.length === 0 ? (
+                <View style={styles.listContent}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                        <NotificationSkeleton key={i} />
+                    ))}
+                </View>
+            ) : (
+                <FlatList
+                    data={notifications}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={loading} onRefresh={refreshNotifications} tintColor={theme.accent} />
+                    }
+                    renderItem={({ item }) => (
+                        <TouchableOpacity 
+                            style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
+                            onPress={() => handleNotificationPress(item)}
+                        >
+                            <View style={[styles.iconContainer, { backgroundColor: item.is_read ? theme.border : theme.primary }]}>
+                                <FontAwesome 
+                                    name={item.type === 'MESSAGE' ? 'envelope' : 'bell'} 
+                                    size={18} 
+                                    color={item.is_read ? theme.textMuted : theme.white} 
+                                />
+                            </View>
+                            <View style={styles.content}>
+                                <Text style={styles.title}>{item.title}</Text>
+                                <Text style={styles.message}>{item.message}</Text>
+                                <Text style={styles.time}>{formatTime(item.created_at)}</Text>
+                            </View>
+                            <View style={styles.cardRight}>
+                                {!item.is_read && <View style={styles.unreadDot} />}
+                                <TouchableOpacity 
+                                    style={styles.deleteButton} 
+                                    onPress={() => deleteNotification(item.id)}
+                                >
+                                    <FontAwesome name="trash-o" size={18} color={theme.error} />
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <FontAwesome name="bell-slash-o" size={50} color={theme.border} />
+                            <Text style={styles.emptyText}>No notifications yet</Text>
                         </View>
-                        <View style={styles.content}>
-                            <Text style={styles.title}>{item.title}</Text>
-                            <Text style={styles.message}>{item.message}</Text>
-                            <Text style={styles.time}>{formatTime(item.created_at)}</Text>
-                        </View>
-                        <View style={styles.cardRight}>
-                            {!item.is_read && <View style={styles.unreadDot} />}
-                            <TouchableOpacity 
-                                style={styles.deleteButton} 
-                                onPress={() => handleDelete(item.id)}
-                            >
-                                <FontAwesome name="trash-o" size={18} color={theme.error} />
-                            </TouchableOpacity>
-                        </View>
-                    </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <FontAwesome name="bell-slash-o" size={50} color={theme.border} />
-                        <Text style={styles.emptyText}>No notifications yet</Text>
-                    </View>
-                }
-            />
+                    }
+                />
+            )}
         </View>
     );
 };
@@ -182,11 +137,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     header: {
         backgroundColor: theme.primary,

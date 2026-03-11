@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
 import { userService } from '../services/userService';
@@ -13,6 +13,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { ReviewModal } from '../components/ReviewModal';
 import { useToast } from '../components/ToastContext';
 import { useLocation } from '../components/LocationContext';
+import { TaskDetailSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import TaskMap from '../components/TaskMap';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
