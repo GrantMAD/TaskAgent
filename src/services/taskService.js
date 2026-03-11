@@ -2,6 +2,34 @@ import { supabase } from './supabaseClient'
 import { notificationService } from './notificationService'
 
 export const taskService = {
+    uploadTaskImage: async (uri, userId) => {
+        try {
+            const ext = uri.split('.').pop();
+            const fileName = `${userId}/${Date.now()}.${ext}`;
+            const filePath = `tasks/${fileName}`;
+
+            // Convert URI to Blob
+            const response = await fetch(uri);
+            const blob = await response.blob();
+
+            const { error: uploadError } = await supabase.storage
+                .from('task-media')
+                .upload(filePath, blob);
+
+            if (uploadError) throw uploadError;
+
+            // Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('task-media')
+                .getPublicUrl(filePath);
+
+            return publicUrl;
+        } catch (error) {
+            console.error('Upload error:', error);
+            throw error;
+        }
+    },
+
     createTask: async (taskData) => {
         const { data, error } = await supabase.from('tasks').insert([taskData]).select()
         if (error) throw error
@@ -124,7 +152,7 @@ export const taskService = {
         return data
     },
 
-    markTaskComplete: async (taskId) => {
+    markTaskComplete: async (taskId, completionImageUrl = null) => {
         // Fetch poster_id and title for notification
         const { data: task, error: fetchError } = await supabase
             .from('tasks')
@@ -136,7 +164,10 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from('tasks')
-            .update({ status: 'PENDING_CONFIRMATION' })
+            .update({ 
+                status: 'PENDING_CONFIRMATION',
+                completion_image_url: completionImageUrl
+            })
             .eq('id', taskId)
         if (error) throw error
 

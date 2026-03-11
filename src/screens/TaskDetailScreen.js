@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
 import { userService } from '../services/userService';
@@ -44,6 +45,26 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', or 'APPROVE'
     const [selectedApplicant, setSelectedApplicant] = useState(null);
+    const [completionImage, setCompletionImage] = useState(null);
+
+    const pickCompletionImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            showToast('Permission to access gallery is required', 'warning');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setCompletionImage(result.assets[0].uri);
+        }
+    };
 
     // Review Modal State
     const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -140,13 +161,18 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         setModalVisible(false);
         setLoading(true);
         try {
-            await taskService.markTaskComplete(taskId);
+            let completionUrl = null;
+            if (completionImage) {
+                completionUrl = await taskService.uploadTaskImage(completionImage, session.user.id);
+            }
+            await taskService.markTaskComplete(taskId, completionUrl);
             showToast('Work submitted for confirmation!', 'success');
             fetchTaskDetails();
         } catch (error) {
             showToast(error.message, 'error');
         } finally {
             setLoading(false);
+            setCompletionImage(null);
         }
     };
 
@@ -271,6 +297,26 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     </View>
                 </View>
 
+                {/* Media Section: Original Task Photo */}
+                {task.image_url && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Task Photo</Text>
+                        <View style={styles.mediaContainer}>
+                            <Image source={{ uri: task.image_url }} style={styles.mediaImage} resizeMode="cover" />
+                        </View>
+                    </View>
+                )}
+
+                {/* Media Section: Completion Photo */}
+                {task.completion_image_url && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Completion Proof</Text>
+                        <View style={styles.mediaContainer}>
+                            <Image source={{ uri: task.completion_image_url }} style={styles.mediaImage} resizeMode="cover" />
+                        </View>
+                    </View>
+                )}
+
                 {/* Poster View: Applicants List */}
                 {isPoster && task.status === 'OPEN' && (
                     <View style={styles.section}>
@@ -348,7 +394,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         <TouchableOpacity style={styles.messageButton} onPress={handleMessagePoster}>
                             <FontAwesome name="envelope" size={18} color={theme.primary} style={styles.buttonIcon} />
                             <Text style={styles.messageButtonText}>
-                                {isPoster ? 'Message Worker' : 'Message Neighbor'}
+                                {isPoster ? 'Message Tasker' : 'Message Poster'}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -400,8 +446,33 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 }
                 type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : 'primary'}
                 onConfirm={handleModalConfirm}
-                onCancel={() => setModalVisible(false)}
-            />
+                onCancel={() => {
+                    setModalVisible(false);
+                    setCompletionImage(null);
+                }}
+            >
+                {modalType === 'COMPLETE' && (
+                    <View style={styles.modalPhotoSection}>
+                        <Text style={styles.modalPhotoLabel}>ADD COMPLETION PHOTO (OPTIONAL)</Text>
+                        {completionImage ? (
+                            <View style={styles.modalImagePreviewContainer}>
+                                <Image source={{ uri: completionImage }} style={styles.modalImagePreview} />
+                                <TouchableOpacity 
+                                    style={styles.modalRemoveImageButton} 
+                                    onPress={() => setCompletionImage(null)}
+                                >
+                                    <FontAwesome name="times-circle" size={24} color={theme.error} />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <TouchableOpacity style={styles.modalAddPhotoButton} onPress={pickCompletionImage}>
+                                <FontAwesome name="camera" size={20} color={theme.primary} />
+                                <Text style={styles.modalAddPhotoText}>CAPTURE PROOF</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+            </ConfirmationModal>
 
             <ReviewModal 
                 visible={reviewModalVisible}
@@ -683,5 +754,66 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     mapView: {
         width: '100%',
         height: '100%',
+    },
+    mediaContainer: {
+        marginTop: Spacing.sm,
+        borderRadius: Rounding.soft,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: theme.border,
+        height: 200,
+        ...shadows.subtle,
+    },
+    mediaImage: {
+        width: '100%',
+        height: '100%',
+    },
+    modalPhotoSection: {
+        marginTop: Spacing.md,
+        paddingTop: Spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: theme.border,
+    },
+    modalPhotoLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.primary,
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    modalAddPhotoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#F0F4F8',
+        borderWidth: 1.5,
+        borderStyle: 'dashed',
+        borderColor: theme.border,
+        borderRadius: Rounding.standard,
+        padding: Spacing.md,
+    },
+    modalAddPhotoText: {
+        marginLeft: 10,
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.primary,
+    },
+    modalImagePreviewContainer: {
+        width: '100%',
+        height: 120,
+        borderRadius: Rounding.standard,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    modalImagePreview: {
+        width: '100%',
+        height: '100%',
+    },
+    modalRemoveImageButton: {
+        position: 'absolute',
+        top: 5,
+        right: 5,
+        backgroundColor: theme.white,
+        borderRadius: 12,
     }
 });

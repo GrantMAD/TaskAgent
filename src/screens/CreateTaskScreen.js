@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert, Image } from 'react-native';
 import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
@@ -7,6 +7,7 @@ import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { TASK_CATEGORIES } from '../utils/constants';
 
 export const CreateTaskScreen = ({ navigation }) => {
@@ -19,7 +20,27 @@ export const CreateTaskScreen = ({ navigation }) => {
     const [address, setAddress] = useState('');
     const [locationLat, setLocationLat] = useState(null);
     const [locationLng, setLocationLng] = useState(null);
+    const [image, setImage] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            showToast('Permission to access gallery is required', 'warning');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
     
     // Suggestion State
     const [suggestions, setSuggestions] = useState([]);
@@ -189,6 +210,11 @@ export const CreateTaskScreen = ({ navigation }) => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not logged in');
 
+            let imageUrl = null;
+            if (image) {
+                imageUrl = await taskService.uploadTaskImage(image, session.user.id);
+            }
+
             const taskData = {
                 title,
                 description,
@@ -198,6 +224,7 @@ export const CreateTaskScreen = ({ navigation }) => {
                 address,
                 location_lat: locationLat,
                 location_lng: locationLng,
+                image_url: imageUrl
             };
 
             await taskService.createTask(taskData);
@@ -211,6 +238,7 @@ export const CreateTaskScreen = ({ navigation }) => {
             setAddress('');
             setLocationLat(null);
             setLocationLng(null);
+            setImage(null);
             setIsModalVisible(false);
 
             // Redirect to Jobs screen
@@ -331,6 +359,23 @@ export const CreateTaskScreen = ({ navigation }) => {
                                 onChangeText={setPaymentAmount}
                                 keyboardType="numeric"
                             />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>PHOTOS (OPTIONAL)</Text>
+                            {image ? (
+                                <View style={styles.imagePreviewContainer}>
+                                    <Image source={{ uri: image }} style={styles.imagePreview} />
+                                    <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
+                                        <FontAwesome name="times-circle" size={24} color={theme.error} />
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity style={styles.addPhotoButton} onPress={pickImage}>
+                                    <FontAwesome name="camera" size={20} color={theme.primary} />
+                                    <Text style={styles.addPhotoText}>ADD PHOTO</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -571,6 +616,41 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     textArea: {
         minHeight: 120,
+    },
+    addPhotoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#F0F4F8',
+        borderWidth: 1.5,
+        borderStyle: 'dashed',
+        borderColor: theme.border,
+        borderRadius: Rounding.standard,
+        padding: Spacing.lg,
+    },
+    addPhotoText: {
+        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '700',
+        color: theme.primary,
+    },
+    imagePreviewContainer: {
+        width: '100%',
+        height: 200,
+        borderRadius: Rounding.standard,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    imagePreview: {
+        width: '100%',
+        height: '100%',
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: theme.white,
+        borderRadius: 15,
     },
     submitButton: {
         backgroundColor: theme.accent,

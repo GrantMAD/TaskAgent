@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from './ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 
 export const ConfirmationModal = ({ 
@@ -11,8 +12,12 @@ export const ConfirmationModal = ({
     cancelText = 'Cancel', 
     onConfirm, 
     onCancel,
-    type = 'primary' // 'primary', 'danger', 'success'
+    type = 'primary', // 'primary', 'danger', 'success'
+    children
 }) => {
+    const { theme, shadows } = useTheme();
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
     return (
         <Modal
             transparent={true}
@@ -21,15 +26,17 @@ export const ConfirmationModal = ({
             onRequestClose={onCancel}
         >
             <View style={styles.overlay}>
-                <View style={[styles.modalCard, Shadow.medium]}>
+                <View style={[styles.modalCard, shadows.medium]}>
                     <View style={styles.header}>
                         <Text style={styles.title}>{title}</Text>
                         <TouchableOpacity onPress={onCancel} style={styles.closeIcon}>
-                            <FontAwesome name="times" size={20} color={Colors.textMuted} />
+                            <FontAwesome name="times" size={20} color={theme.textMuted} />
                         </TouchableOpacity>
                     </View>
                     
                     <Text style={styles.message}>{message}</Text>
+
+                    {children}
                     
                     <View style={styles.footer}>
                         <TouchableOpacity 
@@ -55,20 +62,22 @@ export const ConfirmationModal = ({
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: Spacing.lg,
     },
     modalCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: theme.surface,
         borderRadius: Rounding.soft,
         width: '100%',
         maxWidth: 400,
         padding: Spacing.lg,
+        borderWidth: 1,
+        borderColor: theme.border,
     },
     header: {
         flexDirection: 'row',
@@ -79,21 +88,21 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 20,
         fontWeight: '800',
-        color: Colors.primary,
+        color: theme.primary,
     },
     closeIcon: {
         padding: 4,
     },
     message: {
         fontSize: 16,
-        color: Colors.text,
+        color: theme.text,
         lineHeight: 24,
-        marginBottom: Spacing.xl,
+        marginBottom: Spacing.md,
     },
     footer: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: Spacing.md,
+        marginTop: Spacing.xl,
     },
     cancelButton: {
         paddingVertical: 12,
@@ -101,7 +110,7 @@ const styles = StyleSheet.create({
         borderRadius: Rounding.pill,
     },
     cancelButtonText: {
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontWeight: '700',
         fontSize: 15,
     },
@@ -109,19 +118,20 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: Rounding.pill,
-        ...Shadow.subtle,
+        marginLeft: Spacing.sm,
+        ...shadows.subtle,
     },
     primaryButton: {
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.primary,
     },
     dangerButton: {
-        backgroundColor: Colors.error,
+        backgroundColor: theme.error,
     },
     successButton: {
-        backgroundColor: Colors.success,
+        backgroundColor: theme.success,
     },
     confirmButtonText: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: '700',
         fontSize: 15,
     },
