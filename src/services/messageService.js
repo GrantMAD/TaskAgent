@@ -68,5 +68,16 @@ export const messageService = {
             .select()
         if (error) throw error
         return data[0]
+    },
+
+    markMessagesAsRead: async (conversationId, userId) => {
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('conversation_id', conversationId)
+            .neq('sender_id', userId)
+            .eq('is_read', false);
+        
+        if (error) throw error;
     }
 }

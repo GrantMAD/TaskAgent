@@ -22,21 +22,44 @@ export const ChatScreen = ({ route, navigation }) => {
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
+        let currentUserId;
         supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) setUserId(session.user.id);
+            if (session) {
+                currentUserId = session.user.id;
+                setUserId(currentUserId);
+                // Mark existing messages as read
+                messageService.markMessagesAsRead(conversationId, currentUserId);
+            }
         });
         fetchMessages();
 
-        // Subscribe to new messages
+        // Subscribe to messages (New and Updates for read receipts)
         const channel = supabase
             .channel(`public:messages:conversation_id=eq.${conversationId}`)
             .on('postgres_changes', {
-                event: 'INSERT',
+                event: '*', // Listen to all changes (INSERT, UPDATE)
                 schema: 'public',
                 table: 'messages',
                 filter: `conversation_id=eq.${conversationId}`
             }, (payload) => {
-                setMessages((prev) => [...prev, payload.new]);
+                if (payload.eventType === 'INSERT') {
+                    setMessages((prev) => {
+                        // Avoid duplicates if we already have this message (e.g. from optimistic UI)
+                        if (prev.find(m => m.id === payload.new.id)) return prev;
+                        
+                        // If it's from the other user, mark it as read immediately since we are on this screen
+                        if (payload.new.sender_id !== currentUserId) {
+                            messageService.markMessagesAsRead(conversationId, currentUserId);
+                        }
+                        
+                        return [...prev, payload.new];
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    // Update the message in our state (usually for is_read status)
+                    setMessages((prev) => prev.map(msg => 
+                        msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+                    ));
+                }
             })
             .subscribe();
 

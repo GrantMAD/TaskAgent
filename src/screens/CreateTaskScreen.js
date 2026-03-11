@@ -7,6 +7,7 @@ import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import * as Location from 'expo-location';
+import { TASK_CATEGORIES } from '../utils/constants';
 
 export const CreateTaskScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -294,13 +295,30 @@ export const CreateTaskScreen = ({ navigation }) => {
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>CATEGORY</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g. Delivery, Cleaning, Tech"
-                                placeholderTextColor={theme.textMuted}
-                                value={category}
-                                onChangeText={setCategory}
-                            />
+                            <View style={styles.categoryGrid}>
+                                {TASK_CATEGORIES.map((cat) => (
+                                    <TouchableOpacity
+                                        key={cat.value}
+                                        style={[
+                                            styles.catChip,
+                                            category === cat.value && { backgroundColor: theme.primary, borderColor: theme.primary }
+                                        ]}
+                                        onPress={() => setCategory(cat.value)}
+                                    >
+                                        <FontAwesome 
+                                            name={cat.icon} 
+                                            size={12} 
+                                            color={category === cat.value ? theme.white : theme.primary} 
+                                        />
+                                        <Text style={[
+                                            styles.catChipText,
+                                            category === cat.value && { color: theme.white }
+                                        ]}>
+                                            {cat.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -574,5 +592,28 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     buttonIcon: {
         marginRight: 10,
+    },
+    categoryGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -4,
+        marginTop: 8,
+    },
+    catChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: Rounding.pill,
+        borderWidth: 1.5,
+        borderColor: theme.border,
+        margin: 4,
+        backgroundColor: theme.surface,
+    },
+    catChipText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.primary,
+        marginLeft: 6,
     }
 });

@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export const MessageBubble = ({ message, isMine, status }) => {
     const { theme, shadows } = useTheme();
     const isSending = status === 'sending';
+    const isRead = message.is_read;
 
     return (
         <View style={[styles.container, isMine ? styles.myContainer : styles.theirContainer]}>
@@ -26,11 +27,15 @@ export const MessageBubble = ({ message, isMine, status }) => {
                 </Text>
                 {isMine && (
                     <View style={styles.statusContainer}>
-                        <FontAwesome 
-                            name={isSending ? "clock-o" : "check"} 
-                            size={10} 
-                            color={isSending ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.8)"} 
-                        />
+                        {isSending ? (
+                            <FontAwesome name="clock-o" size={10} color="rgba(255,255,255,0.5)" />
+                        ) : (
+                            <MaterialCommunityIcons 
+                                name={isRead ? "check-all" : "check"} 
+                                size={14} 
+                                color={isRead ? theme.accent : "rgba(255,255,255,0.6)"} 
+                            />
+                        )}
                     </View>
                 )}
             </View>

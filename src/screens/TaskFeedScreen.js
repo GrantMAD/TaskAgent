@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { useLocation } from '../components/LocationContext';
+import { FontAwesome } from '@expo/vector-icons';
+import { FilterModal } from '../components/FilterModal';
+import { TASK_CATEGORIES } from '../utils/constants';
 
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -13,25 +16,59 @@ export const TaskFeedScreen = ({ navigation }) => {
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Search & Filter State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+    const [filters, setFilters] = useState({
+        categories: [],
+        minPrice: '',
+        maxPrice: '',
+    });
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const filteredTasks = useMemo(() => {
-        if (!userLocation) return allTasks;
-
         return allTasks.filter(task => {
-            if (!task.location_lat || !task.location_lng) return true; // Show tasks with no location data
+            // 1. Distance Filter
+            if (userLocation && task.location_lat && task.location_lng) {
+                const distance = calculateDistance(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    task.location_lat,
+                    task.location_lng
+                );
+                if (distance > searchRadius) return false;
+            }
 
-            const distance = calculateDistance(
-                userLocation.latitude,
-                userLocation.longitude,
-                task.location_lat,
-                task.location_lng
-            );
+            // 2. Keyword Search
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const inTitle = task.title.toLowerCase().includes(query);
+                const inDesc = task.description?.toLowerCase().includes(query);
+                const inCat = task.category?.toLowerCase().includes(query);
+                if (!inTitle && !inDesc && !inCat) return false;
+            }
 
-            return distance <= searchRadius;
+            // 3. Category Filter
+            if (filters.categories.length > 0) {
+                if (!filters.categories.includes(task.category)) return false;
+            }
+
+            // 4. Price Filter
+            if (filters.minPrice && task.payment_amount < parseFloat(filters.minPrice)) return false;
+            if (filters.maxPrice && task.payment_amount > parseFloat(filters.maxPrice)) return false;
+
+            return true;
         });
-    }, [allTasks, userLocation, searchRadius, calculateDistance]);
+    }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters]);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (filters.categories.length > 0) count += 1;
+        if (filters.minPrice || filters.maxPrice) count += 1;
+        return count;
+    }, [filters]);
 
     useEffect(() => {
         fetchTasks();
@@ -54,6 +91,15 @@ export const TaskFeedScreen = ({ navigation }) => {
         fetchTasks();
     };
 
+    const handleApplyFilters = (newFilters) => {
+        setFilters(newFilters);
+        setIsFilterModalVisible(false);
+    };
+
+    const clearFilters = () => {
+        setFilters({ categories: [], minPrice: '', maxPrice: '' });
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -63,15 +109,66 @@ export const TaskFeedScreen = ({ navigation }) => {
                         <Text style={styles.radiusBadgeText}>{searchRadius > 1000 ? 'All' : `${searchRadius}km`}</Text>
                     </View>
                 </View>
-                <Text style={styles.headerSubtitle}>Discover opportunities to help your neighbors and earn.</Text>
+                
+                {/* Search & Filter Bar */}
+                <View style={styles.searchRow}>
+                    <View style={[styles.searchContainer, shadows.subtle]}>
+                        <FontAwesome name="search" size={16} color={theme.textMuted} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search tasks..."
+                            placeholderTextColor={theme.textMuted}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <FontAwesome name="times-circle" size={16} color={theme.textMuted} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <TouchableOpacity 
+                        style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonActive]}
+                        onPress={() => setIsFilterModalVisible(true)}
+                    >
+                        <FontAwesome name="sliders" size={18} color={activeFilterCount > 0 ? theme.white : theme.primary} />
+                        {activeFilterCount > 0 && (
+                            <View style={styles.filterBadge}>
+                                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            <View style={styles.descriptionSection}>
-                <Text style={styles.descriptionText}>
-                    Browse through available tasks in your area. You can apply for any job that matches your skills. 
-                    Once the poster approves your application, you can start chatting and get to work!
-                </Text>
-            </View>
+            {/* Active Filter Chips */}
+            {activeFilterCount > 0 && (
+                <View style={styles.chipsContainer}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+                        {filters.categories.map(cat => (
+                            <View key={cat} style={styles.chip}>
+                                <Text style={styles.chipText}>{cat}</Text>
+                                <TouchableOpacity onPress={() => setFilters(f => ({ ...f, categories: f.categories.filter(c => c !== cat) }))}>
+                                    <FontAwesome name="times" size={10} color={theme.primary} style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        {(filters.minPrice || filters.maxPrice) && (
+                            <View style={styles.chip}>
+                                <Text style={styles.chipText}>
+                                    Price: {filters.minPrice ? `$${filters.minPrice}` : '$0'} - {filters.maxPrice ? `$${filters.maxPrice}` : 'Any'}
+                                </Text>
+                                <TouchableOpacity onPress={() => setFilters(f => ({ ...f, minPrice: '', maxPrice: '' }))}>
+                                    <FontAwesome name="times" size={10} color={theme.primary} style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        <TouchableOpacity onPress={clearFilters} style={styles.clearAllChip}>
+                            <Text style={styles.clearAllText}>Clear All</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            )}
 
             {loading ? (
                 <View style={styles.listContent}>
@@ -95,11 +192,25 @@ export const TaskFeedScreen = ({ navigation }) => {
                     )}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No open tasks in your area right now. Check back later!</Text>
+                            <FontAwesome name="search" size={50} color={theme.border} style={{ marginBottom: 16 }} />
+                            <Text style={styles.emptyText}>No tasks found matching your filters.</Text>
+                            {(activeFilterCount > 0 || searchQuery) && (
+                                <TouchableOpacity onPress={() => { clearFilters(); setSearchQuery(''); }} style={styles.resetButton}>
+                                    <Text style={styles.resetButtonText}>Reset Search & Filters</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     }
                 />
             )}
+
+            <FilterModal
+                visible={isFilterModalVisible}
+                onClose={() => setIsFilterModalVisible(false)}
+                filters={filters}
+                onApply={handleApplyFilters}
+                onClear={clearFilters}
+            />
         </View>
     );
 };
@@ -109,16 +220,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         flex: 1,
         backgroundColor: theme.background,
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: theme.background,
-    },
     header: {
         backgroundColor: theme.primary,
         paddingTop: Spacing.lg,
-        paddingBottom: Spacing.lg,
+        paddingBottom: Spacing.md,
         paddingHorizontal: Spacing.lg,
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
@@ -134,51 +239,126 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: Spacing.md,
     },
     radiusBadge: {
-        backgroundColor: theme.accent,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: Rounding.pill,
-        ...shadows.subtle,
     },
     radiusBadgeText: {
         color: theme.white,
         fontSize: 12,
         fontWeight: '800',
     },
-    headerSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.7)',
-        marginTop: 4,
-        fontWeight: '600',
+    searchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    descriptionSection: {
-        padding: Spacing.lg,
-        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
-        marginHorizontal: Spacing.md,
-        marginTop: Spacing.md,
+    searchContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.white,
         borderRadius: Rounding.standard,
+        paddingHorizontal: 12,
+        height: 45,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 15,
+        color: '#333',
+    },
+    filterButton: {
+        width: 45,
+        height: 45,
+        backgroundColor: theme.white,
+        borderRadius: Rounding.standard,
+        marginLeft: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    filterButtonActive: {
+        backgroundColor: theme.accent,
+    },
+    filterBadge: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: theme.error,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: theme.white,
+    },
+    filterBadgeText: {
+        color: theme.white,
+        fontSize: 10,
+        fontWeight: '900',
+    },
+    chipsContainer: {
+        paddingVertical: Spacing.sm,
+        backgroundColor: theme.background,
+    },
+    chipsScroll: {
+        paddingHorizontal: Spacing.md,
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.1)' : '#E8EFF4',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: Rounding.pill,
+        marginRight: 8,
         borderWidth: 1,
         borderColor: theme.border,
     },
-    descriptionText: {
-        fontSize: 14,
-        color: theme.isDarkMode ? theme.text : theme.primary,
-        lineHeight: 20,
-        fontWeight: '500',
+    chipText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.primary,
+    },
+    clearAllChip: {
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        justifyContent: 'center',
+    },
+    clearAllText: {
+        fontSize: 12,
+        color: theme.accent,
+        fontWeight: '700',
     },
     listContent: {
-        paddingVertical: Spacing.md,
-        paddingBottom: 100, // Extra space for tab bar
+        paddingVertical: Spacing.sm,
+        paddingBottom: 100,
     },
     emptyState: {
-        padding: Spacing.xl,
+        padding: 50,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     emptyText: {
         color: theme.textMuted,
         fontSize: 16,
         textAlign: 'center',
+        fontWeight: '600',
+    },
+    resetButton: {
+        marginTop: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: theme.primary,
+        borderRadius: Rounding.pill,
+    },
+    resetButtonText: {
+        color: theme.white,
+        fontWeight: '700',
     }
 });
