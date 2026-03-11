@@ -44,9 +44,9 @@ export const notificationService = {
                 message,
                 type,
                 related_id: relatedId
-            }])
+            }]);
         
-        if (error) throw error
+        if (error) throw error;
     },
 
     // Delete a notification

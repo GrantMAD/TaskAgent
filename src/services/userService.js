@@ -50,6 +50,14 @@ export const userService = {
         return data[0]
     },
 
+    updatePushToken: async (userId, token) => {
+        const { error } = await supabase
+            .from('users')
+            .update({ push_token: token })
+            .eq('id', userId);
+        if (error) throw error;
+    },
+
     // Upload profile image to avatars bucket
     uploadAvatar: async (userId, uri) => {
         try {

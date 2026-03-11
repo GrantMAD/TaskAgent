@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, Text, Alert, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,6 +11,10 @@ import { notificationService } from '../services/notificationService';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { NotificationProvider, useNotifications } from '../components/NotificationContext';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { userService } from '../services/userService';
 
 // Screens
 import { LoginScreen } from '../screens/LoginScreen';
@@ -398,18 +402,92 @@ const AuthStack = () => (
     </Stack.Navigator>
 );
 
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+    }),
+});
+
+async function registerForPushNotificationsAsync() {
+    let token;
+    if (Platform.OS === 'web') return null;
+
+    if (Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+        if (finalStatus !== 'granted') {
+            alert('Failed to get push token for push notification!');
+            return;
+        }
+        
+        // Use projectId from expo-constants
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } else {
+        // alert('Must use physical device for Push Notifications');
+    }
+
+    if (Platform.OS === 'android') {
+        Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+        });
+    }
+
+    return token;
+}
+
 export const AppNavigator = () => {
     const [session, setSession] = useState(null);
+    const notificationListener = useRef();
+    const responseListener = useRef();
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
+            if (session?.user) handlePushRegistration(session.user.id);
         });
 
-        supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            if (session?.user) handlePushRegistration(session.user.id);
         });
+
+        // Set up notification listeners
+        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+            console.log('Notification received:', notification);
+        });
+
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+            console.log('Notification response:', response);
+            // Handle navigation when user taps notification if needed
+        });
+
+        return () => {
+            authListener?.subscription?.unsubscribe();
+            notificationListener.current && Notifications.removeNotificationSubscription(notificationListener.current);
+            responseListener.current && Notifications.removeNotificationSubscription(responseListener.current);
+        };
     }, []);
+
+    const handlePushRegistration = async (userId) => {
+        try {
+            const token = await registerForPushNotificationsAsync();
+            if (token) {
+                await userService.updatePushToken(userId, token);
+            }
+        } catch (error) {
+            console.error('Error registering for push:', error);
+        }
+    };
 
     return (
         <NotificationProvider>

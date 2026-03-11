@@ -16,6 +16,9 @@ export const ChatScreen = ({ route, navigation }) => {
     const [text, setText] = useState('');
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isOtherTyping, setIsOtherTyping] = useState(false);
+    const typingTimeoutRef = useRef(null);
+    const channelRef = useRef(null);
     const { showToast } = useToast();
     const flatListRef = useRef(null);
 
@@ -33,7 +36,7 @@ export const ChatScreen = ({ route, navigation }) => {
         });
         fetchMessages();
 
-        // Subscribe to messages (New and Updates for read receipts)
+        // Subscribe to messages and typing events
         const channel = supabase
             .channel(`public:messages:conversation_id=eq.${conversationId}`)
             .on('postgres_changes', {
@@ -61,7 +64,14 @@ export const ChatScreen = ({ route, navigation }) => {
                     ));
                 }
             })
+            .on('broadcast', { event: 'typing' }, (payload) => {
+                if (payload.payload.userId !== currentUserId) {
+                    setIsOtherTyping(payload.payload.isTyping);
+                }
+            })
             .subscribe();
+
+        channelRef.current = channel;
 
         return () => {
             supabase.removeChannel(channel);
@@ -79,11 +89,45 @@ export const ChatScreen = ({ route, navigation }) => {
         }
     };
 
+    const handleTextChange = (val) => {
+        setText(val);
+        
+        // Broadcast typing status
+        if (channelRef.current && userId) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'typing',
+                payload: { userId, isTyping: true }
+            });
+
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            
+            typingTimeoutRef.current = setTimeout(() => {
+                if (channelRef.current) {
+                    channelRef.current.send({
+                        type: 'broadcast',
+                        event: 'typing',
+                        payload: { userId, isTyping: false }
+                    });
+                }
+            }, 3000);
+        }
+    };
+
     const handleSend = async () => {
         if (!text.trim() || !userId) return;
         const messageText = text.trim();
         const tempId = `temp-${Date.now()}`;
         setText('');
+
+        // Stop typing immediately on send
+        if (channelRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'typing',
+                payload: { userId, isTyping: false }
+            });
+        }
 
         // Optimistic UI Update
         const optimisticMessage = {
@@ -126,32 +170,39 @@ export const ChatScreen = ({ route, navigation }) => {
                 <View style={styles.headerSpacer} />
             </View>
 
-            {loading ? (
-                <MessageSkeleton />
-            ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={styles.messageList}
-                    showsVerticalScrollIndicator={false}
-                    onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                    onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                    renderItem={({ item }) => (
-                        <MessageBubble
-                            message={item}
-                            isMine={item.sender_id === userId}
-                            status={item.status}
-                        />
-                    )}
-                />
-            )}
+            <View style={{ flex: 1 }}>
+                {loading ? (
+                    <MessageSkeleton />
+                ) : (
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        keyExtractor={(item) => item.id.toString()}
+                        contentContainerStyle={styles.messageList}
+                        showsVerticalScrollIndicator={false}
+                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        renderItem={({ item }) => (
+                            <MessageBubble
+                                message={item}
+                                isMine={item.sender_id === userId}
+                                status={item.status}
+                            />
+                        )}
+                    />
+                )}
+                {isOtherTyping && (
+                    <View style={styles.typingIndicator}>
+                        <Text style={styles.typingText}>Neighbor is typing...</Text>
+                    </View>
+                )}
+            </View>
 
             <View style={[styles.inputContainer, shadows.medium]}>
                 <TextInput
                     style={styles.input}
                     value={text}
-                    onChangeText={setText}
+                    onChangeText={handleTextChange}
                     placeholder="Type a message..."
                     placeholderTextColor={theme.textMuted}
                     multiline
@@ -249,5 +300,15 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     sendButtonDisabled: {
         backgroundColor: theme.border,
         opacity: 0.6,
+    },
+    typingIndicator: {
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: 4,
+        marginBottom: 4,
+    },
+    typingText: {
+        fontSize: 12,
+        fontStyle: 'italic',
+        color: theme.textMuted,
     }
 });
