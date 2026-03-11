@@ -9,7 +9,7 @@ export const Skeleton = ({ width, height, borderRadius, style }) => {
     useEffect(() => {
         const sharedAnimationConfig = {
             duration: 1000,
-            useNativeDriver: true,
+            useNativeDriver: false,
         };
 
         Animated.loop(

@@ -3,13 +3,33 @@ import { notificationService } from './notificationService'
 
 export const messageService = {
     getConversations: async (userId) => {
-        // A real app would join tasks and users to get rich conversation data
         const { data, error } = await supabase
             .from('conversations')
-            .select('*, task:tasks(title, poster_id, assigned_worker_id)')
-        // we'd typically filter where user is poster or worker
+            .select(`
+                *,
+                task:tasks(title, poster_id, assigned_worker_id),
+                user1:users!user1_id(id, name, profile_image),
+                user2:users!user2_id(id, name, profile_image)
+            `)
+            .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+            .order('updated_at', { ascending: false });
         if (error) throw error
         return data
+    },
+
+    getConversation: async (conversationId) => {
+        const { data, error } = await supabase
+            .from('conversations')
+            .select(`
+                *,
+                user1:users!user1_id(id, name, profile_image),
+                user2:users!user2_id(id, name, profile_image),
+                task:tasks(title)
+            `)
+            .eq('id', conversationId)
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     getMessages: async (conversationId) => {
@@ -46,13 +66,20 @@ export const messageService = {
                 message_text: text,
                 image_url: imageUrl
             }])
+            .select() // Added .select() to return the created record
+            .single(); // Use .single() since we insert one record
+        
         if (error) throw error
 
         if (otherId) {
+            const notificationBody = text 
+                ? (text.substring(0, 30) + (text.length > 30 ? '...' : ''))
+                : 'Sent an image 📷';
+
             await notificationService.createNotification(
                 otherId,
                 'New Message',
-                text.substring(0, 30) + (text.length > 30 ? '...' : ''),
+                notificationBody,
                 'MESSAGE',
                 conversationId
             )
@@ -61,10 +88,31 @@ export const messageService = {
         return data
     },
 
-    createConversation: async (taskId) => {
+    getOrCreateConversation: async (taskId, user1Id, user2Id) => {
+        // Try to find an existing conversation between these two for this task
+        const { data: existing, error: checkError } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('task_id', taskId)
+            .or(`and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`)
+            .maybeSingle();
+
+        if (checkError) {
+            console.error('Error checking for existing conversation:', checkError);
+        }
+
+        if (existing) {
+            return existing;
+        }
+
+        // Create a new one
         const { data, error } = await supabase
             .from('conversations')
-            .insert([{ task_id: taskId }])
+            .insert([{ 
+                task_id: taskId,
+                user1_id: user1Id,
+                user2_id: user2Id
+            }])
             .select()
         if (error) throw error
         return data[0]
@@ -79,5 +127,33 @@ export const messageService = {
             .eq('is_read', false);
         
         if (error) throw error;
+    },
+
+    uploadChatImage: async (userId, uri) => {
+        try {
+            const ext = uri.split('.').pop();
+            const fileName = `${Date.now()}.${ext}`;
+            const filePath = `${userId}/${fileName}`;
+
+            const response = await fetch(uri);
+            const blob = await response.blob();
+
+            const { error: uploadError } = await supabase.storage
+                .from('chat-images')
+                .upload(filePath, blob, {
+                    contentType: `image/${ext}`
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('chat-images')
+                .getPublicUrl(filePath);
+
+            return data.publicUrl;
+        } catch (error) {
+            console.error('Error uploading chat image:', error);
+            throw error;
+        }
     }
 }

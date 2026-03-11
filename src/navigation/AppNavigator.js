@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, Text, Alert, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
@@ -250,19 +250,25 @@ const MainTabs = () => {
                 headerShown: false,
                 tabBarActiveTintColor: theme.accent,
                 tabBarInactiveTintColor: theme.textMuted,
-                tabBarStyle: { 
-                    backgroundColor: theme.surface,
-                    borderTopWidth: 1,
-                    borderTopColor: theme.border,
-                    height: 85,
-                    paddingBottom: Platform.OS === 'ios' ? 25 : 20,
-                    paddingTop: 10,
-                    ...shadows.subtle,
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                },
+                tabBarStyle: ((route) => {
+                    const routeName = getFocusedRouteNameFromRoute(route) ?? "";
+                    if (routeName === 'Chat') {
+                        return { display: 'none' };
+                    }
+                    return { 
+                        backgroundColor: theme.surface,
+                        borderTopWidth: 1,
+                        borderTopColor: theme.border,
+                        height: 85,
+                        paddingBottom: Platform.OS === 'ios' ? 25 : 20,
+                        paddingTop: 10,
+                        ...shadows.subtle,
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                    };
+                })(route),
                 tabBarLabelStyle: { fontWeight: '700', fontSize: 12 },
                 tabBarIcon: ({ color, size }) => {
                     let iconName;
@@ -473,8 +479,8 @@ export const AppNavigator = () => {
 
         return () => {
             authListener?.subscription?.unsubscribe();
-            notificationListener.current && Notifications.removeNotificationSubscription(notificationListener.current);
-            responseListener.current && Notifications.removeNotificationSubscription(responseListener.current);
+            notificationListener.current?.remove();
+            responseListener.current?.remove();
         };
     }, []);
 

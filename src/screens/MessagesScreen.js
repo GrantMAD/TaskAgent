@@ -11,6 +11,7 @@ import { FontAwesome } from '@expo/vector-icons';
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const [conversations, setConversations] = useState([]);
+    const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -25,6 +26,7 @@ export const MessagesScreen = ({ navigation }) => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
+            setUserId(session.user.id);
             const data = await messageService.getConversations(session.user.id);
             setConversations(data);
         } catch (error) {
@@ -37,6 +39,11 @@ export const MessagesScreen = ({ navigation }) => {
 
     const onRefresh = () => {
         fetchConversations(true);
+    };
+
+    const getOtherUser = (item) => {
+        if (!userId) return { name: 'Neighbor' };
+        return item.user1_id === userId ? item.user2 : item.user1;
     };
 
     if (loading) {
@@ -75,22 +82,26 @@ export const MessagesScreen = ({ navigation }) => {
                         tintColor={theme.accent}
                     />
                 }
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        style={styles.conversationRow}
-                        onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
-                        activeOpacity={0.7}
-                    >
-                        <UserAvatar user={{ name: 'User' }} size={56} />
-                        <View style={styles.textContainer}>
-                            <View style={styles.rowHeader}>
-                                <Text style={styles.taskTitle} numberOfLines={1}>{item.task?.title || 'Unknown Task'}</Text>
-                                <FontAwesome name="chevron-right" size={12} color={theme.border} />
+                renderItem={({ item }) => {
+                    const otherUser = getOtherUser(item);
+                    return (
+                        <TouchableOpacity
+                            style={styles.conversationRow}
+                            onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
+                            activeOpacity={0.7}
+                        >
+                            <UserAvatar user={otherUser} size={56} />
+                            <View style={styles.textContainer}>
+                                <View style={styles.rowHeader}>
+                                    <Text style={styles.otherUserName} numberOfLines={1}>{otherUser?.name || 'Neighbor'}</Text>
+                                    <FontAwesome name="chevron-right" size={12} color={theme.border} />
+                                </View>
+                                <Text style={styles.taskTitle} numberOfLines={1}>Task: {item.task?.title || 'Unknown Task'}</Text>
+                                <Text style={styles.preview} numberOfLines={1}>Tap to view messages...</Text>
                             </View>
-                            <Text style={styles.preview} numberOfLines={1}>Tap to view messages...</Text>
-                        </View>
-                    </TouchableOpacity>
-                )}
+                        </TouchableOpacity>
+                    );
+                }}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <FontAwesome name="comments-o" size={48} color={theme.border} style={styles.emptyIcon} />
@@ -159,12 +170,17 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    taskTitle: {
-        fontSize: 16,
-        fontWeight: '700',
+    otherUserName: {
+        fontSize: 17,
+        fontWeight: '800',
         color: theme.primary,
         flex: 1,
-        marginRight: 8,
+    },
+    taskTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: theme.textMuted,
+        marginTop: 1,
     },
     preview: {
         color: theme.textMuted,

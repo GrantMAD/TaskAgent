@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,12 +20,22 @@ export const MessageBubble = ({ message, isMine, status }) => {
                 isSending && { opacity: 0.7 },
                 shadows.subtle
             ]}>
-                <Text style={[
-                    styles.text, 
-                    isMine ? { color: theme.white } : { color: theme.text }
-                ]}>
-                    {message.message_text}
-                </Text>
+                {message.image_url && (
+                    <Image 
+                        source={{ uri: message.image_url }} 
+                        style={styles.image}
+                        contentFit="cover"
+                        transition={200}
+                    />
+                )}
+                {message.message_text && (
+                    <Text style={[
+                        styles.text, 
+                        isMine ? { color: theme.white } : { color: theme.text }
+                    ]}>
+                        {message.message_text}
+                    </Text>
+                )}
                 {isMine && (
                     <View style={styles.statusContainer}>
                         {isSending ? (
@@ -61,6 +72,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: Rounding.standard,
         borderWidth: 1,
+    },
+    image: {
+        width: 200,
+        height: 200,
+        borderRadius: Rounding.soft,
+        marginBottom: Spacing.xs,
     },
     text: {
         fontSize: 15,

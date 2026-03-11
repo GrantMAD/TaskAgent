@@ -106,12 +106,53 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         }
     };
 
-    const handleMessagePoster = async () => {
+    const handleMessageApplicant = async (applicantId) => {
         try {
-            const conv = await messageService.createConversation(taskId);
-            navigation.navigate('Chat', { conversationId: conv.id });
+            if (!session) return;
+            const conv = await messageService.getOrCreateConversation(taskId, session.user.id, applicantId);
+            navigation.navigate('Main', {
+                screen: 'MessagesTab',
+                params: {
+                    screen: 'Chat',
+                    params: { conversationId: conv.id }
+                }
+            });
         } catch (error) {
             showToast(error.message, 'error');
+        }
+    };
+
+    const handleMessagePoster = async () => {
+        try {
+            if (!session) {
+                showToast('Please login to message neighbors', 'info');
+                return;
+            }
+
+            // Determine recipient
+            const currentUserId = session.user.id;
+            const posterId = task.poster_id;
+            const workerId = task.assigned_worker_id;
+
+            // If user is poster, they message the worker. If they are worker/visitor, they message the poster.
+            const otherUserId = isPoster ? workerId : posterId;
+
+            if (!otherUserId) {
+                showToast('Recipient not identified. Wait for someone to be assigned or apply.', 'info');
+                return;
+            }
+
+            const conv = await messageService.getOrCreateConversation(taskId, currentUserId, otherUserId);
+            navigation.navigate('Main', {
+                screen: 'MessagesTab',
+                params: {
+                    screen: 'Chat',
+                    params: { conversationId: conv.id }
+                }
+            });
+        } catch (error) {
+            console.error('Conversation Error:', error);
+            showToast(error.message || 'Could not start conversation', 'error');
         }
     };
 
@@ -329,12 +370,20 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                                         <Text style={styles.applicantName}>{app.worker.name}</Text>
                                         <RatingStars rating={app.worker.rating || 5} />
                                     </View>
-                                    <TouchableOpacity 
-                                        style={styles.acceptButtonSmall}
-                                        onPress={() => triggerHireModal(app.worker_id, app.worker.name)}
-                                    >
-                                        <Text style={styles.acceptButtonTextSmall}>Hire</Text>
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <TouchableOpacity 
+                                            style={[styles.acceptButtonSmall, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary, marginRight: 8, paddingHorizontal: 12 }]}
+                                            onPress={() => handleMessageApplicant(app.worker_id)}
+                                        >
+                                            <FontAwesome name="envelope" size={14} color={theme.primary} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={styles.acceptButtonSmall}
+                                            onPress={() => triggerHireModal(app.worker_id, app.worker.name)}
+                                        >
+                                            <Text style={styles.acceptButtonTextSmall}>Hire</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             ))
                         ) : (
@@ -390,7 +439,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     )}
 
                     {/* Universal Action: Message */}
-                    {session && (
+                    {session && (!isPoster || task.assigned_worker_id) && (
                         <TouchableOpacity style={styles.messageButton} onPress={handleMessagePoster}>
                             <FontAwesome name="envelope" size={18} color={theme.primary} style={styles.buttonIcon} />
                             <Text style={styles.messageButtonText}>

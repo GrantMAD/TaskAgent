@@ -19,7 +19,7 @@ export const ToastProvider = ({ children }) => {
     const translateY = useRef(new Animated.Value(-100)).current;
     const timerRef = useRef(null);
 
-    const useNativeDriver = Platform.OS !== 'web';
+    const useNativeDriver = false; // Forced to false to resolve "native animated module is missing" warnings
 
     const showToast = useCallback((message, type = 'info') => {
         // Clear existing timer

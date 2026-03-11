@@ -51,29 +51,47 @@ export const Rounding = {
 
 export const getShadow = (type, theme = LightTheme) => {
     const shadowColor = theme.shadow || theme.primary;
+    
+    // Helper to add opacity to hex or use rgba
+    const withOpacity = (color, opacity) => {
+        if (color.startsWith('#')) {
+            const r = parseInt(color.slice(1, 3), 16);
+            const g = parseInt(color.slice(3, 5), 16);
+            const b = parseInt(color.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        }
+        return color;
+    };
+
     switch (type) {
         case 'subtle':
             return {
-                shadowColor,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 5,
+                boxShadow: [{
+                    offsetX: 0,
+                    offsetY: 2,
+                    blur: 5,
+                    color: withOpacity(shadowColor, 0.1)
+                }],
                 elevation: 2,
             };
         case 'medium':
             return {
-                shadowColor,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 10,
+                boxShadow: [{
+                    offsetX: 0,
+                    offsetY: 4,
+                    blur: 10,
+                    color: withOpacity(shadowColor, 0.2)
+                }],
                 elevation: 4,
             };
         case 'accent':
             return {
-                shadowColor: theme.accent,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 10,
+                boxShadow: [{
+                    offsetX: 0,
+                    offsetY: 4,
+                    blur: 10,
+                    color: withOpacity(theme.accent, 0.3)
+                }],
                 elevation: 5,
             };
         default:

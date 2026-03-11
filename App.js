@@ -7,7 +7,11 @@ import { ThemeProvider } from './src/components/ThemeContext';
 import { LocationProvider } from './src/components/LocationContext';
 
 // Suppress known deprecation warnings
-LogBox.ignoreLogs(['props.pointerEvents is deprecated']);
+// Suppress known deprecation warnings from libraries
+LogBox.ignoreLogs([
+    'props.pointerEvents is deprecated',
+    'Use style.pointerEvents'
+]);
 
 export default function App() {
     return (
