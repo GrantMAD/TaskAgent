@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
@@ -7,6 +7,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -17,18 +18,28 @@ export const MessagesScreen = ({ navigation }) => {
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    useEffect(() => {
-        fetchConversations();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchConversations();
+        }, [])
+    );
 
     const fetchConversations = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            setUserId(session.user.id);
-            const data = await messageService.getConversations(session.user.id);
-            setConversations(data);
+            const currentUserId = session.user.id;
+            setUserId(currentUserId);
+            const data = await messageService.getConversations(currentUserId);
+            
+            // Fetch unread counts for each conversation
+            const conversationsWithUnread = await Promise.all(data.map(async (conv) => {
+                const unreadCount = await messageService.getUnreadCount(conv.id, currentUserId);
+                return { ...conv, unread_count: unreadCount };
+            }));
+
+            setConversations(conversationsWithUnread);
         } catch (error) {
             console.error(error);
         } finally {
@@ -44,6 +55,16 @@ export const MessagesScreen = ({ navigation }) => {
     const getOtherUser = (item) => {
         if (!userId) return { name: 'Neighbor' };
         return item.user1_id === userId ? item.user2 : item.user1;
+    };
+
+    const formatMessageTime = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        if (date.toDateString() === now.toDateString()) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
     if (loading) {
@@ -84,21 +105,36 @@ export const MessagesScreen = ({ navigation }) => {
                 }
                 renderItem={({ item }) => {
                     const otherUser = getOtherUser(item);
+                    const lastMsg = item.last_message;
+                    const hasUnread = item.unread_count > 0;
+
                     return (
                         <TouchableOpacity
-                            style={styles.conversationRow}
+                            style={[styles.conversationRow, hasUnread && styles.unreadRow]}
                             onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
                             activeOpacity={0.7}
                         >
                             <UserAvatar user={otherUser} size={56} />
+                            {hasUnread && <View style={styles.unreadBadge} />}
+                            
                             <View style={styles.textContainer}>
                                 <View style={styles.rowHeader}>
-                                    <Text style={styles.otherUserName} numberOfLines={1}>{otherUser?.name || 'Neighbor'}</Text>
-                                    <FontAwesome name="chevron-right" size={12} color={theme.border} />
+                                    <Text style={[styles.otherUserName, hasUnread && styles.unreadText]} numberOfLines={1}>
+                                        {otherUser?.name || 'Neighbor'}
+                                    </Text>
+                                    <Text style={styles.timeText}>
+                                        {formatMessageTime(lastMsg?.created_at)}
+                                    </Text>
                                 </View>
-                                <Text style={styles.taskTitle} numberOfLines={1}>Task: {item.task?.title || 'Unknown Task'}</Text>
-                                <Text style={styles.preview} numberOfLines={1}>Tap to view messages...</Text>
+                                <Text style={[styles.preview, hasUnread && styles.unreadPreview]} numberOfLines={1}>
+                                    {lastMsg ? (
+                                        lastMsg.message_text || (lastMsg.image_url ? '📷 Image' : 'No content')
+                                    ) : (
+                                        'No messages yet'
+                                    )}
+                                </Text>
                             </View>
+                            <FontAwesome name="chevron-right" size={12} color={theme.border} style={{ marginLeft: 10 }} />
                         </TouchableOpacity>
                     );
                 }}
@@ -160,6 +196,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         ...shadows.subtle,
         borderWidth: 1,
         borderColor: theme.border,
+        position: 'relative',
+    },
+    unreadRow: {
+        borderColor: theme.accent,
+        backgroundColor: theme.isDarkMode ? 'rgba(230, 138, 0, 0.05)' : 'rgba(230, 138, 0, 0.02)',
+    },
+    unreadBadge: {
+        position: 'absolute',
+        top: 15,
+        left: 60,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: theme.accent,
+        borderWidth: 2,
+        borderColor: theme.card,
+        zIndex: 1,
     },
     textContainer: {
         marginLeft: Spacing.md,
@@ -176,6 +229,14 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.primary,
         flex: 1,
     },
+    unreadText: {
+        fontWeight: '900',
+    },
+    timeText: {
+        fontSize: 12,
+        color: theme.textMuted,
+        fontWeight: '600',
+    },
     taskTitle: {
         fontSize: 14,
         fontWeight: '600',
@@ -186,6 +247,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.textMuted,
         marginTop: 2,
         fontSize: 14,
+    },
+    unreadPreview: {
+        color: theme.text,
+        fontWeight: '700',
     },
     emptyState: {
         padding: Spacing.xl,

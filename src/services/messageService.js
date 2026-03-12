@@ -9,12 +9,45 @@ export const messageService = {
                 *,
                 task:tasks(title, poster_id, assigned_worker_id),
                 user1:users!user1_id(id, name, profile_image),
-                user2:users!user2_id(id, name, profile_image)
+                user2:users!user2_id(id, name, profile_image),
+                last_message:messages!conversation_id(message_text, image_url, created_at, sender_id),
+                unread_count:messages!conversation_id(count)
             `)
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
-        if (error) throw error
-        return data
+        
+        if (error) throw error;
+
+        // Post-process to get the single last message and actual unread count
+        // Note: Supabase's count/limit in select is tricky with joined tables, 
+        // so we'll fetch them and handle the logic. 
+        // For production scale, a view or RPC is better, but this works for now.
+        return data.map(conv => {
+            const messages = conv.last_message || [];
+            const lastMsg = messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            
+            // Re-fetch unread count specifically for this user
+            // (We'll do this in a separate step or via a more complex query if needed, 
+            // but for now let's simplify)
+            return {
+                ...conv,
+                last_message: lastMsg,
+                // We'll calculate unread count in the screen or a separate service call 
+                // to avoid complex join logic issues
+            };
+        });
+    },
+
+    getUnreadCount: async (conversationId, userId) => {
+        const { count, error } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', conversationId)
+            .neq('sender_id', userId)
+            .eq('is_read', false);
+        
+        if (error) throw error;
+        return count || 0;
     },
 
     getConversation: async (conversationId) => {
@@ -32,14 +65,17 @@ export const messageService = {
         return data;
     },
 
-    getMessages: async (conversationId) => {
+    getMessages: async (conversationId, limit = 20, offset = 0) => {
         const { data, error } = await supabase
             .from('messages')
             .select('*, sender:users(id, name, profile_image)')
             .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true })
-        if (error) throw error
-        return data
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+        
+        if (error) throw error;
+        // Return in chronological order for the UI, but we fetch newest first for pagination
+        return data.reverse();
     },
 
     sendMessage: async (conversationId, senderId, text, imageUrl = null) => {
@@ -89,11 +125,10 @@ export const messageService = {
     },
 
     getOrCreateConversation: async (taskId, user1Id, user2Id) => {
-        // Try to find an existing conversation between these two for this task
+        // Try to find an existing conversation between these two users (ignoring task_id)
         const { data: existing, error: checkError } = await supabase
             .from('conversations')
             .select('*')
-            .eq('task_id', taskId)
             .or(`and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`)
             .maybeSingle();
 
@@ -105,13 +140,13 @@ export const messageService = {
             return existing;
         }
 
-        // Create a new one
+        // Create a new unique 1-on-1 conversation
         const { data, error } = await supabase
             .from('conversations')
             .insert([{ 
-                task_id: taskId,
                 user1_id: user1Id,
-                user2_id: user2Id
+                user2_id: user2Id,
+                task_id: taskId // Keep as reference for how they met, but won't be used for uniqueness anymore
             }])
             .select()
         if (error) throw error

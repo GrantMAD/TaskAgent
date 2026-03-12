@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../services/supabaseClient';
+import { userService } from '../services/userService';
 
 const LocationContext = createContext();
 
@@ -12,9 +13,12 @@ export const LocationProvider = ({ children }) => {
 
     const loadSettings = async () => {
         try {
-            const savedRadius = await AsyncStorage.getItem('searchRadius');
-            if (savedRadius !== null) {
-                setSearchRadius(parseInt(savedRadius, 10));
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const profile = await userService.getUserProfile(session.user.id);
+                if (profile && profile.search_radius) {
+                    setSearchRadius(profile.search_radius);
+                }
             }
         } catch (e) {
             console.error('Error loading searchRadius:', e);
@@ -24,7 +28,10 @@ export const LocationProvider = ({ children }) => {
     const updateSearchRadius = async (newRadius) => {
         try {
             setSearchRadius(newRadius);
-            await AsyncStorage.setItem('searchRadius', newRadius.toString());
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await userService.updateSearchRadius(session.user.id, newRadius);
+            }
         } catch (e) {
             console.error('Error saving searchRadius:', e);
         }

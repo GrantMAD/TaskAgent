@@ -19,6 +19,11 @@ export const ChatScreen = ({ route, navigation }) => {
     const [text, setText] = useState('');
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [offset, setOffset] = useState(0);
+    const LIMIT = 20;
+
     const [isOtherTyping, setIsOtherTyping] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -56,12 +61,22 @@ export const ChatScreen = ({ route, navigation }) => {
                 filter: `conversation_id=eq.${conversationId}`
             }, (payload) => {
                 if (payload.eventType === 'INSERT') {
+                    // Check if message is from other user to mark as read
+                    // We need to know who the current user is. 
+                    // Since useEffect closure might have old userId, we'll get it from session or state
+                    const checkMarkRead = async () => {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session && payload.new.sender_id !== session.user.id) {
+                            messageService.markMessagesAsRead(conversationId, session.user.id);
+                        }
+                    };
+                    checkMarkRead();
+
                     setMessages((prev) => {
                         // 1. Avoid duplicates if we already have this message (real ID match)
                         if (prev.find(m => m.id === payload.new.id)) return prev;
                         
                         // 2. Optimistic match: replace temp message with real one from DB
-                        // We check for matching sender, text, and that the ID starts with 'temp-'
                         const optimisticIndex = prev.findIndex(m => 
                             m.sender_id === payload.new.sender_id && 
                             m.message_text === payload.new.message_text && 
@@ -77,12 +92,8 @@ export const ChatScreen = ({ route, navigation }) => {
                             return updatedMessages;
                         }
                         
-                        // If it's from the other user, mark it as read immediately since we are on this screen
-                        if (payload.new.sender_id !== currentUserId) {
-                            messageService.markMessagesAsRead(conversationId, currentUserId);
-                        }
-                        
-                        return [...prev, payload.new];
+                        // INVERTED: NEW MESSAGES AT THE START (BOTTOM OF SCREEN)
+                        return [payload.new, ...prev];
                     });
                 } else if (payload.eventType === 'UPDATE') {
                     // Update the message in our state (usually for is_read status)
@@ -109,10 +120,14 @@ export const ChatScreen = ({ route, navigation }) => {
         try {
             const [conv, msgs] = await Promise.all([
                 messageService.getConversation(conversationId),
-                messageService.getMessages(conversationId)
+                messageService.getMessages(conversationId, LIMIT, 0)
             ]);
             setConversation(conv);
-            setMessages(msgs);
+            // Inverted: msgs come chronologically from service (after .reverse())
+            // For inverted list, we need newest at start of array
+            setMessages(msgs.reverse());
+            setOffset(LIMIT);
+            if (msgs.length < LIMIT) setHasMore(false);
         } catch (error) {
             console.error('Error fetching chat details:', error);
             showToast('Could not load conversation', 'error');
@@ -121,8 +136,24 @@ export const ChatScreen = ({ route, navigation }) => {
         }
     };
 
-    const fetchMessages = async () => {
-        // This is now handled in fetchChatDetails
+    const loadMoreMessages = async () => {
+        if (!hasMore || loadingMore) return;
+        
+        setLoadingMore(true);
+        try {
+            const olderMsgs = await messageService.getMessages(conversationId, LIMIT, offset);
+            if (olderMsgs.length < LIMIT) {
+                setHasMore(false);
+            }
+            // olderMsgs come chronologically [older ... newer]
+            // We want [newest ... oldest] for inverted list
+            setMessages(prev => [...prev, ...olderMsgs.reverse()]);
+            setOffset(prev => prev + LIMIT);
+        } catch (error) {
+            console.error('Error loading more messages:', error);
+        } finally {
+            setLoadingMore(false);
+        }
     };
 
     const handleTextChange = (val) => {
@@ -192,7 +223,8 @@ export const ChatScreen = ({ route, navigation }) => {
             status: 'sending'
         };
 
-        setMessages((prev) => [...prev, optimisticMessage]);
+        // INVERTED: NEW MESSAGE AT THE START (BOTTOM OF SCREEN)
+        setMessages((prev) => [optimisticMessage, ...prev]);
 
         try {
             let uploadedUrl = null;
@@ -224,30 +256,16 @@ export const ChatScreen = ({ route, navigation }) => {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <TouchableOpacity onPress={() => navigation.navigate('MessagesMain')} style={styles.backButton}>
                     <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
                 <View style={styles.headerInfoContainer}>
                     <UserAvatar user={otherUser} size={36} />
                     <View style={styles.headerTextContainer}>
                         <Text style={styles.headerTitle} numberOfLines={1}>{otherUser?.name || 'Neighbor'}</Text>
-                        {conversation?.task?.title && (
-                            <Text style={styles.headerSubtitle} numberOfLines={1}>{conversation.task.title}</Text>
-                        )}
                     </View>
                 </View>
-                <TouchableOpacity 
-                    style={styles.headerAction}
-                    onPress={() => conversation?.task_id && navigation.navigate('Main', { 
-                        screen: 'HomeTab', 
-                        params: { 
-                            screen: 'TaskDetail', 
-                            params: { taskId: conversation.task_id } 
-                        } 
-                    })}
-                >
-                    <FontAwesome name="info-circle" size={20} color={theme.white} />
-                </TouchableOpacity>
+                <View style={{ width: 40 }} />
             </View>
 
             <View style={{ flex: 1 }}>
@@ -257,11 +275,13 @@ export const ChatScreen = ({ route, navigation }) => {
                     <FlatList
                         ref={flatListRef}
                         data={messages}
+                        inverted
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={styles.messageList}
                         showsVerticalScrollIndicator={false}
-                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        onEndReached={loadMoreMessages}
+                        onEndReachedThreshold={0.3}
+                        ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.accent} style={{ margin: 10 }} /> : null}
                         renderItem={({ item }) => (
                             <MessageBubble
                                 message={item}

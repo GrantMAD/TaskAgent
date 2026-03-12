@@ -365,9 +365,13 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         {applications.length > 0 ? (
                             applications.map((app) => (
                                 <View key={app.id} style={styles.applicantCard}>
-                                    <UserAvatar user={app.worker} size={40} />
+                                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
+                                        <UserAvatar user={app.worker} size={40} />
+                                    </TouchableOpacity>
                                     <View style={styles.applicantInfo}>
-                                        <Text style={styles.applicantName}>{app.worker.name}</Text>
+                                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
+                                            <Text style={styles.applicantName}>{app.worker.name}</Text>
+                                        </TouchableOpacity>
                                         <RatingStars rating={app.worker.rating || 5} />
                                     </View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -400,7 +404,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     {task.poster && (
                         <TouchableOpacity 
                             style={styles.posterCard}
-                            onPress={() => showToast('This feature is coming soon!', 'info')}
+                            onPress={() => navigation.navigate('PublicProfile', { userId: task.poster_id })}
                         >
                             <UserAvatar user={task.poster} size={50} />
                             <View style={styles.posterInfo}>

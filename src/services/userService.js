@@ -58,6 +58,14 @@ export const userService = {
         if (error) throw error;
     },
 
+    updateSearchRadius: async (userId, radius) => {
+        const { error } = await supabase
+            .from('users')
+            .update({ search_radius: radius })
+            .eq('id', userId);
+        if (error) throw error;
+    },
+
     // Upload profile image to avatars bucket
     uploadAvatar: async (userId, uri) => {
         try {

@@ -30,23 +30,29 @@ export const NotificationsScreen = ({ navigation }) => {
             case 'HIRED':
             case 'COMPLETED':
                 if (item.related_id) {
-                    navigation.navigate('Main', { 
-                        screen: 'HomeTab', 
-                        params: { 
-                            screen: 'TaskDetail', 
-                            params: { taskId: item.related_id } 
-                        } 
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'HomeTab', 
+                            params: { 
+                                screen: 'TaskDetail', 
+                                params: { taskId: item.related_id } 
+                            }
+                        }
                     });
                 }
                 break;
             case 'MESSAGE':
                 if (item.related_id) {
-                    navigation.navigate('Main', { 
-                        screen: 'MessagesTab', 
-                        params: { 
-                            screen: 'Chat', 
-                            params: { conversationId: item.related_id } 
-                        } 
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'MessagesTab', 
+                            params: { 
+                                screen: 'Chat', 
+                                params: { conversationId: item.related_id } 
+                            }
+                        }
                     });
                 }
                 break;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, Text, Alert, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
-import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
@@ -30,10 +30,20 @@ import { TaskHistoryScreen } from '../screens/TaskHistoryScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { PublicProfileScreen } from '../screens/PublicProfileScreen';
+
+export const navigationRef = createNavigationContainerRef();
+
+export function navigate(name, params) {
+    if (navigationRef.isReady()) {
+        navigationRef.navigate(name, params);
+    }
+}
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
+const RootStack = createNativeStackNavigator();
 
 const commonStackOptions = {
     headerShown: false,
@@ -69,23 +79,29 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
             case 'HIRED':
             case 'COMPLETED':
                 if (item.related_id) {
-                    navigation.navigate('Main', { 
-                        screen: 'HomeTab', 
-                        params: { 
-                            screen: 'TaskDetail', 
-                            params: { taskId: item.related_id } 
-                        } 
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'HomeTab', 
+                            params: { 
+                                screen: 'TaskDetail', 
+                                params: { taskId: item.related_id } 
+                            }
+                        }
                     });
                 }
                 break;
             case 'MESSAGE':
                 if (item.related_id) {
-                    navigation.navigate('Main', { 
-                        screen: 'MessagesTab', 
-                        params: { 
-                            screen: 'Chat', 
-                            params: { conversationId: item.related_id } 
-                        } 
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'MessagesTab', 
+                            params: { 
+                                screen: 'Chat', 
+                                params: { conversationId: item.related_id } 
+                            }
+                        }
                     });
                 }
                 break;
@@ -285,7 +301,22 @@ const MainTabs = () => {
             <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
             <Tab.Screen name="TasksTab" component={FeedStack} options={{ title: 'Jobs' }} />
             <Tab.Screen name="CreateTab" component={CreateTaskScreen} options={{ title: 'Post' }} />
-            <Tab.Screen name="MessagesTab" component={MessagesStack} options={{ title: 'Inbox' }} />
+            <Tab.Screen 
+                name="MessagesTab" 
+                component={MessagesStack} 
+                options={{ 
+                    title: 'Inbox',
+                    unmountOnBlur: true
+                }} 
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        // Prevent default behavior to ensure we can force the stack reset
+                        e.preventDefault();
+                        // Navigate to the tab and explicitly to the list screen
+                        navigation.navigate('MessagesTab', { screen: 'MessagesMain' });
+                    },
+                })}
+            />
         </Tab.Navigator>
     );
 };
@@ -473,8 +504,42 @@ export const AppNavigator = () => {
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log('Notification response:', response);
-            // Handle navigation when user taps notification if needed
+            const { type, related_id } = response.notification.request.content.data;
+            
+            // Navigation Logic based on notification data
+            if (type && related_id) {
+                // Use the navigate helper to reach deep screens
+                switch (type) {
+                    case 'APPLICATION':
+                    case 'HIRED':
+                    case 'COMPLETED':
+                        navigate('MainDrawer', {
+                            screen: 'Main',
+                            params: {
+                                screen: 'HomeTab',
+                                params: {
+                                    screen: 'TaskDetail',
+                                    params: { taskId: related_id }
+                                }
+                            }
+                        });
+                        break;
+                    case 'MESSAGE':
+                        navigate('MainDrawer', {
+                            screen: 'Main',
+                            params: {
+                                screen: 'MessagesTab',
+                                params: {
+                                    screen: 'Chat',
+                                    params: { conversationId: related_id }
+                                }
+                            }
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            }
         });
 
         return () => {
@@ -497,8 +562,19 @@ export const AppNavigator = () => {
 
     return (
         <NotificationProvider>
-            <NavigationContainer>
-                {session && session.user ? <MainDrawer /> : <AuthStack />}
+            <NavigationContainer ref={navigationRef}>
+                {session && session.user ? (
+                    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                        <RootStack.Screen name="MainDrawer" component={MainDrawer} />
+                        <RootStack.Screen 
+                            name="PublicProfile" 
+                            component={PublicProfileScreen} 
+                            options={{ presentation: 'fullScreenModal' }}
+                        />
+                    </RootStack.Navigator>
+                ) : (
+                    <AuthStack />
+                )}
             </NavigationContainer>
         </NotificationProvider>
     );

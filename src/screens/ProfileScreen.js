@@ -117,9 +117,13 @@ export const ProfileScreen = ({ navigation }) => {
                         reviews.map((review) => (
                             <View key={review.id} style={styles.reviewCard}>
                                 <View style={styles.reviewHeader}>
-                                    <UserAvatar user={review.reviewer} size={30} />
+                                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
+                                        <UserAvatar user={review.reviewer} size={30} />
+                                    </TouchableOpacity>
                                     <View style={styles.reviewInfo}>
-                                        <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
+                                            <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                        </TouchableOpacity>
                                         <View style={styles.ratingRow}>
                                             {[1, 2, 3, 4, 5].map((s) => (
                                                 <FontAwesome 
