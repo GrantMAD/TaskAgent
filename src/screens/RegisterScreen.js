@@ -1,19 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
 import { supabase } from '../services/supabaseClient';
-import { Colors, Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
+import { useTheme } from '../components/ThemeContext';
 import { useToast } from '../components/ToastContext';
+import { FontAwesome } from '@expo/vector-icons';
+import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
 
 export const RegisterScreen = ({ navigation }) => {
+    const { theme, shadows } = useTheme();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const { showToast } = useToast();
 
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
     const handleRegister = async () => {
         if (loading) return;
+
+        // Validation
+        const missing = getMissingFields({ 
+            Name: name, 
+            Email: email, 
+            Phone: phone, 
+            Password: password 
+        });
+        
+        if (missing) {
+            showToast(`${missing} is required`, 'warning');
+            return;
+        }
+
+        if (!validateEmail(email)) {
+            showToast('Please enter a valid email address', 'warning');
+            return;
+        }
+
+        if (!validatePhone(phone)) {
+            showToast('Please enter a valid phone number', 'warning');
+            return;
+        }
+
+        if (!validatePassword(password)) {
+            showToast('Password must be at least 6 characters', 'warning');
+            return;
+        }
+
         setLoading(true);
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -64,7 +100,7 @@ export const RegisterScreen = ({ navigation }) => {
                         <TextInput
                             style={styles.input}
                             placeholder="John Doe"
-                            placeholderTextColor={Colors.textMuted}
+                            placeholderTextColor={theme.textMuted}
                             value={name}
                             onChangeText={setName}
                         />
@@ -75,7 +111,7 @@ export const RegisterScreen = ({ navigation }) => {
                         <TextInput
                             style={styles.input}
                             placeholder="neighbor@example.com"
-                            placeholderTextColor={Colors.textMuted}
+                            placeholderTextColor={theme.textMuted}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -88,7 +124,7 @@ export const RegisterScreen = ({ navigation }) => {
                         <TextInput
                             style={styles.input}
                             placeholder="0400 000 000"
-                            placeholderTextColor={Colors.textMuted}
+                            placeholderTextColor={theme.textMuted}
                             value={phone}
                             onChangeText={setPhone}
                             keyboardType="phone-pad"
@@ -97,14 +133,26 @@ export const RegisterScreen = ({ navigation }) => {
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Password</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Create a password"
-                            placeholderTextColor={Colors.textMuted}
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
+                        <View style={styles.passwordContainer}>
+                            <TextInput
+                                style={styles.passwordInput}
+                                placeholder="Create a password"
+                                placeholderTextColor={theme.textMuted}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry={!showPassword}
+                            />
+                            <TouchableOpacity 
+                                style={styles.eyeIcon} 
+                                onPress={() => setShowPassword(!showPassword)}
+                            >
+                                <FontAwesome 
+                                    name={showPassword ? "eye" : "eye-slash"} 
+                                    size={20} 
+                                    color={theme.textMuted} 
+                                />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <TouchableOpacity 
@@ -113,7 +161,7 @@ export const RegisterScreen = ({ navigation }) => {
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color={Colors.white} />
+                            <ActivityIndicator color={theme.white} />
                         ) : (
                             <Text style={styles.buttonText}>Create Account</Text>
                         )}
@@ -130,10 +178,10 @@ export const RegisterScreen = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: theme.background,
     },
     scrollContent: {
         padding: Spacing.lg,
@@ -153,19 +201,21 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: '800',
-        color: Colors.primary,
+        color: theme.primary,
         marginBottom: Spacing.xs,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.textMuted,
+        color: theme.textMuted,
         fontWeight: '500',
     },
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: theme.card,
         padding: Spacing.xl,
         borderRadius: Rounding.soft,
-        ...Shadow.medium,
+        ...shadows.medium,
+        borderWidth: theme.isDarkMode ? 1 : 0,
+        borderColor: theme.border,
     },
     inputGroup: {
         marginBottom: Spacing.md,
@@ -173,32 +223,52 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '700',
-        color: Colors.text,
+        color: theme.text,
         marginBottom: Spacing.xs,
         marginLeft: 4,
     },
     input: {
         borderWidth: 1.5,
-        borderColor: Colors.border,
+        borderColor: theme.border,
         padding: Spacing.md,
         borderRadius: Rounding.standard,
         fontSize: 16,
-        color: Colors.text,
-        backgroundColor: '#FAFBFA',
+        color: theme.text,
+        backgroundColor: theme.input,
+    },
+    passwordContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: theme.border,
+        borderRadius: Rounding.standard,
+        backgroundColor: theme.input,
+        overflow: 'hidden',
+    },
+    passwordInput: {
+        flex: 1,
+        padding: Spacing.md,
+        fontSize: 16,
+        color: theme.text,
+    },
+    eyeIcon: {
+        paddingHorizontal: Spacing.md,
+        height: '100%',
+        justifyContent: 'center',
     },
     button: {
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.primary,
         padding: Spacing.md,
         borderRadius: Rounding.pill,
         alignItems: 'center',
         marginTop: Spacing.lg,
-        ...Shadow.accent,
+        ...shadows.accent,
     },
     buttonDisabled: {
         opacity: 0.7,
     },
     buttonText: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 18,
         fontWeight: '700',
     },
@@ -207,7 +277,7 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xl,
     },
     footerLink: {
-        color: Colors.accent,
+        color: theme.accent,
         fontWeight: '700',
         fontSize: 14,
     }

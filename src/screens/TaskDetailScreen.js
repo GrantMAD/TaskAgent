@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
@@ -24,6 +24,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const [task, setTask] = useState(null);
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [session, setSession] = useState(null);
     const { showToast } = useToast();
     
@@ -77,7 +78,8 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         fetchTaskDetails();
     }, [taskId]);
 
-    const fetchTaskDetails = async () => {
+    const fetchTaskDetails = async (isRefreshing = false) => {
+        if (isRefreshing) setRefreshing(true);
         try {
             const data = await taskService.getTaskDetails(taskId);
             setTask(data);
@@ -93,7 +95,12 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             showToast('Could not load task details', 'error');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
+    };
+
+    const onRefresh = () => {
+        fetchTaskDetails(true);
     };
 
     const handleApply = async () => {
@@ -251,7 +258,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         }
     };
 
-    if (loading && !task) {
+    if (loading && !task && !refreshing) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
@@ -282,7 +289,18 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 <View style={styles.headerSpacer} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent} 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl 
+                        refreshing={refreshing} 
+                        onRefresh={onRefresh} 
+                        colors={[theme.accent]} 
+                        tintColor={theme.accent}
+                    />
+                }
+            >
                 <View style={styles.titleSection}>
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryText}>{task.category}</Text>

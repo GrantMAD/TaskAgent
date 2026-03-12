@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, Platform, Modal } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors, Shadow, Spacing, Rounding } from '../utils/theme';
+import { useTheme } from './ThemeContext';
 
 const ToastContext = createContext();
 
@@ -14,6 +15,7 @@ export const useToast = () => {
 };
 
 export const ToastProvider = ({ children }) => {
+    const { theme, shadows } = useTheme();
     const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(-100)).current;
@@ -22,6 +24,7 @@ export const ToastProvider = ({ children }) => {
     const useNativeDriver = false; // Forced to false to resolve "native animated module is missing" warnings
 
     const showToast = useCallback((message, type = 'info') => {
+        console.log(`[Toast] Showing: ${message} (${type})`);
         // Clear existing timer
         if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -47,6 +50,7 @@ export const ToastProvider = ({ children }) => {
     }, [fadeAnim, translateY, useNativeDriver]);
 
     const hideToast = useCallback(() => {
+        console.log('[Toast] Hiding');
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 0,
@@ -74,10 +78,10 @@ export const ToastProvider = ({ children }) => {
 
     const getBackgroundColor = () => {
         switch (toast.type) {
-            case 'success': return Colors.success;
-            case 'error': return Colors.error;
-            case 'warning': return Colors.accent;
-            default: return Colors.primary;
+            case 'success': return theme.success;
+            case 'error': return theme.error;
+            case 'warning': return theme.accent;
+            default: return theme.primary;
         }
     };
 
@@ -85,30 +89,39 @@ export const ToastProvider = ({ children }) => {
         <ToastContext.Provider value={{ showToast }}>
             {children}
             {toast.visible && (
-                <Animated.View 
-                    style={[
-                        styles.toastContainer, 
-                        { 
-                            backgroundColor: getBackgroundColor(),
-                            opacity: fadeAnim,
-                            transform: [{ translateY }]
-                        }
-                    ]}
-                >
-                    <View style={styles.content}>
-                        <FontAwesome name={getIcon()} size={20} color={Colors.white} />
-                        <Text style={styles.message}>{toast.message}</Text>
-                        <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
-                            <FontAwesome name="times" size={16} color="rgba(255,255,255,0.7)" />
-                        </TouchableOpacity>
-                    </View>
-                </Animated.View>
+                <View style={styles.modalOverlay} pointerEvents="box-none">
+                    <Animated.View 
+                        style={[
+                            styles.toastContainer, 
+                            { 
+                                backgroundColor: getBackgroundColor(),
+                                opacity: fadeAnim,
+                                transform: [{ translateY }],
+                                ...shadows.medium
+                            }
+                        ]}
+                    >
+                        <View style={styles.content}>
+                            <FontAwesome name={getIcon()} size={20} color={theme.white} />
+                            <Text style={styles.message}>{toast.message}</Text>
+                            <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
+                                <FontAwesome name="times" size={16} color="rgba(255,255,255,0.7)" />
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </View>
             )}
         </ToastContext.Provider>
     );
 };
 
 const styles = StyleSheet.create({
+    modalOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'transparent',
+        zIndex: 999999,
+        elevation: 100,
+    },
     toastContainer: {
         position: 'absolute',
         top: Platform.OS === 'ios' ? 50 : 30,
@@ -116,7 +129,6 @@ const styles = StyleSheet.create({
         right: Spacing.md,
         padding: Spacing.md,
         borderRadius: Rounding.standard,
-        zIndex: 9999,
         ...Shadow.medium,
     },
     content: {
@@ -124,7 +136,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     message: {
-        color: Colors.white,
+        color: 'white',
         fontSize: 14,
         fontWeight: '700',
         marginLeft: Spacing.sm,

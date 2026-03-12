@@ -267,8 +267,10 @@ const MainTabs = () => {
                 tabBarActiveTintColor: theme.accent,
                 tabBarInactiveTintColor: theme.textMuted,
                 tabBarStyle: ((route) => {
-                    const routeName = getFocusedRouteNameFromRoute(route) ?? "";
-                    if (routeName === 'Chat') {
+                    const routeName = getFocusedRouteNameFromRoute(route) ?? route.name;
+                    const isCreateFormOpen = route.name === 'CreateTab' && route.params?.isFormOpen;
+                    
+                    if (routeName === 'Chat' || isCreateFormOpen) {
                         return { display: 'none' };
                     }
                     return { 
@@ -334,52 +336,55 @@ const MainDrawer = () => {
         <>
             <Drawer.Navigator
                 drawerContent={(props) => <CustomDrawerContent {...props} />}
-                screenOptions={{
-                    headerShown: true,
-                    drawerType: 'front',
-                    swipeEnabled: true,
-                    swipeEdgeWidth: 100,
-                    headerStyle: {
-                        backgroundColor: theme.primary,
-                        ...shadows.medium,
-                        height: Platform.OS === 'ios' ? 100 : 80,
-                    },
-                    headerTintColor: theme.white,
-                    headerTitleStyle: {
-                        fontWeight: '800',
-                        fontSize: 20,
-                    },
-                    headerTitle: () => (
-                        <View style={styles.headerTitleContainer}>
-                            <Image 
-                                source={require('../../assets/images/TaskLogo.png')} 
-                                style={styles.headerLogo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                    ),
-                    headerRight: () => (
-                        <TouchableOpacity 
-                            style={styles.notifIcon} 
-                            onPress={() => setNotifVisible(true)}
-                        >
-                            <FontAwesome name="bell" size={22} color={theme.white} />
-                            {unreadCount > 0 && (
-                                <View style={styles.notifBadge}>
-                                    <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    ),
-                    drawerActiveTintColor: theme.accent,
-                    drawerInactiveTintColor: theme.text,
-                    drawerStyle: {
-                        backgroundColor: theme.surface,
-                    },
-                    drawerLabelStyle: {
-                        fontWeight: '700',
-                        fontSize: 16,
-                    },
+                screenOptions={({ route }) => {
+                    const routeName = getFocusedRouteNameFromRoute(route);
+                    return {
+                        headerShown: true,
+                        drawerType: 'front',
+                        swipeEnabled: true,
+                        swipeEdgeWidth: 100,
+                        headerStyle: {
+                            backgroundColor: theme.primary,
+                            ...shadows.medium,
+                            height: Platform.OS === 'ios' ? 100 : 80,
+                        },
+                        headerTintColor: theme.white,
+                        headerTitleStyle: {
+                            fontWeight: '800',
+                            fontSize: 20,
+                        },
+                        headerTitle: () => (
+                            <View style={styles.headerTitleContainer}>
+                                <Image 
+                                    source={require('../../assets/images/TaskLogo.png')} 
+                                    style={styles.headerLogo}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                        ),
+                        headerRight: () => (
+                            <TouchableOpacity 
+                                style={styles.notifIcon} 
+                                onPress={() => setNotifVisible(true)}
+                            >
+                                <FontAwesome name="bell" size={22} color={theme.white} />
+                                {unreadCount > 0 && (
+                                    <View style={styles.notifBadge}>
+                                        <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        ),
+                        drawerActiveTintColor: theme.accent,
+                        drawerInactiveTintColor: theme.text,
+                        drawerStyle: {
+                            backgroundColor: theme.surface,
+                        },
+                        drawerLabelStyle: {
+                            fontWeight: '700',
+                            fontSize: 16,
+                        },
+                    };
                 }}
             >
                 <Drawer.Screen 

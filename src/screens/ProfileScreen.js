@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
 import { ProfileSkeleton } from '../components/skeletons/SkeletonPlaceholders';
@@ -15,6 +15,7 @@ export const ProfileScreen = ({ navigation }) => {
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const { showToast } = useToast();
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
@@ -25,7 +26,8 @@ export const ProfileScreen = ({ navigation }) => {
         }, [])
     );
 
-    const fetchProfileData = async () => {
+    const fetchProfileData = async (isRefreshing = false) => {
+        if (isRefreshing) setRefreshing(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
@@ -42,15 +44,31 @@ export const ProfileScreen = ({ navigation }) => {
             showToast('Could not load profile', 'error');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    if (loading) {
+    const onRefresh = () => {
+        fetchProfileData(true);
+    };
+
+    if (loading && !refreshing) {
         return <ProfileSkeleton />;
     }
 
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+            style={styles.container} 
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+                <RefreshControl 
+                    refreshing={refreshing} 
+                    onRefresh={onRefresh} 
+                    colors={[theme.accent]} 
+                    tintColor={theme.accent}
+                />
+            }
+        >
             <View style={styles.header}>
                 <View style={styles.profileHeader}>
                     {profile?.profile_image ? (

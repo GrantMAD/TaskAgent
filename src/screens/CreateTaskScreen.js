@@ -9,6 +9,7 @@ import { useToast } from '../components/ToastContext';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { TASK_CATEGORIES } from '../utils/constants';
+import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
 
 export const CreateTaskScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -54,6 +55,25 @@ export const CreateTaskScreen = ({ navigation }) => {
     const { showToast } = useToast();
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    useEffect(() => {
+        // Toggle the Drawer (parent) header
+        const parent = navigation.getParent();
+        if (parent) {
+            parent.setOptions({
+                headerShown: !isModalVisible
+            });
+        }
+        
+        // Sync the form state with navigation params so the TabBar knows when to hide
+        navigation.setParams({ isFormOpen: isModalVisible });
+
+        return () => {
+            if (parent) {
+                parent.setOptions({ headerShown: true });
+            }
+        };
+    }, [isModalVisible, navigation]);
 
     const handleAddressChange = async (text) => {
         setAddress(text);
@@ -200,8 +220,22 @@ export const CreateTaskScreen = ({ navigation }) => {
     };
 
     const handleSubmit = async () => {
-        if (!title || !description || !category || !paymentAmount || !address) {
-            showToast('Please fill out all fields.', 'warning');
+        const missing = getMissingFields({ 
+            Title: title, 
+            Description: description, 
+            Category: category, 
+            Budget: paymentAmount, 
+            Location: address 
+        });
+
+        if (missing) {
+            showToast(`${missing} is required`, 'warning');
+            return;
+        }
+
+        const budgetNum = parseFloat(paymentAmount);
+        if (isNaN(budgetNum) || budgetNum <= 0) {
+            showToast('Please enter a valid budget amount', 'warning');
             return;
         }
 
@@ -290,160 +324,158 @@ export const CreateTaskScreen = ({ navigation }) => {
                 </TouchableOpacity>
             </ScrollView>
 
-            {/* Form Modal */}
-            <Modal
-                visible={isModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <KeyboardAvoidingView 
-                    style={styles.modalContainer} 
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                >
-                    <View style={styles.modalHeader}>
-                        <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
-                            <FontAwesome name="times" size={24} color={theme.primary} />
-                        </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle}>Task Details</Text>
-                        <View style={{ width: 40 }} />
-                    </View>
-
-                    <ScrollView contentContainerStyle={styles.formScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>WHAT DO YOU NEED HELP WITH?</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g. Help moving furniture"
-                                placeholderTextColor={theme.textMuted}
-                                value={title}
-                                onChangeText={setTitle}
-                            />
+            {/* Form Modal (Refactored to View for layered UI compatibility) */}
+            {isModalVisible && (
+                <View style={StyleSheet.absoluteFill}>
+                    <View style={styles.backdrop} />
+                    <KeyboardAvoidingView 
+                        style={styles.modalContainer} 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    >
+                        <View style={styles.modalHeader}>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
+                                <FontAwesome name="times" size={24} color={theme.primary} />
+                            </TouchableOpacity>
+                            <Text style={styles.modalHeaderTitle}>Task Details</Text>
+                            <View style={{ width: 40 }} />
                         </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>CATEGORY</Text>
-                            <View style={styles.categoryGrid}>
-                                {TASK_CATEGORIES.map((cat) => (
-                                    <TouchableOpacity
-                                        key={cat.value}
-                                        style={[
-                                            styles.catChip,
-                                            category === cat.value && { backgroundColor: theme.primary, borderColor: theme.primary }
-                                        ]}
-                                        onPress={() => setCategory(cat.value)}
-                                    >
-                                        <FontAwesome 
-                                            name={cat.icon} 
-                                            size={12} 
-                                            color={category === cat.value ? theme.white : theme.primary} 
-                                        />
-                                        <Text style={[
-                                            styles.catChipText,
-                                            category === cat.value && { color: theme.white }
-                                        ]}>
-                                            {cat.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>BUDGET</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g. 50"
-                                placeholderTextColor={theme.textMuted}
-                                value={paymentAmount}
-                                onChangeText={setPaymentAmount}
-                                keyboardType="numeric"
-                            />
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>PHOTOS (OPTIONAL)</Text>
-                            {image ? (
-                                <View style={styles.imagePreviewContainer}>
-                                    <Image source={{ uri: image }} style={styles.imagePreview} />
-                                    <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
-                                        <FontAwesome name="times-circle" size={24} color={theme.error} />
-                                    </TouchableOpacity>
-                                </View>
-                            ) : (
-                                <TouchableOpacity style={styles.addPhotoButton} onPress={pickImage}>
-                                    <FontAwesome name="camera" size={20} color={theme.primary} />
-                                    <Text style={styles.addPhotoText}>ADD PHOTO</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <View style={styles.labelRow}>
-                                <Text style={styles.label}>LOCATION / ADDRESS</Text>
-                                <TouchableOpacity onPress={getCurrentLocation} disabled={isLocating} style={styles.locateButton}>
-                                    {isLocating ? <ActivityIndicator size="small" color={theme.accent} /> : <FontAwesome name="location-arrow" size={14} color={theme.accent} />}
-                                    <Text style={styles.locateText}>Use Current</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <View>
+                        <ScrollView contentContainerStyle={styles.formScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>WHAT DO YOU NEED HELP WITH? <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. 123 Neighborhood St"
+                                    placeholder="e.g. Help moving furniture"
                                     placeholderTextColor={theme.textMuted}
-                                    value={address}
-                                    onChangeText={handleAddressChange}
+                                    value={title}
+                                    onChangeText={setTitle}
                                 />
-                                {isSearching && <ActivityIndicator style={styles.inputLoader} color={theme.accent} />}
                             </View>
 
-                            {showSuggestions && suggestions.length > 0 && (
-                                <View style={styles.suggestionsContainer}>
-                                    {suggestions.map((item, index) => (
-                                        <TouchableOpacity 
-                                            key={index} 
-                                            style={[styles.suggestionItem, index === suggestions.length - 1 && { borderBottomWidth: 0 }]} 
-                                            onPress={() => selectSuggestion(item)}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>CATEGORY <Text style={styles.required}>*</Text></Text>
+                                <View style={styles.categoryGrid}>
+                                    {TASK_CATEGORIES.map((cat) => (
+                                        <TouchableOpacity
+                                            key={cat.value}
+                                            style={[
+                                                styles.catChip,
+                                                category === cat.value && { backgroundColor: theme.primary, borderColor: theme.primary }
+                                            ]}
+                                            onPress={() => setCategory(cat.value)}
                                         >
-                                            <FontAwesome name="map-marker" size={16} color={theme.textMuted} style={{ marginRight: 10 }} />
-                                            <Text style={styles.suggestionText} numberOfLines={1}>{item.label}</Text>
+                                            <FontAwesome 
+                                                name={cat.icon} 
+                                                size={12} 
+                                                color={category === cat.value ? theme.white : theme.primary} 
+                                            />
+                                            <Text style={[
+                                                styles.catChipText,
+                                                category === cat.value && { color: theme.white }
+                                            ]}>
+                                                {cat.label}
+                                            </Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
-                            )}
-                        </View>
+                            </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>DESCRIPTION</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Provide some details about the task..."
-                                placeholderTextColor={theme.textMuted}
-                                value={description}
-                                onChangeText={setDescription}
-                                multiline
-                                numberOfLines={4}
-                                textAlignVertical="top"
-                            />
-                        </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>BUDGET <Text style={styles.required}>*</Text></Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="e.g. 50"
+                                    placeholderTextColor={theme.textMuted}
+                                    value={paymentAmount}
+                                    onChangeText={setPaymentAmount}
+                                    keyboardType="numeric"
+                                />
+                            </View>
 
-                        <TouchableOpacity 
-                            style={[styles.submitButton, loading && styles.buttonDisabled]} 
-                            onPress={handleSubmit} 
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color={theme.white} />
-                            ) : (
-                                <>
-                                    <FontAwesome name="paper-plane" size={18} color={theme.white} style={styles.buttonIcon} />
-                                    <Text style={styles.submitButtonText}>PUBLISH TASK</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </Modal>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>PHOTOS (OPTIONAL)</Text>
+                                {image ? (
+                                    <View style={styles.imagePreviewContainer}>
+                                        <Image source={{ uri: image }} style={styles.imagePreview} />
+                                        <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
+                                            <FontAwesome name="times-circle" size={24} color={theme.error} />
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity style={styles.addPhotoButton} onPress={pickImage}>
+                                        <FontAwesome name="camera" size={20} color={theme.primary} />
+                                        <Text style={styles.addPhotoText}>ADD PHOTO</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <View style={styles.labelRow}>
+                                    <Text style={styles.label}>LOCATION / ADDRESS <Text style={styles.required}>*</Text></Text>
+                                    <TouchableOpacity onPress={getCurrentLocation} disabled={isLocating} style={styles.locateButton}>
+                                        {isLocating ? <ActivityIndicator size="small" color={theme.accent} /> : <FontAwesome name="location-arrow" size={14} color={theme.accent} />}
+                                        <Text style={styles.locateText}>Use Current</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <View>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="e.g. 123 Neighborhood St"
+                                        placeholderTextColor={theme.textMuted}
+                                        value={address}
+                                        onChangeText={handleAddressChange}
+                                    />
+                                    {isSearching && <ActivityIndicator style={styles.inputLoader} color={theme.accent} />}
+                                </View>
+
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <View style={styles.suggestionsContainer}>
+                                        {suggestions.map((item, index) => (
+                                            <TouchableOpacity 
+                                                key={index} 
+                                                style={[styles.suggestionItem, index === suggestions.length - 1 && { borderBottomWidth: 0 }]} 
+                                                onPress={() => selectSuggestion(item)}
+                                            >
+                                                <FontAwesome name="map-marker" size={16} color={theme.textMuted} style={{ marginRight: 10 }} />
+                                                <Text style={styles.suggestionText} numberOfLines={1}>{item.label}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>DESCRIPTION <Text style={styles.required}>*</Text></Text>
+                                <TextInput
+                                    style={[styles.input, styles.textArea]}
+                                    placeholder="Provide some details about the task..."
+                                    placeholderTextColor={theme.textMuted}
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    multiline
+                                    numberOfLines={4}
+                                    textAlignVertical="top"
+                                />
+                            </View>
+
+                            <TouchableOpacity 
+                                style={[styles.submitButton, loading && styles.buttonDisabled]} 
+                                onPress={handleSubmit} 
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color={theme.white} />
+                                ) : (
+                                    <>
+                                        <FontAwesome name="paper-plane" size={18} color={theme.white} style={styles.buttonIcon} />
+                                        <Text style={styles.submitButtonText}>PUBLISH TASK</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </KeyboardAvoidingView>
+                </View>
+            )}
         </View>
     );
 };
@@ -525,9 +557,15 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         letterSpacing: 1,
     },
     // Modal Styles
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
     modalContainer: {
         flex: 1,
         backgroundColor: theme.background,
+        paddingTop: Platform.OS === 'ios' ? 50 : 10,
+        zIndex: 1000,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -568,6 +606,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.primary,
         marginLeft: 4,
         letterSpacing: 0.5,
+    },
+    required: {
+        color: theme.error,
+        marginLeft: 2,
     },
     locateButton: {
         flexDirection: 'row',
