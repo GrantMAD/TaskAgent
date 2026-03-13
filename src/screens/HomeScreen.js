@@ -24,6 +24,36 @@ export const HomeScreen = ({ navigation }) => {
     useEffect(() => {
         fetchAllData();
         checkLocationPermission();
+
+        // Subscribe to real-time task updates
+        let subscription;
+        const setupSubscription = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                subscription = taskService.subscribeToTasks((payload) => {
+                    const userId = session.user.id;
+                    const { new: newRecord, old: oldRecord } = payload;
+                    
+                    // Refresh if any of my tasks changed
+                    if (
+                        newRecord?.poster_id === userId || 
+                        newRecord?.assigned_worker_id === userId ||
+                        oldRecord?.poster_id === userId || 
+                        oldRecord?.assigned_worker_id === userId
+                    ) {
+                        fetchAllData();
+                    }
+                });
+            }
+        };
+
+        setupSubscription();
+
+        return () => {
+            if (subscription) {
+                supabase.removeChannel(subscription);
+            }
+        };
     }, []);
 
     const checkLocationPermission = async () => {

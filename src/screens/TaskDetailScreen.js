@@ -77,6 +77,23 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setSession(session);
         });
         fetchTaskDetails();
+
+        // Subscribe to task changes
+        const taskSubscription = taskService.subscribeToTasks((payload) => {
+            if (payload.new?.id === taskId || payload.old?.id === taskId) {
+                fetchTaskDetails();
+            }
+        });
+
+        // Subscribe to applications for this task
+        const appSubscription = taskService.subscribeToTaskApplications(taskId, () => {
+            fetchTaskDetails(); 
+        });
+
+        return () => {
+            supabase.removeChannel(taskSubscription);
+            supabase.removeChannel(appSubscription);
+        };
     }, [taskId]);
 
     const fetchTaskDetails = async (isRefreshing = false) => {

@@ -455,5 +455,32 @@ export const taskService = {
                 taskId
             );
         }
+    },
+
+    subscribeToTasks: (callback) => {
+        return supabase
+            .channel('tasks_channel')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'tasks'
+            }, (payload) => {
+                callback(payload);
+            })
+            .subscribe();
+    },
+
+    subscribeToTaskApplications: (taskId, callback) => {
+        return supabase
+            .channel(`task_apps_${taskId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'task_applications',
+                filter: `task_id=eq.${taskId}`
+            }, (payload) => {
+                callback(payload);
+            })
+            .subscribe();
     }
 }
