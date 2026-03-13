@@ -106,6 +106,10 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
                     });
                 }
                 break;
+            case 'RECURRING_APPROVAL':
+            case 'RECURRING_INVITATION':
+                navigation.navigate('Notifications', { notificationId: item.id });
+                break;
             default:
                 break;
         }
@@ -422,13 +426,6 @@ const MainDrawer = () => {
                         drawerIcon: ({ color, size }) => <FontAwesome name="history" size={size} color={color} />
                     }} 
                 />
-                <Drawer.Screen 
-                    name="Notifications" 
-                    component={NotificationsScreen} 
-                    options={{ 
-                        drawerItemStyle: { display: 'none' } // Hide but keep in stack for navigation
-                    }} 
-                />
             </Drawer.Navigator>
             <NotificationDropdown 
                 visible={notifVisible} 
@@ -579,6 +576,7 @@ export const AppNavigator = () => {
                             component={PublicProfileScreen} 
                             options={{ presentation: 'fullScreenModal' }}
                         />
+                        <RootStack.Screen name="Notifications" component={NotificationsScreen} />
                     </RootStack.Navigator>
                 ) : (
                     <AuthStack />

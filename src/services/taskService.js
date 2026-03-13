@@ -291,6 +291,25 @@ export const taskService = {
             if (!templates || templates.length === 0) return;
 
             for (const template of templates) {
+                // Determine if this is the first instance or a recurrence
+                const isFirstInstance = !template.last_generated_at;
+                
+                // If it's a recurrence, we need to find the last hired worker
+                let previousWorkerId = null;
+                if (!isFirstInstance) {
+                    const { data: lastTasks } = await supabase
+                        .from('tasks')
+                        .select('assigned_worker_id')
+                        .eq('parent_template_id', template.id)
+                        .not('assigned_worker_id', 'is', null)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                    
+                    if (lastTasks && lastTasks.length > 0) {
+                        previousWorkerId = lastTasks[0].assigned_worker_id;
+                    }
+                }
+
                 // Generate the task instance
                 const taskData = {
                     poster_id: template.poster_id,
@@ -303,13 +322,29 @@ export const taskService = {
                     location_lng: template.location_lng,
                     image_url: template.image_url,
                     parent_template_id: template.id,
-                    status: 'OPEN'
+                    status: isFirstInstance ? 'OPEN' : 'PENDING_APPROVAL'
                 };
 
-                const { error: insertError } = await supabase.from('tasks').insert([taskData]);
+                const { data: newTask, error: insertError } = await supabase
+                    .from('tasks')
+                    .insert([taskData])
+                    .select()
+                    .single();
+
                 if (insertError) {
                     console.error(`Error generating task for template ${template.id}:`, insertError);
                     continue;
+                }
+
+                // If it's a recurrence, notify the poster to approve it
+                if (!isFirstInstance) {
+                    await notificationService.createNotification(
+                        template.poster_id,
+                        'Approve Recurring Task',
+                        `Your recurring task "${template.title}" is due. Tap to approve and choose a worker.`,
+                        'RECURRING_APPROVAL',
+                        newTask.id
+                    );
                 }
 
                 // Update template for next run
@@ -330,6 +365,95 @@ export const taskService = {
             }
         } catch (error) {
             console.error('Error processing recurring tasks:', error);
+        }
+    },
+
+    approveRecurringTask: async (taskId, workerId = null) => {
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('title, poster_id')
+            .eq('id', taskId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+
+        if (workerId) {
+            // Re-hiring the same person
+            const { error } = await supabase
+                .from('tasks')
+                .update({ 
+                    assigned_worker_id: workerId, 
+                    status: 'INVITED' 
+                })
+                .eq('id', taskId);
+            
+            if (error) throw error;
+
+            await notificationService.createNotification(
+                workerId,
+                'Recurring Task Invitation',
+                `You have been invited back for: ${task.title}. Would you like to accept?`,
+                'RECURRING_INVITATION',
+                taskId
+            );
+        } else {
+            // Posting publicly
+            const { error } = await supabase
+                .from('tasks')
+                .update({ 
+                    assigned_worker_id: null, 
+                    status: 'OPEN' 
+                })
+                .eq('id', taskId);
+            
+            if (error) throw error;
+        }
+    },
+
+    respondToRecurringInvitation: async (taskId, accept) => {
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('title, poster_id, assigned_worker_id')
+            .eq('id', taskId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+
+        if (accept) {
+            // Worker accepted
+            const { error } = await supabase
+                .from('tasks')
+                .update({ status: 'ASSIGNED' })
+                .eq('id', taskId);
+            
+            if (error) throw error;
+
+            await notificationService.createNotification(
+                task.poster_id,
+                'Invitation Accepted',
+                `The worker has accepted your recurring task: ${task.title}`,
+                'INVITATION_ACCEPTED',
+                taskId
+            );
+        } else {
+            // Worker declined - post publicly
+            const { error } = await supabase
+                .from('tasks')
+                .update({ 
+                    assigned_worker_id: null, 
+                    status: 'OPEN' 
+                })
+                .eq('id', taskId);
+            
+            if (error) throw error;
+
+            await notificationService.createNotification(
+                task.poster_id,
+                'Invitation Declined',
+                `The worker declined your recurring task. It is now posted publicly: ${task.title}`,
+                'INVITATION_DECLINED',
+                taskId
+            );
         }
     }
 }

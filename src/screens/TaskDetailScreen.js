@@ -23,6 +23,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
     const [applications, setApplications] = useState([]);
+    const [hasApplied, setHasApplied] = useState(false);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [session, setSession] = useState(null);
@@ -84,11 +85,14 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             const data = await taskService.getTaskDetails(taskId);
             setTask(data);
             
-            // If the user is the poster, fetch applications
+            // Always fetch applications to check if current user has applied
             const { data: { session } } = await supabase.auth.getSession();
-            if (session && session.user.id === data.poster_id) {
-                const apps = await taskService.getTaskApplications(taskId);
-                setApplications(apps);
+            const apps = await taskService.getTaskApplications(taskId);
+            setApplications(apps);
+
+            if (session) {
+                const userApplication = apps.find(app => app.worker_id === session.user.id);
+                setHasApplied(!!userApplication);
             }
         } catch (error) {
             console.error(error);
@@ -108,6 +112,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             if (!session) return;
             await taskService.applyForTask(taskId, session.user.id, "I would like to apply for this task!");
             showToast('Application submitted successfully!', 'success');
+            fetchTaskDetails(); // Refresh to update button state
         } catch (error) {
             showToast(error.message, 'error');
         }
@@ -454,9 +459,20 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
                     {/* Tasker Action: Apply */}
                     {!isPoster && !isWorker && task.status === 'OPEN' && (
-                        <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-                            <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
-                            <Text style={styles.applyButtonText}>Apply for Task</Text>
+                        <TouchableOpacity 
+                            style={[styles.applyButton, hasApplied && styles.disabledButton]} 
+                            onPress={handleApply}
+                            disabled={hasApplied}
+                        >
+                            <FontAwesome 
+                                name={hasApplied ? "clock-o" : "check-circle"} 
+                                size={18} 
+                                color={theme.white} 
+                                style={styles.buttonIcon} 
+                            />
+                            <Text style={styles.applyButtonText}>
+                                {hasApplied ? 'Waiting for Approval' : 'Apply for Task'}
+                            </Text>
                         </TouchableOpacity>
                     )}
 
@@ -762,6 +778,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         justifyContent: 'center',
         marginBottom: Spacing.md,
         ...shadows.accent,
+    },
+    disabledButton: {
+        backgroundColor: theme.border,
+        opacity: 0.8,
     },
     completeButton: {
         backgroundColor: theme.primary, // Using primary navy for approval
