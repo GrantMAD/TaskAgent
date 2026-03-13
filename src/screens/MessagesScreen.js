@@ -31,22 +31,125 @@ export const MessagesScreen = ({ navigation }) => {
             if (!session) return;
             const currentUserId = session.user.id;
             setUserId(currentUserId);
+            
             const data = await messageService.getConversations(currentUserId);
             
-            // Fetch unread counts for each conversation
-            const conversationsWithUnread = await Promise.all(data.map(async (conv) => {
-                const unreadCount = await messageService.getUnreadCount(conv.id, currentUserId);
-                return { ...conv, unread_count: unreadCount };
+            // Optimization: Fetch all unread message counts in one go for the user
+            const { data: unreadData, error: unreadError } = await supabase
+                .from('messages')
+                .select('conversation_id')
+                .eq('is_read', false)
+                .neq('sender_id', currentUserId);
+
+            if (unreadError) throw unreadError;
+
+            // Map unread counts to conversations
+            const unreadMap = (unreadData || []).reduce((acc, msg) => {
+                acc[msg.conversation_id] = (acc[msg.conversation_id] || 0) + 1;
+                return acc;
+            }, {});
+
+            const conversationsWithUnread = data.map(conv => ({
+                ...conv,
+                unread_count: unreadMap[conv.id] || 0
             }));
 
             setConversations(conversationsWithUnread);
         } catch (error) {
-            console.error(error);
+            console.error('Error fetching conversations:', error);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
     };
+
+    // Real-time subscription for new messages
+    useEffect(() => {
+        if (!userId) return;
+
+        const channel = supabase
+            .channel(`inbox-updates-${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                },
+                async (payload) => {
+                    const newMessage = payload.new;
+                    
+                    setConversations(currentConvs => {
+                        const convIndex = currentConvs.findIndex(c => c.id === newMessage.conversation_id);
+                        
+                        if (convIndex > -1) {
+                            // Update existing conversation
+                            const updatedConvs = [...currentConvs];
+                            const conv = { ...updatedConvs[convIndex] };
+                            
+                            // Update last message
+                            conv.last_message = {
+                                message_text: newMessage.message_text,
+                                image_url: newMessage.image_url,
+                                created_at: newMessage.created_at,
+                                sender_id: newMessage.sender_id
+                            };
+                            
+                            // Increment unread count if we are not the sender
+                            if (newMessage.sender_id !== userId) {
+                                conv.unread_count = (conv.unread_count || 0) + 1;
+                            }
+                            
+                            // Move to top
+                            updatedConvs.splice(convIndex, 1);
+                            updatedConvs.unshift(conv);
+                            return updatedConvs;
+                        } else {
+                            // New conversation or one not in current list
+                            fetchConversations();
+                            return currentConvs;
+                        }
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                },
+                (payload) => {
+                    const updatedMessage = payload.new;
+                    // If a message was marked as read, update the unread count
+                    if (updatedMessage.is_read) {
+                        setConversations(currentConvs => {
+                            const convIndex = currentConvs.findIndex(c => c.id === updatedMessage.conversation_id);
+                            if (convIndex > -1) {
+                                const updatedConvs = [...currentConvs];
+                                const conv = { ...updatedConvs[convIndex] };
+                                // Instead of complex logic, we'll just trigger a small re-fetch for unread counts 
+                                // if we want extreme accuracy, but for a real-time feel, 
+                                // we can just decrement if it makes sense.
+                                // However, usually many messages are marked as read at once.
+                                // Let's just do a quiet unread count refresh for this conversation
+                                messageService.getUnreadCount(conv.id, userId).then(count => {
+                                    setConversations(latestConvs => {
+                                        return latestConvs.map(c => c.id === conv.id ? { ...c, unread_count: count } : c);
+                                    });
+                                });
+                            }
+                            return currentConvs;
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [userId]);
 
     const onRefresh = () => {
         fetchConversations(true);

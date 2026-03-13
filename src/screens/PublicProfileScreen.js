@@ -415,10 +415,5 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 14,
         color: theme.text,
         lineHeight: 20,
-    },
-    emptyText: {
-        color: theme.textMuted,
-        fontSize: 14,
-        fontStyle: 'italic',
     }
 });

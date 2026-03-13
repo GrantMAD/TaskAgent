@@ -7,6 +7,9 @@ import { useTheme } from '../components/ThemeContext';
 import { useNotifications } from '../components/NotificationContext';
 import { useToast } from '../components/ToastContext';
 import { taskService } from '../services/taskService';
+import { supabase } from '../services/supabaseClient';
+import { userService } from '../services/userService';
+import { UserAvatar } from '../components/UserAvatar';
 
 export const NotificationsScreen = ({ navigation, route }) => {
     const { theme, shadows } = useTheme();

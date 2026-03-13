@@ -267,6 +267,8 @@ const SettingsStack = () => (
 // Main Tab Navigator
 const MainTabs = () => {
     const { theme, shadows } = useTheme();
+    const { unreadMessagesCount } = useNotifications();
+
     return (
         <Tab.Navigator 
             screenOptions={({ route }) => ({ 
@@ -315,7 +317,14 @@ const MainTabs = () => {
                 component={MessagesStack} 
                 options={{ 
                     title: 'Inbox',
-                    unmountOnBlur: true
+                    unmountOnBlur: true,
+                    tabBarBadge: unreadMessagesCount > 0 ? unreadMessagesCount : null,
+                    tabBarBadgeStyle: {
+                        backgroundColor: theme.accent,
+                        color: theme.white,
+                        fontSize: 10,
+                        fontWeight: '800',
+                    }
                 }} 
                 listeners={({ navigation }) => ({
                     tabPress: (e) => {
