@@ -216,5 +216,120 @@ export const taskService = {
             .eq('id', taskId)
         if (error) throw error
         return data
+    },
+
+    // Recurring Tasks
+    createTaskTemplate: async (templateData) => {
+        const { data, error } = await supabase
+            .from('task_templates')
+            .insert([templateData])
+            .select()
+        if (error) throw error
+        return data[0]
+    },
+
+    getMyRecurringTemplates: async (posterId) => {
+        const { data, error } = await supabase
+            .from('task_templates')
+            .select('*')
+            .eq('poster_id', posterId)
+            .order('created_at', { ascending: false })
+        if (error) throw error
+        return data
+    },
+
+    updateTaskTemplate: async (templateId, updateData) => {
+        const { data, error } = await supabase
+            .from('task_templates')
+            .update(updateData)
+            .eq('id', templateId)
+            .select()
+        if (error) throw error
+        return data[0]
+    },
+
+    deleteTaskTemplate: async (templateId) => {
+        const { error } = await supabase
+            .from('task_templates')
+            .delete()
+            .eq('id', templateId)
+        if (error) throw error
+    },
+
+    calculateNextOccurrence: (frequency, lastDate = new Date()) => {
+        const next = new Date(lastDate);
+        switch (frequency) {
+            case 'daily':
+                next.setDate(next.getDate() + 1);
+                break;
+            case 'weekly':
+                next.setDate(next.getDate() + 7);
+                break;
+            case 'bi-weekly':
+                next.setDate(next.getDate() + 14);
+                break;
+            case 'monthly':
+                next.setMonth(next.getMonth() + 1);
+                break;
+            default:
+                break;
+        }
+        return next;
+    },
+
+    processRecurringTasks: async () => {
+        try {
+            const now = new Date().toISOString();
+            // Get all active templates where next_occurrence_at is due (lte now) or null (first time)
+            const { data: templates, error: fetchError } = await supabase
+                .from('task_templates')
+                .select('*')
+                .eq('is_active', true)
+                .or(`next_occurrence_at.lte.${now},next_occurrence_at.is.null`)
+
+            if (fetchError) throw fetchError;
+            if (!templates || templates.length === 0) return;
+
+            for (const template of templates) {
+                // Generate the task instance
+                const taskData = {
+                    poster_id: template.poster_id,
+                    title: template.title,
+                    description: template.description,
+                    category: template.category,
+                    payment_amount: template.payment_amount,
+                    address: template.address,
+                    location_lat: template.location_lat,
+                    location_lng: template.location_lng,
+                    image_url: template.image_url,
+                    parent_template_id: template.id,
+                    status: 'OPEN'
+                };
+
+                const { error: insertError } = await supabase.from('tasks').insert([taskData]);
+                if (insertError) {
+                    console.error(`Error generating task for template ${template.id}:`, insertError);
+                    continue;
+                }
+
+                // Update template for next run
+                const lastRefDate = template.next_occurrence_at ? new Date(template.next_occurrence_at) : new Date();
+                const nextDate = taskService.calculateNextOccurrence(template.frequency, lastRefDate);
+                
+                // Check if we passed the end_date
+                const isActive = template.end_date ? new Date(nextDate) <= new Date(template.end_date) : true;
+
+                await supabase
+                    .from('task_templates')
+                    .update({
+                        last_generated_at: now,
+                        next_occurrence_at: nextDate.toISOString(),
+                        is_active: isActive
+                    })
+                    .eq('id', template.id);
+            }
+        } catch (error) {
+            console.error('Error processing recurring tasks:', error);
+        }
     }
 }

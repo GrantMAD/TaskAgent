@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert, Image, Switch } from 'react-native';
 import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
@@ -23,6 +23,10 @@ export const CreateTaskScreen = ({ navigation }) => {
     const [locationLng, setLocationLng] = useState(null);
     const [image, setImage] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // Recurring Task State
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [frequency, setFrequency] = useState('weekly');
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -261,8 +265,21 @@ export const CreateTaskScreen = ({ navigation }) => {
                 image_url: imageUrl
             };
 
-            await taskService.createTask(taskData);
-            showToast('Your task is live!', 'success');
+            if (isRecurring) {
+                const templateData = {
+                    ...taskData,
+                    frequency,
+                    is_active: true,
+                    next_occurrence_at: null
+                };
+                await taskService.createTaskTemplate(templateData);
+                // Trigger generation of the first instance
+                await taskService.processRecurringTasks();
+                showToast('Recurring task series created!', 'success');
+            } else {
+                await taskService.createTask(taskData);
+                showToast('Your task is live!', 'success');
+            }
             
             // Reset and close
             setTitle('');
@@ -273,6 +290,8 @@ export const CreateTaskScreen = ({ navigation }) => {
             setLocationLat(null);
             setLocationLng(null);
             setImage(null);
+            setIsRecurring(false);
+            setFrequency('weekly');
             setIsModalVisible(false);
 
             // Redirect to Jobs screen
@@ -445,6 +464,46 @@ export const CreateTaskScreen = ({ navigation }) => {
                             </View>
 
                             <View style={styles.inputGroup}>
+                                <View style={styles.rowBetween}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.label}>MAKE THIS A RECURRING TASK?</Text>
+                                        <Text style={styles.subLabel}>Automatically repost this task periodically</Text>
+                                    </View>
+                                    <Switch
+                                        value={isRecurring}
+                                        onValueChange={setIsRecurring}
+                                        trackColor={{ false: theme.border, true: theme.accent }}
+                                        thumbColor={theme.white}
+                                    />
+                                </View>
+                            </View>
+
+                            {isRecurring && (
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>FREQUENCY</Text>
+                                    <View style={styles.categoryGrid}>
+                                        {['daily', 'weekly', 'bi-weekly', 'monthly'].map((freq) => (
+                                            <TouchableOpacity
+                                                key={freq}
+                                                style={[
+                                                    styles.catChip,
+                                                    frequency === freq && { backgroundColor: theme.accent, borderColor: theme.accent }
+                                                ]}
+                                                onPress={() => setFrequency(freq)}
+                                            >
+                                                <Text style={[
+                                                    styles.catChipText,
+                                                    frequency === freq && { color: theme.white }
+                                                ]}>
+                                                    {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
+
+                            <View style={styles.inputGroup}>
                                 <Text style={styles.label}>DESCRIPTION <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={[styles.input, styles.textArea]}
@@ -593,6 +652,11 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     inputGroup: {
         marginBottom: Spacing.md,
     },
+    rowBetween: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
     labelRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -606,6 +670,12 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.primary,
         marginLeft: 4,
         letterSpacing: 0.5,
+    },
+    subLabel: {
+        fontSize: 10,
+        color: theme.textMuted,
+        marginLeft: 4,
+        marginTop: 2,
     },
     required: {
         color: theme.error,

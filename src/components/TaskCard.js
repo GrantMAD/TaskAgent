@@ -37,8 +37,16 @@ export const TaskCard = ({ task, onPress }) => {
             </View>
 
             <View style={styles.details}>
-                <View style={styles.categoryBadge}>
-                    <Text style={styles.category}>{task.category}</Text>
+                <View style={styles.badgeRow}>
+                    <View style={styles.categoryBadge}>
+                        <Text style={styles.category}>{task.category}</Text>
+                    </View>
+                    {task.parent_template_id && (
+                        <View style={styles.recurringBadge}>
+                            <FontAwesome name="refresh" size={10} color={theme.accent} style={{ marginRight: 4 }} />
+                            <Text style={styles.recurringText}>RECURRING</Text>
+                        </View>
+                    )}
                 </View>
                 <View style={styles.statusBadge}>
                     <Text style={styles.status}>{task.status.replace('_', ' ')}</Text>
@@ -93,6 +101,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         alignItems: 'center',
         marginTop: 4,
     },
+    badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     categoryBadge: {
         backgroundColor: theme.isDarkMode ? 'rgba(44, 83, 117, 0.2)' : '#E8EFF4',
         paddingHorizontal: Spacing.sm,
@@ -104,6 +116,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 11,
         fontWeight: '700',
         textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    recurringBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.isDarkMode ? 'rgba(255, 171, 0, 0.1)' : '#FFF8E1',
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        marginLeft: Spacing.xs,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 171, 0, 0.2)',
+    },
+    recurringText: {
+        color: theme.accent,
+        fontSize: 9,
+        fontWeight: '800',
         letterSpacing: 0.5,
     },
     statusBadge: {

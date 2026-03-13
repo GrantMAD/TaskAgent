@@ -31,6 +31,7 @@ import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
+import { RecurringTasksScreen } from '../screens/RecurringTasksScreen';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -246,6 +247,7 @@ const ProfileStack = () => (
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="TaskHistory" component={TaskHistoryScreen} />
         <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+        <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
     </Stack.Navigator>
 );
 
@@ -254,6 +256,7 @@ const SettingsStack = () => (
     <Stack.Navigator screenOptions={commonStackOptions}>
         <Stack.Screen name="SettingsMain" component={SettingsScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
     </Stack.Navigator>
 );
 

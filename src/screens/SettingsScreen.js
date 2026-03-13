@@ -113,6 +113,22 @@ export const SettingsScreen = ({ navigation }) => {
 
                 <TouchableOpacity 
                     style={styles.settingCard}
+                    onPress={() => navigation.navigate('RecurringTasks')}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={[styles.iconBox, { backgroundColor: theme.accent }]}>
+                            <FontAwesome name="refresh" size={18} color={theme.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.settingLabel}>Recurring Tasks</Text>
+                            <Text style={styles.settingSublabel}>Manage your active task series</Text>
+                        </View>
+                    </View>
+                    <FontAwesome name="chevron-right" size={14} color={theme.border} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.settingCard}
                     onPress={() => showToast('This feature is coming soon!', 'info')}
                 >
                     <View style={styles.settingInfo}>

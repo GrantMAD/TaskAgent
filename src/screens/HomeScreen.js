@@ -48,6 +48,9 @@ export const HomeScreen = ({ navigation }) => {
 
     const fetchAllData = async () => {
         try {
+            // Process recurring tasks to generate any due instances
+            await taskService.processRecurringTasks();
+
             const { data: { session } } = await supabase.auth.getSession();
             
             if (session) {
