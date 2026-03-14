@@ -276,6 +276,10 @@ export const ChatScreen = ({ route, navigation }) => {
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={styles.messageList}
                         showsVerticalScrollIndicator={false}
+                        initialNumToRender={15}
+                        maxToRenderPerBatch={10}
+                        windowSize={5}
+                        removeClippedSubviews={true}
                         onEndReached={loadMoreMessages}
                         onEndReachedThreshold={0.3}
                         ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.accent} style={{ margin: 10 }} /> : null}

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 
-export const MessageBubble = ({ message, isMine, status }) => {
+export const MessageBubble = memo(({ message, isMine, status }) => {
     const { theme, shadows } = useTheme();
     const isSending = status === 'sending';
     const isRead = message.is_read;
@@ -52,7 +52,7 @@ export const MessageBubble = ({ message, isMine, status }) => {
             </View>
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

@@ -222,6 +222,10 @@ export const NotificationsScreen = ({ navigation, route }) => {
                     data={notifications}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
                     refreshControl={
                         <RefreshControl refreshing={loading} onRefresh={refreshNotifications} tintColor={theme.accent} />
                     }

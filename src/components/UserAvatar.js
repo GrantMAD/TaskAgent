@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import { Colors, Shadow } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 
-export const UserAvatar = ({ user, size = 40 }) => {
+export const UserAvatar = memo(({ user, size = 40 }) => {
     if (!user) return null;
 
     return (
@@ -20,7 +20,7 @@ export const UserAvatar = ({ user, size = 40 }) => {
             )}
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

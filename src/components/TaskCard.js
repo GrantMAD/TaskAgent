@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
 import { useLocation } from './LocationContext';
 
-export const TaskCard = ({ task, onPress }) => {
+export const TaskCard = memo(({ task, onPress }) => {
     const { theme, shadows } = useTheme();
     const { userLocation, calculateDistance } = useLocation();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
@@ -54,7 +54,7 @@ export const TaskCard = ({ task, onPress }) => {
             </View>
         </TouchableOpacity>
     );
-};
+});
 
 const createStyles = (theme, shadows) => StyleSheet.create({
     card: {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, memo, useCallback, lazy, Suspense } from 'react';
 import { View, TouchableOpacity, Text, Alert, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
 import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,22 +16,35 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { userService } from '../services/userService';
 
-// Screens
+// Screens - Critical Path (Static)
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TaskFeedScreen } from '../screens/TaskFeedScreen';
-import { TaskDetailScreen } from '../screens/TaskDetailScreen';
-import { CreateTaskScreen } from '../screens/CreateTaskScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
-import { ChatScreen } from '../screens/ChatScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { TaskHistoryScreen } from '../screens/TaskHistoryScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { EditProfileScreen } from '../screens/EditProfileScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
-import { PublicProfileScreen } from '../screens/PublicProfileScreen';
-import { RecurringTasksScreen } from '../screens/RecurringTasksScreen';
+
+// Screens - Non-Critical (Lazy)
+const TaskDetailScreen = lazy(() => import('../screens/TaskDetailScreen').then(module => ({ default: module.TaskDetailScreen })));
+const CreateTaskScreen = lazy(() => import('../screens/CreateTaskScreen').then(module => ({ default: module.CreateTaskScreen })));
+const ChatScreen = lazy(() => import('../screens/ChatScreen').then(module => ({ default: module.ChatScreen })));
+const TaskHistoryScreen = lazy(() => import('../screens/TaskHistoryScreen').then(module => ({ default: module.TaskHistoryScreen })));
+const NotificationsScreen = lazy(() => import('../screens/NotificationsScreen').then(module => ({ default: module.NotificationsScreen })));
+const EditProfileScreen = lazy(() => import('../screens/EditProfileScreen').then(module => ({ default: module.EditProfileScreen })));
+const SettingsScreen = lazy(() => import('../screens/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
+const PublicProfileScreen = lazy(() => import('../screens/PublicProfileScreen').then(module => ({ default: module.PublicProfileScreen })));
+const RecurringTasksScreen = lazy(() => import('../screens/RecurringTasksScreen').then(module => ({ default: module.RecurringTasksScreen })));
+
+// Loading Wrapper for Lazy Screens
+const LazyScreen = (Component) => (props) => (
+    <Suspense fallback={
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+            <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+    }>
+        <Component {...props} />
+    </Suspense>
+);
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -62,13 +75,31 @@ const formatTime = (dateString) => {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
 };
 
+// Memoized Notification Item
+const NotificationItem = memo(({ item, onPress, formatTime }) => {
+    const { theme } = useTheme();
+    return (
+        <TouchableOpacity 
+            style={styles.notificationItem}
+            onPress={() => onPress(item)}
+        >
+            {!item.is_read && <View style={styles.notificationDot} />}
+            <View style={styles.notificationContent}>
+                <Text style={styles.notificationItemTitle}>{item.title}</Text>
+                <Text style={styles.notificationMessage} numberOfLines={2}>{item.message}</Text>
+                <Text style={styles.notificationTime}>{formatTime(item.created_at)}</Text>
+            </View>
+        </TouchableOpacity>
+    );
+});
+
 // Notification Dropdown Component
 const NotificationDropdown = ({ visible, onClose, navigation }) => {
     const { theme, shadows } = useTheme();
     const { notifications, markAsRead, markAllAsRead, loading } = useNotifications();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    const handleNotificationPress = (item) => {
+    const handleNotificationPress = useCallback((item) => {
         onClose();
         if (!item.is_read) {
             markAsRead(item.id);
@@ -113,7 +144,7 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
             default:
                 break;
         }
-    };
+    }, [navigation, onClose, markAsRead]);
 
     return (
         <Modal
@@ -139,18 +170,12 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
                                     <ScrollView style={styles.notificationList} showsVerticalScrollIndicator={false}>
                                         {notifications.length > 0 ? (
                                             notifications.slice(0, 5).map((item) => (
-                                                <TouchableOpacity 
+                                                <NotificationItem 
                                                     key={item.id} 
-                                                    style={styles.notificationItem}
-                                                    onPress={() => handleNotificationPress(item)}
-                                                >
-                                                    {!item.is_read && <View style={styles.notificationDot} />}
-                                                    <View style={styles.notificationContent}>
-                                                        <Text style={styles.notificationItemTitle}>{item.title}</Text>
-                                                        <Text style={styles.notificationMessage} numberOfLines={2}>{item.message}</Text>
-                                                        <Text style={styles.notificationTime}>{formatTime(item.created_at)}</Text>
-                                                    </View>
-                                                </TouchableOpacity>
+                                                    item={item} 
+                                                    onPress={handleNotificationPress}
+                                                    formatTime={formatTime}
+                                                />
                                             ))
                                         ) : (
                                             <View style={styles.emptyNotifs}>
@@ -429,7 +454,7 @@ const MainDrawer = () => {
                 />
                 <Drawer.Screen 
                     name="History" 
-                    component={TaskHistoryScreen} 
+                    component={LazyScreen(TaskHistoryScreen)} 
                     options={{ 
                         title: 'Task History',
                         drawerIcon: ({ color, size }) => <FontAwesome name="history" size={size} color={color} />
@@ -582,10 +607,10 @@ export const AppNavigator = () => {
                         <RootStack.Screen name="MainDrawer" component={MainDrawer} />
                         <RootStack.Screen 
                             name="PublicProfile" 
-                            component={PublicProfileScreen} 
+                            component={LazyScreen(PublicProfileScreen)} 
                             options={{ presentation: 'fullScreenModal' }}
                         />
-                        <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+                        <RootStack.Screen name="Notifications" component={LazyScreen(NotificationsScreen)} />
                     </RootStack.Navigator>
                 ) : (
                     <AuthStack />

@@ -1,15 +1,24 @@
 import { supabase } from './supabaseClient'
 import { notificationService } from './notificationService'
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export const taskService = {
     uploadTaskImage: async (uri, userId) => {
         try {
-            const ext = uri.split('.').pop();
+            // 1. Optimize image (compress and resize)
+            const result = await ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 1200 } }], // Resize to max 1200px width
+                { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const optimizedUri = result.uri;
+            const ext = optimizedUri.split('.').pop();
             const fileName = `${userId}/${Date.now()}.${ext}`;
             const filePath = `tasks/${fileName}`;
 
-            // Convert URI to Blob
-            const response = await fetch(uri);
+            // 2. Convert Optimized URI to Blob
+            const response = await fetch(optimizedUri);
             const blob = await response.blob();
 
             const { error: uploadError } = await supabase.storage
@@ -18,7 +27,7 @@ export const taskService = {
 
             if (uploadError) throw uploadError;
 
-            // Get Public URL
+            // 3. Get Public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('task-media')
                 .getPublicUrl(filePath);

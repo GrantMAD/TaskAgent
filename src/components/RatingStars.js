@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../utils/theme';
 
-export const RatingStars = ({ rating }) => {
+export const RatingStars = memo(({ rating }) => {
     const roundedRating = Math.round(rating);
     const stars = Array(5).fill(0).map((_, i) => i < roundedRating ? '★' : '☆');
 
@@ -12,7 +12,7 @@ export const RatingStars = ({ rating }) => {
             <Text style={styles.text}>{rating.toFixed(1)}</Text>
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {
