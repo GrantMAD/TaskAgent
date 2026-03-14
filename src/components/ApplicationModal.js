@@ -49,7 +49,9 @@ export const ApplicationModal = ({ visible, onClose, onSubmit, taskTitle }) => {
                                     numberOfLines={4}
                                     value={message}
                                     onChangeText={setMessage}
+                                    maxLength={500}
                                 />
+                                <Text style={styles.charCount}>{message.length}/500</Text>
                             </View>
 
                             <TouchableOpacity 
@@ -115,6 +117,14 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 16,
         textAlignVertical: 'top',
         minHeight: 120,
+    },
+    charCount: {
+        fontSize: 10,
+        color: theme.textMuted,
+        textAlign: 'right',
+        marginTop: 4,
+        marginRight: 4,
+        fontWeight: '600',
     },
     applyButton: {
         backgroundColor: theme.accent,

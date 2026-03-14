@@ -21,6 +21,7 @@ import { ApplicantList } from '../components/task-detail/ApplicantList';
 import { TaskActions } from '../components/task-detail/TaskActions';
 import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 import { ApplicationModal } from '../components/ApplicationModal';
+import { ReportModal } from '../components/ReportModal';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -79,6 +80,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     // Review Modal State
     const [reviewModalVisible, setReviewModalVisible] = useState(false);
     const [reviewLoading, setReviewLoading] = useState(false);
+
+    // Report Modal State
+    const [reportModalVisible, setReportModalVisible] = useState(false);
 
     useEffect(() => {
         fetchTaskDetails();
@@ -368,9 +372,16 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
-                <TouchableOpacity onPress={handleShare} style={styles.headerSpacer}>
-                    <FontAwesome name="share-alt" size={20} color={theme.white} />
-                </TouchableOpacity>
+                <View style={styles.headerRight}>
+                    <TouchableOpacity onPress={handleShare} style={styles.headerAction}>
+                        <FontAwesome name="share-alt" size={20} color={theme.white} />
+                    </TouchableOpacity>
+                    {session?.user?.id !== task.poster_id && (
+                        <TouchableOpacity onPress={() => setReportModalVisible(true)} style={styles.headerAction}>
+                            <FontAwesome name="flag" size={18} color={theme.white} />
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
             <ScrollView 
@@ -575,6 +586,14 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 onSubmit={handleApply}
                 taskTitle={task.title}
             />
+
+            <ReportModal 
+                visible={reportModalVisible}
+                onClose={() => setReportModalVisible(false)}
+                reportedTaskId={taskId}
+                reportedUserId={task.poster_id}
+                type="task"
+            />
         </View>
     );
 };
@@ -628,9 +647,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     headerSpacer: {
         width: 40,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: 80,
+        justifyContent: 'flex-end',
+    },
+    headerAction: {
+        paddingHorizontal: Spacing.sm,
         height: 40,
         justifyContent: 'center',
-        alignItems: 'flex-end',
+        alignItems: 'center',
     },
     scrollContent: {
         paddingBottom: 120,

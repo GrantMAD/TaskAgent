@@ -88,7 +88,12 @@ export const ToastProvider = ({ children }) => {
     return (
         <ToastContext.Provider value={{ showToast }}>
             {children}
-            {toast.visible && (
+            <Modal
+                visible={toast.visible}
+                transparent={true}
+                animationType="none"
+                pointerEvents="box-none"
+            >
                 <View style={styles.modalOverlay} pointerEvents="box-none">
                     <Animated.View 
                         style={[
@@ -105,12 +110,12 @@ export const ToastProvider = ({ children }) => {
                             <FontAwesome name={getIcon()} size={20} color={theme.white} />
                             <Text style={styles.message}>{toast.message}</Text>
                             <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
-                                <FontAwesome name="times" size={16} color="rgba(255,255,255,0.7)" />
+                                <FontAwesome name="times" size={16} color="rgba(255,255,100,0.7)" />
                             </TouchableOpacity>
                         </View>
                     </Animated.View>
                 </View>
-            )}
+            </Modal>
         </ToastContext.Provider>
     );
 };

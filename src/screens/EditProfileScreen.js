@@ -178,16 +178,18 @@ export const EditProfileScreen = ({ navigation }) => {
 
                 <View style={styles.section}>
                     <Text style={styles.label}>BIO</Text>
-                    <TextInput
-                        style={[styles.input, styles.textArea]}
-                        value={profile.bio}
-                        onChangeText={(text) => setProfile(prev => ({ ...prev, bio: text }))}
-                        placeholder="Tell your neighbors about yourself..."
-                        placeholderTextColor={theme.textMuted}
-                        multiline
-                        numberOfLines={4}
-                        textAlignVertical="top"
-                    />
+                        <TextInput
+                            style={[styles.input, styles.textArea]}
+                            value={profile.bio}
+                            onChangeText={(text) => setProfile(prev => ({ ...prev, bio: text }))}
+                            placeholder="Tell your neighbors about yourself..."
+                            placeholderTextColor={theme.textMuted}
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                            maxLength={300}
+                        />
+                        <Text style={styles.charCount}>{profile.bio.length}/300</Text>
                 </View>
 
                 <View style={styles.section}>
@@ -321,6 +323,14 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 16,
         color: theme.text,
         backgroundColor: theme.surface,
+    },
+    charCount: {
+        fontSize: 10,
+        color: theme.textMuted,
+        textAlign: 'right',
+        marginTop: 4,
+        marginRight: 4,
+        fontWeight: '600',
     },
     textArea: {
         minHeight: 100,

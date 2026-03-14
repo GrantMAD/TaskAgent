@@ -6,6 +6,7 @@ import { useTheme } from '../components/ThemeContext';
 import { useToast } from '../components/ToastContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { validateEmail, validatePassword, getMissingFields } from '../utils/validation';
+import { useAuth } from '../components/AuthContext';
 
 export const LoginScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -14,6 +15,7 @@ export const LoginScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const { showToast } = useToast();
+    const { authError, setAuthError } = useAuth();
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -61,6 +63,16 @@ export const LoginScreen = ({ navigation }) => {
                     <Text style={styles.title}>Welcome Back</Text>
                     <Text style={styles.subtitle}>Sign in to join the community</Text>
                 </View>
+
+                {authError && (
+                    <View style={[styles.errorBox, { backgroundColor: theme.error + '10', borderColor: theme.error }]}>
+                        <FontAwesome name="exclamation-triangle" size={16} color={theme.error} style={{ marginRight: 10 }} />
+                        <Text style={[styles.errorText, { color: theme.error }]}>{authError}</Text>
+                        <TouchableOpacity onPress={() => setAuthError(null)} style={{ marginLeft: 10 }}>
+                            <FontAwesome name="times-circle" size={16} color={theme.error} />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 <View style={styles.card}>
                     <View style={styles.inputGroup}>
@@ -234,5 +246,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.textMuted,
         fontWeight: '600',
         fontSize: 14,
+    },
+    errorBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+        borderWidth: 1,
+        marginBottom: Spacing.lg,
+    },
+    errorText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '700',
     }
 });

@@ -15,6 +15,8 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { userService } from '../services/userService';
+import { useAuth } from '../components/AuthContext';
+import { AdminDashboardScreen } from '../screens/AdminDashboardScreen';
 
 // Screens - Critical Path (Static)
 import { LoginScreen } from '../screens/LoginScreen';
@@ -206,6 +208,8 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
 const CustomDrawerContent = (props) => {
     const { showToast } = useToast();
     const { theme, shadows } = useTheme();
+    const { userProfile } = useAuth();
+    const navigation = useNavigation();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const handleLogout = async () => {
@@ -231,6 +235,15 @@ const CustomDrawerContent = (props) => {
                 <DrawerItemList {...props} />
             </View>
             <View style={styles.drawerFooter}>
+                {userProfile?.role === 'admin' && (
+                    <DrawerItem
+                        label="Admin Dashboard"
+                        icon={({ size }) => <FontAwesome name="shield" size={size} color={theme.accent} />}
+                        onPress={() => props.navigation.navigate('Admin')}
+                        labelStyle={[styles.drawerLabel, { color: theme.accent }]}
+                        style={styles.adminDrawerItem}
+                    />
+                )}
                 <DrawerItem
                     label="Logout"
                     icon={({ color, size }) => <FontAwesome name="sign-out" size={size} color={color} />}
@@ -238,6 +251,7 @@ const CustomDrawerContent = (props) => {
                     labelStyle={styles.logoutLabel}
                     activeTintColor={theme.error}
                     inactiveTintColor={theme.error}
+                    style={styles.logoutDrawerItem}
                 />
                 <Text style={styles.versionText}>Task Agent v1.0.0</Text>
             </View>
@@ -368,6 +382,7 @@ const MainTabs = () => {
 const MainDrawer = () => {
     const navigation = useNavigation();
     const { theme, shadows } = useTheme();
+    const { userProfile } = useAuth();
     const [notifVisible, setNotifVisible] = useState(false);
     const { unreadCount } = useNotifications();
     
@@ -460,6 +475,16 @@ const MainDrawer = () => {
                         drawerIcon: ({ color, size }) => <FontAwesome name="history" size={size} color={color} />
                     }} 
                 />
+                {userProfile?.role === 'admin' && (
+                    <Drawer.Screen 
+                        name="Admin" 
+                        component={AdminDashboardScreen} 
+                        options={{ 
+                            title: 'Admin Dashboard',
+                            drawerItemStyle: { display: 'none' }
+                        }} 
+                    />
+                )}
             </Drawer.Navigator>
             <NotificationDropdown 
                 visible={notifVisible} 
@@ -522,20 +547,14 @@ async function registerForPushNotificationsAsync() {
 }
 
 export const AppNavigator = () => {
-    const [session, setSession] = useState(null);
+    const { session, loading, userProfile } = useAuth();
     const notificationListener = useRef();
     const responseListener = useRef();
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session?.user) handlePushRegistration(session.user.id);
-        });
-
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            if (session?.user) handlePushRegistration(session.user.id);
-        });
+        if (session?.user) {
+            handlePushRegistration(session.user.id);
+        }
 
         // Set up notification listeners
         notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
@@ -582,11 +601,10 @@ export const AppNavigator = () => {
         });
 
         return () => {
-            authListener?.subscription?.unsubscribe();
             notificationListener.current?.remove();
             responseListener.current?.remove();
         };
-    }, []);
+    }, [session?.user?.id]);
 
     const handlePushRegistration = async (userId) => {
         try {
@@ -598,6 +616,14 @@ export const AppNavigator = () => {
             console.error('Error registering for push:', error);
         }
     };
+
+    if (loading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                <ActivityIndicator size="large" color="#2563EB" />
+            </View>
+        );
+    }
 
     return (
         <NotificationProvider>
@@ -781,6 +807,16 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         paddingBottom: Spacing.xl,
     },
     logoutLabel: {
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    logoutDrawerItem: {
+        marginVertical: 0,
+    },
+    adminDrawerItem: {
+        marginVertical: 0,
+    },
+    drawerLabel: {
         fontWeight: '700',
         fontSize: 16,
     },

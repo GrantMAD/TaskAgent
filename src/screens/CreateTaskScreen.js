@@ -373,7 +373,9 @@ export const CreateTaskScreen = ({ navigation }) => {
                                     placeholderTextColor={theme.textMuted}
                                     value={title}
                                     onChangeText={setTitle}
+                                    maxLength={50}
                                 />
+                                <Text style={styles.charCount}>{title.length}/50</Text>
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -519,7 +521,9 @@ export const CreateTaskScreen = ({ navigation }) => {
                                     multiline
                                     numberOfLines={4}
                                     textAlignVertical="top"
+                                    maxLength={1000}
                                 />
+                                <Text style={styles.charCount}>{description.length}/1000</Text>
                             </View>
 
                             <TouchableOpacity 
@@ -725,6 +729,14 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 16,
         color: theme.text,
         backgroundColor: theme.input,
+    },
+    charCount: {
+        fontSize: 10,
+        color: theme.textMuted,
+        textAlign: 'right',
+        marginTop: 4,
+        marginRight: 4,
+        fontWeight: '600',
     },
     inputLoader: {
         position: 'absolute',

@@ -10,6 +10,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { UserAvatar } from '../components/UserAvatar';
 import { useToast } from '../components/ToastContext';
 import { useAuth } from '../components/AuthContext';
+import { ReportModal } from '../components/ReportModal';
 
 export const PublicProfileScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -20,6 +21,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState(null);
     const { showToast } = useToast();
+    const [reportModalVisible, setReportModalVisible] = useState(false);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -116,7 +118,13 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                     <FontAwesome name="times" size={20} color={theme.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Profile</Text>
-                <View style={{ width: 40 }} />
+                <View style={styles.headerRight}>
+                    {currentUserId && currentUserId !== userId && (
+                        <TouchableOpacity onPress={() => setReportModalVisible(true)} style={styles.headerAction}>
+                            <FontAwesome name="flag" size={18} color={theme.white} />
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -218,6 +226,13 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                     </View>
                 </View>
             </ScrollView>
+
+            <ReportModal 
+                visible={reportModalVisible}
+                onClose={() => setReportModalVisible(false)}
+                reportedUserId={userId}
+                type="user"
+            />
         </View>
     );
 };
@@ -242,6 +257,17 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '800',
         color: theme.white,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: 40,
+        justifyContent: 'flex-end',
+    },
+    headerAction: {
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     backButton: {
         width: 40,

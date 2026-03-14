@@ -60,7 +60,9 @@ export const ReviewModal = ({
                         textAlignVertical="top"
                         value={comment}
                         onChangeText={setComment}
+                        maxLength={500}
                     />
+                    <Text style={styles.charCount}>{comment.length}/500</Text>
                     
                     <View style={styles.footer}>
                         <TouchableOpacity 
@@ -128,7 +130,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: Colors.text,
         minHeight: 100,
-        marginBottom: Spacing.xl,
+        marginBottom: Spacing.md,
+    },
+    charCount: {
+        fontSize: 10,
+        color: Colors.textMuted,
+        textAlign: 'right',
+        marginTop: -Spacing.md, // Pull up to be closer to input
+        marginBottom: Spacing.md,
+        marginRight: 4,
+        fontWeight: '600',
     },
     submitButton: {
         backgroundColor: Colors.accent,

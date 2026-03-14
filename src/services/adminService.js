@@ -1,0 +1,200 @@
+import { supabase } from './supabaseClient';
+
+export const adminService = {
+    /**
+     * Get top-level dashboard statistics
+     */
+    getDashboardStats: async () => {
+        const [
+            { count: userCount, error: userError },
+            { count: taskCount, error: taskError },
+            { count: reportCount, error: reportError }
+        ] = await Promise.all([
+            supabase.from('users').select('*', { count: 'exact', head: true }),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'COMPLETED'),
+            supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'PENDING')
+        ]);
+
+        if (userError) throw userError;
+        if (taskError) throw taskError;
+        if (reportError) throw reportError;
+
+        return {
+            totalUsers: userCount || 0,
+            activeTasks: taskCount || 0,
+            pendingReports: reportCount || 0
+        };
+    },
+
+    /**
+     * Get all users
+     */
+    getAllUsers: async () => {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Get all active tasks
+     */
+    getAllTasks: async () => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, poster:users!poster_id(name)')
+            .neq('status', 'COMPLETED')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Get list of reports
+     */
+    getReports: async (pendingOnly = true) => {
+        let query = supabase
+            .from('reports')
+            .select(`
+                *,
+                reporter:users!reporter_id(name),
+                reported_user:users!reported_user_id(name),
+                reported_task:tasks!reported_task_id(title)
+            `);
+        
+        if (pendingOnly) {
+            query = query.eq('status', 'PENDING');
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    /**
+     * Update a report's status
+     */
+    updateReportStatus: async (reportId, status, resolutionText = null) => {
+        const updateData = { status };
+        if (resolutionText) {
+            updateData.resolution_text = resolutionText;
+            updateData.resolution_at = new Date().toISOString();
+        }
+
+        const { data, error } = await supabase
+            .from('reports')
+            .update(updateData)
+            .eq('id', reportId)
+            .select();
+
+        if (error) throw error;
+        return data[0];
+    },
+
+    /**
+     * Get user platform stats (created vs completed tasks)
+     */
+    getUserStats: async (userId) => {
+        const [
+            { count: createdCount, error: createdError },
+            { count: completedCount, error: completedError }
+        ] = await Promise.all([
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('poster_id', userId),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('assigned_worker_id', userId).eq('status', 'COMPLETED')
+        ]);
+
+        if (createdError) throw createdError;
+        if (completedError) throw completedError;
+
+        return {
+            createdTasks: createdCount || 0,
+            completedTasks: completedCount || 0
+        };
+    },
+
+    /**
+     * Suspend or reactivate a user account
+     */
+    updateUserSuspension: async (userId, isSuspended, suspensionReason = null) => {
+        const { data, error } = await supabase
+            .from('users')
+            .update({ 
+                is_suspended: isSuspended,
+                suspension_reason: suspensionReason
+            })
+            .eq('id', userId)
+            .select();
+
+        if (error) throw error;
+        return data[0];
+    },
+
+    /**
+     * Get detailed analytics for the platform
+     */
+    getDetailedAnalytics: async () => {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const [
+            { count: newUsers7d, error: u7Error },
+            { count: newUsers30d, error: u30Error },
+            { count: totalTasks, error: tError },
+            { count: completedTasks, error: cError },
+            { data: budgetData, error: bError }
+        ] = await Promise.all([
+            supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
+            supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
+            supabase.from('tasks').select('payment_amount')
+        ]);
+
+        if (u7Error) throw u7Error;
+        if (u30Error) throw u30Error;
+        if (tError) throw tError;
+        if (cError) throw cError;
+        if (bError) throw bError;
+
+        const avgBudget = budgetData.length > 0 
+            ? budgetData.reduce((sum, item) => sum + (Number(item.payment_amount) || 0), 0) / budgetData.length 
+            : 0;
+
+        return {
+            newUsers7d: newUsers7d || 0,
+            newUsers30d: newUsers30d || 0,
+            totalTasks: totalTasks || 0,
+            completedTasks: completedTasks || 0,
+            completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+            avgBudget: avgBudget.toFixed(2)
+        };
+    },
+
+    /**
+     * Get task distribution by category
+     */
+    getCategoryStats: async () => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('category');
+
+        if (error) throw error;
+
+        const stats = data.reduce((acc, item) => {
+            const cat = item.category || 'Other';
+            acc[cat] = (acc[cat] || 0) + 1;
+            return acc;
+        }, {});
+
+        // Convert to array and sort by count
+        return Object.entries(stats)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+    }
+};
