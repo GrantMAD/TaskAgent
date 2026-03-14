@@ -8,6 +8,7 @@ import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../components/AuthContext';
+import { useTheme } from '../components/ThemeContext';
 
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();

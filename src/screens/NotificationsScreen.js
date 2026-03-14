@@ -199,7 +199,10 @@ export const NotificationsScreen = ({ navigation, route }) => {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <FontAwesome name="chevron-left" size={20} color={theme.white} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Notifications</Text>
+                    <View>
+                        <Text style={styles.headerTitle}>Notifications</Text>
+                        <Text style={styles.headerSubtitle}>Stay updated on your activity</Text>
+                    </View>
                     {unreadCount > 0 && (
                         <View style={styles.countBadge}>
                             <Text style={styles.countText}>{unreadCount}</Text>
@@ -390,6 +393,11 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '800',
         color: theme.white,
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.7)',
+        fontWeight: '600',
     },
     countBadge: {
         backgroundColor: theme.accent,

@@ -121,7 +121,13 @@ export const TaskFeedScreen = ({ navigation }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.headerTop}>
-                    <Text style={styles.headerTitle}>Local Jobs</Text>
+                    <View style={styles.headerInfo}>
+                        <FontAwesome name="map-marker" size={24} color={theme.white} style={styles.headerIcon} />
+                        <View>
+                            <Text style={styles.headerTitle}>Local Jobs</Text>
+                            <Text style={styles.headerSubtitle}>Find opportunities in your area</Text>
+                        </View>
+                    </View>
                     <View style={styles.radiusBadge}>
                         <Text style={styles.radiusBadgeText}>{searchRadius > 1000 ? 'All' : `${searchRadius}km`}</Text>
                     </View>
@@ -252,15 +258,27 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         zIndex: 10,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: 22,
         fontWeight: '800',
         color: theme.white,
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.7)',
+        fontWeight: '600',
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: Spacing.md,
+    },
+    headerInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerIcon: {
+        marginRight: 12,
     },
     radiusBadge: {
         backgroundColor: 'rgba(255,255,255,0.2)',

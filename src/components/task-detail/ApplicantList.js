@@ -16,29 +16,39 @@ export const ApplicantList = ({ applications, navigation, onMessage, onHire }) =
             {applications.length > 0 ? (
                 applications.map((app) => (
                     <View key={app.id} style={styles.applicantCard}>
-                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
-                            <UserAvatar user={app.worker} size={40} />
-                        </TouchableOpacity>
-                        <View style={styles.applicantInfo}>
+                        <View style={styles.applicantHeader}>
                             <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
-                                <Text style={styles.applicantName}>{app.worker.name}</Text>
+                                <UserAvatar user={app.worker} size={40} />
                             </TouchableOpacity>
-                            <RatingStars rating={app.worker.rating || 5} />
+                            <View style={styles.applicantInfo}>
+                                <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
+                                    <Text style={styles.applicantName}>{app.worker.name}</Text>
+                                </TouchableOpacity>
+                                <RatingStars rating={app.worker.rating || 5} />
+                            </View>
+                            <View style={styles.actionButtons}>
+                                <TouchableOpacity 
+                                    style={[styles.msgButtonSmall, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary }]}
+                                    onPress={() => onMessage(app.worker_id)}
+                                >
+                                    <FontAwesome name="envelope" size={14} color={theme.primary} />
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={styles.acceptButtonSmall}
+                                    onPress={() => onHire(app.worker_id, app.worker.name)}
+                                >
+                                    <Text style={styles.acceptButtonTextSmall}>Hire</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <TouchableOpacity 
-                                style={[styles.acceptButtonSmall, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary, marginRight: 8, paddingHorizontal: 12 }]}
-                                onPress={() => onMessage(app.worker_id)}
-                            >
-                                <FontAwesome name="envelope" size={14} color={theme.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={styles.acceptButtonSmall}
-                                onPress={() => onHire(app.worker_id, app.worker.name)}
-                            >
-                                <Text style={styles.acceptButtonTextSmall}>Hire</Text>
-                            </TouchableOpacity>
-                        </View>
+                        
+                        {app.message && (
+                            <View style={styles.messageBox}>
+                                <Text style={styles.applicantMessage}>
+                                    "{app.message}"
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 ))
             ) : (
@@ -71,15 +81,17 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderColor: theme.border,
     },
     applicantCard: {
-        flexDirection: 'row',
         backgroundColor: theme.card,
         padding: Spacing.md,
         borderRadius: Rounding.soft,
-        alignItems: 'center',
         ...shadows.subtle,
         borderWidth: 1,
         borderColor: theme.border,
         marginBottom: Spacing.sm,
+    },
+    applicantHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     applicantInfo: {
         flex: 1,
@@ -89,6 +101,29 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: theme.text,
+    },
+    applicantMessage: {
+        fontSize: 13,
+        color: theme.textMuted,
+        fontStyle: 'italic',
+        lineHeight: 18,
+    },
+    messageBox: {
+        marginTop: Spacing.md,
+        paddingTop: Spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: theme.border,
+        paddingLeft: 4,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    msgButtonSmall: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: Rounding.pill,
+        marginRight: 8,
     },
     acceptButtonSmall: {
         backgroundColor: theme.primary,

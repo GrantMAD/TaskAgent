@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl, Share } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
@@ -20,6 +20,7 @@ import { useAuth } from '../components/AuthContext';
 import { ApplicantList } from '../components/task-detail/ApplicantList';
 import { TaskActions } from '../components/task-detail/TaskActions';
 import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
+import { ApplicationModal } from '../components/ApplicationModal';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -49,7 +50,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
-    const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', or 'APPROVE'
+    const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', 'APPROVE', or 'CANCEL'
     const [selectedApplicant, setSelectedApplicant] = useState(null);
     const [completionImage, setCompletionImage] = useState(null);
 
@@ -71,6 +72,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setCompletionImage(result.assets[0].uri);
         }
     };
+
+    // Application Modal State
+    const [applyModalVisible, setApplyModalVisible] = useState(false);
 
     // Review Modal State
     const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -120,19 +124,54 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         }
     };
 
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        return date.toLocaleDateString();
+    };
+
+    const handleShare = async () => {
+        try {
+            const result = await Share.share({
+                message: `Check out this task on Task Agent: ${task.title}\n\nBudget: ${task.payment_amount}\nCategory: ${task.category}\n\nDescription: ${task.description}`,
+                title: task.title,
+            });
+        } catch (error) {
+            showToast('Could not share task', 'error');
+        }
+    };
+
     const onRefresh = () => {
         fetchTaskDetails(true);
     };
 
-    const handleApply = async () => {
+    const handleApply = async (message) => {
         try {
             if (!session) return;
-            await taskService.applyForTask(taskId, session.user.id, "I would like to apply for this task!");
+            setApplyModalVisible(false);
+            setLoading(true);
+            await taskService.applyForTask(taskId, session.user.id, message);
             showToast('Application submitted successfully!', 'success');
             fetchTaskDetails(); // Refresh to update button state
         } catch (error) {
             showToast(error.message, 'error');
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const triggerApplyModal = () => {
+        if (!session) {
+            showToast('Please login to apply for tasks', 'info');
+            return;
+        }
+        setApplyModalVisible(true);
     };
 
     const handleMessageApplicant = async (applicantId) => {
@@ -200,14 +239,35 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         setModalVisibleType('APPROVE');
         setModalVisible(true);
     };
+    
+    const triggerCancelModal = () => {
+        setModalVisibleType('CANCEL');
+        setModalVisible(true);
+    };
 
     const handleModalConfirm = () => {
         if (modalType === 'HIRE') {
             handleConfirmHire();
         } else if (modalType === 'COMPLETE') {
             handleConfirmComplete();
+        } else if (modalType === 'CANCEL') {
+            handleConfirmCancel();
         } else {
             handleConfirmApprove();
+        }
+    };
+
+    const handleConfirmCancel = async () => {
+        setModalVisible(false);
+        setLoading(true);
+        try {
+            await taskService.cancelTask(taskId);
+            showToast('Task cancelled successfully', 'success');
+            navigation.goBack();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -308,7 +368,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
-                <View style={styles.headerSpacer} />
+                <TouchableOpacity onPress={handleShare} style={styles.headerSpacer}>
+                    <FontAwesome name="share-alt" size={20} color={theme.white} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView 
@@ -327,6 +389,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryText}>{task.category}</Text>
                     </View>
+                    <Text style={styles.postedDate}>Posted {formatDate(task.created_at)}</Text>
                     <Text style={styles.title}>{task.title}</Text>
                     <View style={styles.priceRow}>
                         <View>
@@ -433,10 +496,11 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     isPoster={isPoster}
                     isWorker={isWorker}
                     hasApplied={hasApplied}
-                    onApply={handleApply}
+                    onApply={triggerApplyModal}
                     onMessagePoster={handleMessagePoster}
                     onConfirmCompletion={triggerApproveModal}
                     onMarkAsComplete={triggerCompleteModal}
+                    onCancel={triggerCancelModal}
                 />
 
                 {/* Informational Badges */}
@@ -452,19 +516,22 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 title={
                     modalType === 'HIRE' ? "Hire Applicant" : 
                     modalType === 'COMPLETE' ? "Mark Task Complete" : 
+                    modalType === 'CANCEL' ? "Cancel Task" :
                     "Confirm Completion"
                 }
                 message={
                     modalType === 'HIRE' ? `Are you sure you want to hire ${selectedApplicant?.name} for this task?` : 
                     modalType === 'COMPLETE' ? "Are you finished with this task? This will notify the poster to confirm." : 
+                    modalType === 'CANCEL' ? "Are you sure you want to cancel this task? It will be removed from the feed." :
                     "Has the work been completed to your satisfaction? This will officially close the task."
                 }
                 confirmText={
                     modalType === 'HIRE' ? "Approve" : 
                     modalType === 'COMPLETE' ? "Submit Work" : 
+                    modalType === 'CANCEL' ? "Yes, Cancel" :
                     "Approve & Close"
                 }
-                type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : 'primary'}
+                type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : modalType === 'CANCEL' ? 'error' : 'primary'}
                 onConfirm={handleModalConfirm}
                 onCancel={() => {
                     setModalVisible(false);
@@ -500,6 +567,13 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 loading={reviewLoading}
                 onSubmit={handleReviewSubmit}
                 onCancel={() => setReviewModalVisible(false)}
+            />
+
+            <ApplicationModal 
+                visible={applyModalVisible}
+                onClose={() => setApplyModalVisible(false)}
+                onSubmit={handleApply}
+                taskTitle={task.title}
             />
         </View>
     );
@@ -554,6 +628,9 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     headerSpacer: {
         width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
     },
     scrollContent: {
         paddingBottom: 120,
@@ -580,6 +657,12 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontWeight: '800',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    postedDate: {
+        fontSize: 12,
+        color: theme.textMuted,
+        fontWeight: '600',
+        marginBottom: 4,
     },
     title: {
         fontSize: 26,

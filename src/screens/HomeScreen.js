@@ -122,7 +122,10 @@ export const HomeScreen = ({ navigation }) => {
                     {loading ? (
                         <Skeleton width={150} height={28} />
                     ) : (
-                        <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                        <View style={styles.welcomeGreeting}>
+                            <FontAwesome name="hand-paper-o" size={24} color={theme.accent} style={{ marginRight: 10 }} />
+                            <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                        </View>
                     )}
                 </View>
                 <Text style={styles.subtitleText}>Your neighborhood task hub</Text>
@@ -164,6 +167,7 @@ export const HomeScreen = ({ navigation }) => {
                             {myPostedTasks.length > 0 && (
                                 <View style={styles.section}>
                                     <View style={styles.sectionHeader}>
+                                        <FontAwesome name="bullhorn" size={20} color={theme.primary} style={styles.headerIcon} />
                                         <Text style={styles.sectionTitle}>My Active Postings</Text>
                                     </View>
                                     {myPostedTasks.map((item) => (
@@ -179,6 +183,7 @@ export const HomeScreen = ({ navigation }) => {
                             {myGigs.length > 0 && (
                                 <View style={styles.section}>
                                     <View style={styles.sectionHeader}>
+                                        <FontAwesome name="briefcase" size={20} color={theme.primary} style={styles.headerIcon} />
                                         <Text style={styles.sectionTitle}>Jobs In Progress</Text>
                                     </View>
                                     {myGigs.map((item) => (
@@ -208,7 +213,10 @@ export const HomeScreen = ({ navigation }) => {
 
             {/* Quick Tips Section */}
             <View style={styles.tipsSection}>
-                <Text style={styles.sectionTitleAlt}>Neighborhood Tips</Text>
+                <View style={styles.sectionHeaderAlt}>
+                    <FontAwesome name="lightbulb-o" size={20} color={theme.primary} style={styles.headerIcon} />
+                    <Text style={styles.sectionTitleAlt}>Neighborhood Tips</Text>
+                </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
                     <View style={styles.tipCard}>
                         <FontAwesome name="shield" size={24} color={theme.accent} />
@@ -245,6 +253,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderBottomRightRadius: Rounding.soft,
         marginBottom: Spacing.md,
         ...shadows.medium,
+    },
+    welcomeGreeting: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     welcomeText: {
         fontSize: 28,
@@ -292,6 +304,17 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         paddingHorizontal: Spacing.lg,
         marginTop: Spacing.md,
         marginBottom: Spacing.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    sectionHeaderAlt: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+    },
+    headerIcon: {
+        marginRight: 10,
     },
     sectionTitle: {
         fontSize: 20,
@@ -302,8 +325,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         color: theme.primary,
-        marginHorizontal: Spacing.lg,
-        marginBottom: Spacing.md,
     },
     emptyHub: {
         padding: 60,

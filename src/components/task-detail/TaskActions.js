@@ -13,13 +13,21 @@ export const TaskActions = ({
     onApply, 
     onMessagePoster, 
     onConfirmCompletion, 
-    onMarkAsComplete 
+    onMarkAsComplete,
+    onCancel
 }) => {
     const { theme, shadows } = useTheme();
     const styles = createStyles(theme, shadows);
 
     return (
         <View style={styles.actions}>
+            {isPoster && task.status === 'OPEN' && (
+                <TouchableOpacity style={[styles.cancelButton]} onPress={onCancel}>
+                    <FontAwesome name="times-circle" size={18} color={theme.error} style={styles.buttonIcon} />
+                    <Text style={styles.cancelButtonText}>Cancel Task</Text>
+                </TouchableOpacity>
+            )}
+
             {/* Poster Action: Confirm Completion */}
             {isPoster && task.status === 'PENDING_CONFIRMATION' && (
                 <TouchableOpacity style={styles.completeButton} onPress={onConfirmCompletion}>
@@ -108,6 +116,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderColor: theme.primary,
         ...shadows.subtle,
     },
+    cancelButton: {
+        backgroundColor: theme.surface,
+        flexDirection: 'row',
+        padding: Spacing.md,
+        borderRadius: Rounding.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: theme.error,
+        marginBottom: Spacing.md,
+        ...shadows.subtle,
+    },
     applyButtonText: {
         color: theme.white,
         fontSize: 16,
@@ -115,6 +135,11 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     messageButtonText: {
         color: theme.primary,
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    cancelButtonText: {
+        color: theme.error,
         fontSize: 16,
         fontWeight: '800',
     },

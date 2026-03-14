@@ -76,8 +76,7 @@ const formatTime = (dateString) => {
 };
 
 // Memoized Notification Item
-const NotificationItem = memo(({ item, onPress, formatTime }) => {
-    const { theme } = useTheme();
+const NotificationItem = memo(({ item, onPress, formatTime, styles }) => {
     return (
         <TouchableOpacity 
             style={styles.notificationItem}
@@ -175,6 +174,7 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
                                                     item={item} 
                                                     onPress={handleNotificationPress}
                                                     formatTime={formatTime}
+                                                    styles={styles}
                                                 />
                                             ))
                                         ) : (
@@ -689,7 +689,7 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         padding: Spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: theme.border,
-        backgroundColor: theme.background,
+        backgroundColor: theme.surface,
     },
     dropdownTitle: {
         fontSize: 16,

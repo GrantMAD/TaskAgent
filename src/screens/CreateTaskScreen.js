@@ -308,10 +308,16 @@ export const CreateTaskScreen = ({ navigation }) => {
                     <View style={styles.iconCircle}>
                         <FontAwesome name="rocket" size={50} color={theme.white} />
                     </View>
-                    <Text style={styles.landingTitle}>Post a New Job</Text>
+                    <View style={styles.landingHeaderRow}>
+                        <FontAwesome name="pencil-square-o" size={32} color={theme.primary} style={styles.landingHeaderIcon} />
+                        <View>
+                            <Text style={styles.landingTitle}>Post a New Job</Text>
+                            <Text style={styles.landingSubtitle}>Get help from your neighborhood</Text>
+                        </View>
+                    </View>
                     <Text style={styles.landingDescription}>
-                        Need a hand with something? Whether it's moving furniture, cleaning, or a quick tech fix, 
-                        your neighbors are ready to help. Post a task and get it done today!
+                        Whether it's moving furniture, cleaning, or a quick tech fix, 
+                        find trusted local help for any task.
                     </Text>
                 </View>
 
@@ -351,7 +357,10 @@ export const CreateTaskScreen = ({ navigation }) => {
                             <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
                                 <FontAwesome name="times" size={24} color={theme.primary} />
                             </TouchableOpacity>
-                            <Text style={styles.modalHeaderTitle}>Task Details</Text>
+                            <View style={styles.modalHeaderInfo}>
+                                <Text style={styles.modalHeaderTitle}>Task Details</Text>
+                                <Text style={styles.modalHeaderSubtitle}>Provide info to attract help</Text>
+                            </View>
                             <View style={{ width: 40 }} />
                         </View>
 
@@ -560,19 +569,32 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         ...shadows.medium,
         marginBottom: Spacing.lg,
     },
-    landingTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: theme.primary,
-        textAlign: 'center',
+    landingHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: Spacing.md,
     },
+    landingHeaderIcon: {
+        marginRight: 15,
+    },
+    landingTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: theme.primary,
+    },
+    landingSubtitle: {
+        fontSize: 14,
+        color: theme.accent,
+        fontWeight: '700',
+        marginTop: 2,
+    },
     landingDescription: {
-        fontSize: 16,
+        fontSize: 15,
         color: theme.textMuted,
         textAlign: 'center',
-        lineHeight: 24,
+        lineHeight: 22,
         paddingHorizontal: Spacing.md,
+        marginTop: Spacing.sm,
     },
     benefitList: {
         width: '100%',
@@ -636,10 +658,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         height: 40,
         justifyContent: 'center',
     },
+    modalHeaderInfo: {
+        alignItems: 'center',
+    },
     modalHeaderTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '800',
         color: theme.primary,
+    },
+    modalHeaderSubtitle: {
+        fontSize: 11,
+        color: theme.textMuted,
+        fontWeight: '600',
     },
     formScroll: {
         padding: Spacing.lg,
