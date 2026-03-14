@@ -5,13 +5,14 @@ import { supabase } from '../services/supabaseClient';
 import { ProfileSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
-import { FontAwesome } from '@expo/vector-icons';
 import { UserAvatar } from '../components/UserAvatar';
 import { useToast } from '../components/ToastContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../components/AuthContext';
 
 export const ProfileScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -29,7 +30,6 @@ export const ProfileScreen = ({ navigation }) => {
     const fetchProfileData = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
             const [userData, reviewData] = await Promise.all([
@@ -172,12 +172,6 @@ export const ProfileScreen = ({ navigation }) => {
 const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: theme.background,
     },
     header: {

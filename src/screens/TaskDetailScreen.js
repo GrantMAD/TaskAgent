@@ -16,9 +16,14 @@ import { useToast } from '../components/ToastContext';
 import { useLocation } from '../components/LocationContext';
 import { TaskDetailSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import TaskMap from '../components/TaskMap';
+import { useAuth } from '../components/AuthContext';
+import { ApplicantList } from '../components/task-detail/ApplicantList';
+import { TaskActions } from '../components/task-detail/TaskActions';
+import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const { userLocation, calculateDistance } = useLocation();
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
@@ -26,7 +31,6 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const [hasApplied, setHasApplied] = useState(false);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [session, setSession] = useState(null);
     const { showToast } = useToast();
     
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
@@ -73,9 +77,6 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const [reviewLoading, setReviewLoading] = useState(false);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-        });
         fetchTaskDetails();
 
         // Subscribe to task changes
@@ -103,7 +104,6 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setTask(data);
             
             // Always fetch applications to check if current user has applied
-            const { data: { session } } = await supabase.auth.getSession();
             const apps = await taskService.getTaskApplications(taskId);
             setApplications(apps);
 
@@ -400,42 +400,12 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
                 {/* Poster View: Applicants List */}
                 {isPoster && task.status === 'OPEN' && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Applicants ({applications.length})</Text>
-                        {applications.length > 0 ? (
-                            applications.map((app) => (
-                                <View key={app.id} style={styles.applicantCard}>
-                                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
-                                        <UserAvatar user={app.worker} size={40} />
-                                    </TouchableOpacity>
-                                    <View style={styles.applicantInfo}>
-                                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
-                                            <Text style={styles.applicantName}>{app.worker.name}</Text>
-                                        </TouchableOpacity>
-                                        <RatingStars rating={app.worker.rating || 5} />
-                                    </View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <TouchableOpacity 
-                                            style={[styles.acceptButtonSmall, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary, marginRight: 8, paddingHorizontal: 12 }]}
-                                            onPress={() => handleMessageApplicant(app.worker_id)}
-                                        >
-                                            <FontAwesome name="envelope" size={14} color={theme.primary} />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={styles.acceptButtonSmall}
-                                            onPress={() => triggerHireModal(app.worker_id, app.worker.name)}
-                                        >
-                                            <Text style={styles.acceptButtonTextSmall}>Hire</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))
-                        ) : (
-                            <View style={styles.card}>
-                                <Text style={styles.emptyTextSmall}>No applicants yet.</Text>
-                            </View>
-                        )}
-                    </View>
+                    <ApplicantList 
+                        applications={applications} 
+                        navigation={navigation}
+                        onMessage={handleMessageApplicant}
+                        onHire={triggerHireModal}
+                    />
                 )}
 
                 {/* General View: Posted By */}
@@ -457,78 +427,24 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 </View>
 
                 {/* Action Area */}
-                <View style={styles.actions}>
-                    {/* Poster Action: Confirm Completion */}
-                    {isPoster && task.status === 'PENDING_CONFIRMATION' && (
-                        <TouchableOpacity style={styles.completeButton} onPress={triggerApproveModal}>
-                            <FontAwesome name="check-square-o" size={18} color={theme.white} style={styles.buttonIcon} />
-                            <Text style={styles.applyButtonText}>Confirm Completion</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Worker Action: Mark as Complete */}
-                    {isWorker && task.status === 'ASSIGNED' && (
-                        <TouchableOpacity style={[styles.completeButton, { backgroundColor: theme.success }]} onPress={triggerCompleteModal}>
-                            <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
-                            <Text style={styles.applyButtonText}>Mark as Complete</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Tasker Action: Apply */}
-                    {!isPoster && !isWorker && task.status === 'OPEN' && (
-                        <TouchableOpacity 
-                            style={[styles.applyButton, hasApplied && styles.disabledButton]} 
-                            onPress={handleApply}
-                            disabled={hasApplied}
-                        >
-                            <FontAwesome 
-                                name={hasApplied ? "clock-o" : "check-circle"} 
-                                size={18} 
-                                color={theme.white} 
-                                style={styles.buttonIcon} 
-                            />
-                            <Text style={styles.applyButtonText}>
-                                {hasApplied ? 'Waiting for Approval' : 'Apply for Task'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Universal Action: Message */}
-                    {session && (!isPoster || task.assigned_worker_id) && (
-                        <TouchableOpacity style={styles.messageButton} onPress={handleMessagePoster}>
-                            <FontAwesome name="envelope" size={18} color={theme.primary} style={styles.buttonIcon} />
-                            <Text style={styles.messageButtonText}>
-                                {isPoster ? 'Message Tasker' : 'Message Poster'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
+                <TaskActions 
+                    task={task}
+                    session={session}
+                    isPoster={isPoster}
+                    isWorker={isWorker}
+                    hasApplied={hasApplied}
+                    onApply={handleApply}
+                    onMessagePoster={handleMessagePoster}
+                    onConfirmCompletion={triggerApproveModal}
+                    onMarkAsComplete={triggerCompleteModal}
+                />
 
                 {/* Informational Badges */}
-                {isPoster && task.status === 'ASSIGNED' && (
-                    <View style={styles.infoBadge}>
-                        <FontAwesome name="handshake-o" size={16} color={theme.primary} style={{ marginRight: 8 }} />
-                        <Text style={styles.infoBadgeText}>Worker Assigned & In Progress</Text>
-                    </View>
-                )}
-
-                {task.status === 'PENDING_CONFIRMATION' && (
-                    <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(230, 138, 0, 0.2)' : '#FFF4E5' }]}>
-                        <FontAwesome name="clock-o" size={16} color={theme.accent} style={{ marginRight: 8 }} />
-                        <Text style={[styles.infoBadgeText, { color: theme.accent }]}>
-                            {isWorker ? 'Waiting for Poster to confirm completion' : 'Worker has marked this as complete. Confirm?'}
-                        </Text>
-                    </View>
-                )}
-
-                {task.status === 'COMPLETED' && (
-                    <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(40, 167, 69, 0.2)' : '#E8F3ED' }]}>
-                        <FontAwesome name="check-circle" size={16} color={theme.success} style={{ marginRight: 8 }} />
-                        <Text style={[styles.infoBadgeText, { color: theme.success }]}>
-                            This task is successfully completed!
-                        </Text>
-                    </View>
-                )}
+                <TaskStatusBanner 
+                    task={task}
+                    isPoster={isPoster}
+                    isWorker={isWorker}
+                />
             </ScrollView>
 
             <ConfirmationModal 
@@ -746,117 +662,13 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.primary,
         marginBottom: 2,
     },
-    applicantCard: {
-        flexDirection: 'row',
-        backgroundColor: theme.card,
-        padding: Spacing.md,
-        borderRadius: Rounding.soft,
-        alignItems: 'center',
-        ...shadows.subtle,
-        borderWidth: 1,
-        borderColor: theme.border,
-        marginBottom: Spacing.sm,
-    },
-    applicantInfo: {
-        flex: 1,
-        marginLeft: Spacing.md,
-    },
-    applicantName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: theme.text,
-    },
-    acceptButtonSmall: {
-        backgroundColor: theme.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: Rounding.pill,
-    },
-    acceptButtonTextSmall: {
-        color: theme.white,
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    emptyTextSmall: {
-        color: theme.textMuted,
-        fontSize: 14,
-        fontStyle: 'italic',
-    },
-    actions: {
-        padding: Spacing.lg,
-        marginTop: Spacing.xl,
-    },
-    applyButton: {
-        backgroundColor: theme.accent,
-        flexDirection: 'row',
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: Spacing.md,
-        ...shadows.accent,
-    },
-    disabledButton: {
-        backgroundColor: theme.border,
-        opacity: 0.8,
-    },
-    completeButton: {
-        backgroundColor: theme.primary, // Using primary navy for approval
-        flexDirection: 'row',
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: Spacing.md,
-        ...shadows.subtle,
-    },
-    applyButtonText: {
-        color: theme.white,
-        fontWeight: '700',
-        fontSize: 18,
-    },
-    messageButton: {
-        backgroundColor: theme.surface,
-        flexDirection: 'row',
-        padding: Spacing.md,
-        borderRadius: Rounding.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: theme.primary,
-    },
-    messageButtonText: {
-        color: theme.primary,
-        fontWeight: '700',
-        fontSize: 16,
-    },
-    buttonIcon: {
-        marginRight: 10,
-    },
-    infoBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: Spacing.xl,
-        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
-        padding: Spacing.md,
-        marginHorizontal: Spacing.lg,
-        borderRadius: Rounding.standard,
-    },
-    infoBadgeText: {
-        color: theme.primary,
-        fontWeight: '600',
-        fontSize: 14,
-        textAlign: 'center',
-        flex: 1,
-    },
     mapContainer: {
+        height: 200,
         marginTop: Spacing.md,
         borderRadius: Rounding.soft,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: theme.border,
-        height: 200,
         ...shadows.subtle,
     },
     mapView: {
@@ -864,12 +676,13 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         height: '100%',
     },
     mediaContainer: {
-        marginTop: Spacing.sm,
+        width: '100%',
+        height: 200,
         borderRadius: Rounding.soft,
         overflow: 'hidden',
+        marginTop: Spacing.sm,
         borderWidth: 1,
         borderColor: theme.border,
-        height: 200,
         ...shadows.subtle,
     },
     mediaImage: {
@@ -878,6 +691,7 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     modalPhotoSection: {
         marginTop: Spacing.md,
+        marginBottom: Spacing.sm,
         paddingTop: Spacing.md,
         borderTopWidth: 1,
         borderTopColor: theme.border,

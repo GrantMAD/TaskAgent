@@ -5,12 +5,13 @@ import { supabase } from '../services/supabaseClient';
 import { ConversationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { UserAvatar } from '../components/UserAvatar';
 import { Spacing, Rounding } from '../utils/theme';
-import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../components/AuthContext';
 
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const [conversations, setConversations] = useState([]);
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -27,7 +28,6 @@ export const MessagesScreen = ({ navigation }) => {
     const fetchConversations = async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             const currentUserId = session.user.id;
             setUserId(currentUserId);
@@ -256,12 +256,6 @@ export const MessagesScreen = ({ navigation }) => {
 const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: theme.background,
     },
     header: {

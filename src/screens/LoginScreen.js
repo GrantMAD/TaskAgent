@@ -43,8 +43,6 @@ export const LoginScreen = ({ navigation }) => {
         if (error) {
             console.error('Login error details:', error);
             showToast(error.message, 'error');
-        } else {
-            console.log('Login success:', data.session ? 'Session established' : 'No session');
         }
     };
 

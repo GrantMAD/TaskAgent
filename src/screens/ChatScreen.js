@@ -10,9 +10,11 @@ import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
+import { useAuth } from '../components/AuthContext';
 
 export const ChatScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const { conversationId } = route.params;
     const [messages, setMessages] = useState([]);
     const [conversation, setConversation] = useState(null);
@@ -40,15 +42,11 @@ export const ChatScreen = ({ route, navigation }) => {
     }, [conversation, userId]);
 
     useEffect(() => {
-        let currentUserId;
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                currentUserId = session.user.id;
-                setUserId(currentUserId);
-                // Mark existing messages as read
-                messageService.markMessagesAsRead(conversationId, currentUserId);
-            }
-        });
+        if (session) {
+            setUserId(session.user.id);
+            // Mark existing messages as read
+            messageService.markMessagesAsRead(conversationId, session.user.id);
+        }
         fetchChatDetails();
 
         // Subscribe to messages and typing events
@@ -65,7 +63,6 @@ export const ChatScreen = ({ route, navigation }) => {
                     // We need to know who the current user is. 
                     // Since useEffect closure might have old userId, we'll get it from session or state
                     const checkMarkRead = async () => {
-                        const { data: { session } } = await supabase.auth.getSession();
                         if (session && payload.new.sender_id !== session.user.id) {
                             messageService.markMessagesAsRead(conversationId, session.user.id);
                         }
@@ -103,7 +100,7 @@ export const ChatScreen = ({ route, navigation }) => {
                 }
             })
             .on('broadcast', { event: 'typing' }, (payload) => {
-                if (payload.payload.userId !== currentUserId) {
+                if (payload.payload.userId !== session?.user?.id) {
                     setIsOtherTyping(payload.payload.isTyping);
                 }
             })
@@ -337,12 +334,6 @@ export const ChatScreen = ({ route, navigation }) => {
 const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: theme.background,
     },
     header: {

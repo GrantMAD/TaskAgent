@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { LightTheme, DarkTheme, getShadow } from '../utils/theme';
 import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
+import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext();
 
@@ -16,6 +17,7 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const theme = isDarkMode ? DarkTheme : LightTheme;
+    const { session } = useAuth();
 
     // Helper to get shadows dynamically
     const shadows = {
@@ -25,23 +27,14 @@ export const ThemeProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        // Initial fetch of theme preference
-        fetchThemePreference();
-
-        // Listen for auth changes to re-fetch preference
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                fetchThemePreference();
-            } else {
-                setIsDarkMode(false);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+        if (session) {
+            fetchThemePreference();
+        } else {
+            setIsDarkMode(false);
+        }
+    }, [session]);
 
     const fetchThemePreference = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             try {
                 const profile = await userService.getUserProfile(session.user.id);
@@ -58,7 +51,6 @@ export const ThemeProvider = ({ children }) => {
         const newMode = !isDarkMode;
         setIsDarkMode(newMode);
         
-        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             try {
                 await userService.updateUserProfile(session.user.id, { dark_mode: newMode });

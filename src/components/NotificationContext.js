@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '../services/supabaseClient';
 import { notificationService } from '../services/notificationService';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext();
 
@@ -11,6 +12,7 @@ export const NotificationProvider = ({ children }) => {
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const { showToast } = useToast();
+    const { session } = useAuth();
 
     const fetchCounts = useCallback(async (userId) => {
         if (!userId) return;
@@ -74,76 +76,39 @@ export const NotificationProvider = ({ children }) => {
         let msgSub;
         let userId;
 
-        const setup = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                userId = session.user.id;
-                fetchCounts(userId);
-                fetchNotifications(userId);
+        if (session) {
+            userId = session.user.id;
+            fetchCounts(userId);
+            fetchNotifications(userId);
 
-                notifSub = notificationService.subscribeToNotifications(userId, (newNotif) => {
-                    setNotifications(prev => [newNotif, ...prev]);
-                    setUnreadCount(prev => prev + 1);
-                    showToast(`New ${newNotif.title}`, 'info');
-                });
+            notifSub = notificationService.subscribeToNotifications(userId, (newNotif) => {
+                setNotifications(prev => [newNotif, ...prev]);
+                setUnreadCount(prev => prev + 1);
+                showToast(`New ${newNotif.title}`, 'info');
+            });
 
-                // Subscribe to messages for badge updates
-                msgSub = supabase
-                    .channel('global-message-unread')
-                    .on('postgres_changes', { 
-                        event: '*', 
-                        schema: 'public', 
-                        table: 'messages' 
-                    }, () => {
-                        // Refresh counts when any message changes
-                        // (Ideally we'd filter by user's conversations, but for badge, a quick re-fetch is okay)
-                        fetchCounts(userId);
-                    })
-                    .subscribe();
-            }
-        };
-
-        setup();
-
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                userId = session.user.id;
-                fetchCounts(userId);
-                fetchNotifications(userId);
-                if (notifSub) notifSub.unsubscribe();
-                if (msgSub) supabase.removeChannel(msgSub);
-                
-                notifSub = notificationService.subscribeToNotifications(userId, (newNotif) => {
-                    setNotifications(prev => [newNotif, ...prev]);
-                    setUnreadCount(prev => prev + 1);
-                    showToast(`New ${newNotif.title}`, 'info');
-                });
-
-                msgSub = supabase
-                    .channel('global-message-unread')
-                    .on('postgres_changes', { 
-                        event: '*', 
-                        schema: 'public', 
-                        table: 'messages' 
-                    }, () => {
-                        fetchCounts(userId);
-                    })
-                    .subscribe();
-            } else if (event === 'SIGNED_OUT') {
-                setNotifications([]);
-                setUnreadCount(0);
-                setUnreadMessagesCount(0);
-                if (notifSub) notifSub.unsubscribe();
-                if (msgSub) supabase.removeChannel(msgSub);
-            }
-        });
+            // Subscribe to messages for badge updates
+            msgSub = supabase
+                .channel('global-message-unread')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'messages' 
+                }, () => {
+                    fetchCounts(userId);
+                })
+                .subscribe();
+        } else {
+            setNotifications([]);
+            setUnreadCount(0);
+            setUnreadMessagesCount(0);
+        }
 
         return () => {
             if (notifSub) notifSub.unsubscribe();
             if (msgSub) supabase.removeChannel(msgSub);
-            authListener?.subscription?.unsubscribe();
         };
-    }, [fetchCounts, fetchNotifications, showToast]);
+    }, [session, fetchCounts, fetchNotifications, showToast]);
 
     // Optimistic Actions
     const markAsRead = async (id) => {
@@ -166,7 +131,6 @@ export const NotificationProvider = ({ children }) => {
 
     const markAllAsRead = async () => {
         const previousNotifs = [...notifications];
-        const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
         // Optimistic UI
@@ -213,12 +177,10 @@ export const NotificationProvider = ({ children }) => {
             markAllAsRead, 
             deleteNotification,
             refreshNotifications: () => {
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session) {
-                        fetchNotifications(session.user.id);
-                        fetchCounts(session.user.id);
-                    }
-                });
+                if (session) {
+                    fetchNotifications(session.user.id);
+                    fetchCounts(session.user.id);
+                }
             }
         }}>
             {children}

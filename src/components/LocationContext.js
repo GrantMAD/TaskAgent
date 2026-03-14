@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
+import { useAuth } from './AuthContext';
 
 const LocationContext = createContext();
 
@@ -10,10 +11,10 @@ export const LocationProvider = ({ children }) => {
     const [userLocation, setUserLocation] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [searchRadius, setSearchRadius] = useState(10); // Default 10km
+    const { session } = useAuth();
 
     const loadSettings = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const profile = await userService.getUserProfile(session.user.id);
                 if (profile && profile.search_radius) {
@@ -28,7 +29,6 @@ export const LocationProvider = ({ children }) => {
     const updateSearchRadius = async (newRadius) => {
         try {
             setSearchRadius(newRadius);
-            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 await userService.updateSearchRadius(session.user.id, newRadius);
             }

@@ -10,9 +10,11 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { TASK_CATEGORIES } from '../utils/constants';
 import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
+import { useAuth } from '../components/AuthContext';
 
 export const CreateTaskScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     // Form State
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -113,7 +115,6 @@ export const CreateTaskScreen = ({ navigation }) => {
     };
 
     const handleReverseGeocode = async (latitude, longitude) => {
-        console.log('Step 4: Reverse geocoding...');
         let addr = '';
         try {
             if (Platform.OS === 'web') {
@@ -121,7 +122,6 @@ export const CreateTaskScreen = ({ navigation }) => {
                 const revData = await revResponse.json();
                 if (revData.features && revData.features.length > 0) {
                     const f = revData.features[0].properties;
-                    console.log('Photon properties:', f);
                     // Build a more detailed address
                     const parts = [
                         f.name !== f.street ? f.name : null,
@@ -145,7 +145,6 @@ export const CreateTaskScreen = ({ navigation }) => {
             }
 
             if (addr) {
-                console.log('Final Address:', addr);
                 setAddress(addr);
                 showToast('Location updated!', 'success');
             } else {
@@ -160,11 +159,9 @@ export const CreateTaskScreen = ({ navigation }) => {
 
     const getCurrentLocation = async () => {
         setIsLocating(true);
-        console.log('--- Location Fetch Started ---');
         
         // WEB-SPECIFIC DIRECT APPROACH
         if (Platform.OS === 'web') {
-            console.log('Web detected. Secure Context:', window.isSecureContext);
             
             if (!window.isSecureContext && window.location.hostname !== 'localhost') {
                 showToast('Location requires HTTPS or localhost.', 'error');
@@ -245,7 +242,6 @@ export const CreateTaskScreen = ({ navigation }) => {
 
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not logged in');
 
             let imageUrl = null;

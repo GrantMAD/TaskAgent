@@ -7,9 +7,11 @@ import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { useAuth } from '../components/AuthContext';
 
 export const EditProfileScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
     const { showToast } = useToast();
 
@@ -30,7 +32,6 @@ export const EditProfileScreen = ({ navigation }) => {
 
     const fetchProfile = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             const data = await userService.getUserProfile(session.user.id);
             if (data) {
@@ -66,7 +67,7 @@ export const EditProfileScreen = ({ navigation }) => {
     const uploadImage = async (uri) => {
         setSaving(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
             const imageUrl = await userService.uploadAvatar(session.user.id, uri);
             setProfile(prev => ({ ...prev, profile_image: imageUrl }));
             showToast('Profile image updated!', 'success');
@@ -97,7 +98,7 @@ export const EditProfileScreen = ({ navigation }) => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
             await userService.updateUserProfile(session.user.id, profile);
             showToast('Profile updated successfully!', 'success');
             navigation.goBack();

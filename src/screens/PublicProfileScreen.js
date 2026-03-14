@@ -9,9 +9,11 @@ import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { UserAvatar } from '../components/UserAvatar';
 import { useToast } from '../components/ToastContext';
+import { useAuth } from '../components/AuthContext';
 
 export const PublicProfileScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const { userId } = route.params;
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
@@ -26,8 +28,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
         getCurrentUser();
     }, [userId]);
 
-    const getCurrentUser = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+    const getCurrentUser = () => {
         if (session) setCurrentUserId(session.user.id);
     };
 

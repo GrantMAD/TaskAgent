@@ -6,9 +6,11 @@ import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
+import { useAuth } from '../components/AuthContext';
 
 export const RecurringTasksScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const { showToast } = useToast();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -24,7 +26,6 @@ export const RecurringTasksScreen = ({ navigation }) => {
 
     const fetchTemplates = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const data = await taskService.getMyRecurringTemplates(session.user.id);
                 setTemplates(data);

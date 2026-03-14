@@ -7,9 +7,11 @@ import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
+import { useAuth } from '../components/AuthContext';
 
 export const TaskHistoryScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const [tasks, setTasks] = useState([]);
@@ -22,7 +24,6 @@ export const TaskHistoryScreen = ({ navigation }) => {
 
     const fetchHistory = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const data = await taskService.getTaskHistory(session.user.id);
                 setTasks(data);
@@ -85,12 +86,6 @@ export const TaskHistoryScreen = ({ navigation }) => {
 const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: theme.background,
     },
     header: {

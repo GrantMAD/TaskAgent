@@ -5,14 +5,16 @@ import { TaskCard } from '../components/TaskCard';
 import { Skeleton } from '../components/skeletons/Skeleton';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
-import { useTheme } from '../components/ThemeContext';
 import { supabase } from '../services/supabaseClient';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../components/AuthContext';
+import { useTheme } from '../components/ThemeContext';
 
 export const HomeScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
+    const { session } = useAuth();
     const [myGigs, setMyGigs] = useState([]);
     const [myPostedTasks, setMyPostedTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +30,6 @@ export const HomeScreen = ({ navigation }) => {
         // Subscribe to real-time task updates
         let subscription;
         const setupSubscription = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 subscription = taskService.subscribeToTasks((payload) => {
                     const userId = session.user.id;
@@ -54,7 +55,7 @@ export const HomeScreen = ({ navigation }) => {
                 supabase.removeChannel(subscription);
             }
         };
-    }, []);
+    }, [session]); // Added session to dependency array to re-run subscription setup if session changes
 
     const checkLocationPermission = async () => {
         try {
@@ -64,10 +65,7 @@ export const HomeScreen = ({ navigation }) => {
             const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
             
             if (existingStatus !== 'granted') {
-                const { status } = await Location.requestForegroundPermissionsAsync();
-                if (status === 'granted') {
-                    console.log('Location permission granted');
-                }
+                await Location.requestForegroundPermissionsAsync();
             }
             
             await AsyncStorage.setItem('hasSeenLocationPrompt', 'true');
@@ -81,8 +79,6 @@ export const HomeScreen = ({ navigation }) => {
             // Process recurring tasks to generate any due instances
             await taskService.processRecurringTasks();
 
-            const { data: { session } } = await supabase.auth.getSession();
-            
             if (session) {
                 // Fetch Profile for stats
                 const { data: userData } = await supabase
@@ -238,12 +234,6 @@ export const HomeScreen = ({ navigation }) => {
 const createStyles = (theme, shadows) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: theme.background,
     },
     welcomeSection: {
