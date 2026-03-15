@@ -5,6 +5,7 @@ import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -73,19 +74,13 @@ export const SavedTasksScreen = ({ navigation }) => {
                         />
                     )}
                     ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <FontAwesome name="heart-o" size={60} color={theme.border} style={{ marginBottom: 20 }} />
-                            <Text style={styles.emptyTitle}>No saved tasks yet</Text>
-                            <Text style={styles.emptySubtitle}>
-                                Tap the heart icon on any task to save it for later.
-                            </Text>
-                            <TouchableOpacity 
-                                style={styles.browseButton}
-                                onPress={() => navigation.navigate('TasksTab')}
-                            >
-                                <Text style={styles.browseButtonText}>Browse Jobs</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <EmptyState 
+                            icon="heart-o" 
+                            title="No saved tasks yet" 
+                            subtitle="Tap the heart icon on any task to save it for later." 
+                            buttonText="Browse Jobs" 
+                            onPress={() => navigation.navigate('TasksTab')} 
+                        />
                     }
                 />
             )}
@@ -130,37 +125,5 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     listContent: {
         paddingVertical: Spacing.sm,
         paddingBottom: 100,
-    },
-    emptyState: {
-        flex: 1,
-        padding: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 60,
-    },
-    emptyTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: theme.primary,
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: theme.textMuted,
-        textAlign: 'center',
-        lineHeight: 20,
-        marginBottom: 30,
-    },
-    browseButton: {
-        backgroundColor: theme.primary,
-        paddingVertical: 12,
-        paddingHorizontal: 30,
-        borderRadius: Rounding.pill,
-        ...shadows.subtle,
-    },
-    browseButtonText: {
-        color: theme.white,
-        fontWeight: '700',
-        fontSize: 16,
     }
 });

@@ -4,6 +4,7 @@ import { NotificationSkeleton } from '../components/skeletons/SkeletonPlaceholde
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 import { useNotifications } from '../components/NotificationContext';
 import { useToast } from '../components/ToastContext';
 import { taskService } from '../services/taskService';
@@ -272,10 +273,11 @@ export const NotificationsScreen = ({ navigation, route }) => {
                         </TouchableOpacity>
                     )}
                     ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <FontAwesome name="bell-slash-o" size={50} color={theme.border} />
-                            <Text style={styles.emptyText}>No notifications yet</Text>
-                        </View>
+                        <EmptyState 
+                            icon="bell-slash-o" 
+                            title="No notifications yet" 
+                            subtitle="We'll notify you when something important happens."
+                        />
                     }
                 />
             )}
@@ -498,15 +500,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     deleteButton: {
         padding: 8,
-    },
-    emptyState: {
-        marginTop: 100,
-        alignItems: 'center',
-    },
-    emptyText: {
-        marginTop: Spacing.md,
-        color: theme.textMuted,
-        fontSize: 16,
     },
     modalOverlay: {
         flex: 1,

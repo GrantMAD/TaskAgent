@@ -4,9 +4,10 @@ import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
+import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
-import { useAuth } from '../components/AuthContext';
+import { EmptyState } from '../components/EmptyState';
 
 export const RecurringTasksScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -170,16 +171,13 @@ export const RecurringTasksScreen = ({ navigation }) => {
                     contentContainerStyle={styles.list}
                 />
             ) : (
-                <View style={styles.centered}>
-                    <FontAwesome name="refresh" size={50} color={theme.border} />
-                    <Text style={styles.emptyText}>You don't have any recurring series yet.</Text>
-                    <TouchableOpacity 
-                        style={styles.createButton}
-                        onPress={() => navigation.navigate('CreateTab')}
-                    >
-                        <Text style={styles.createButtonText}>Start a Series</Text>
-                    </TouchableOpacity>
-                </View>
+                <EmptyState 
+                    icon="refresh" 
+                    title="No recurring series yet." 
+                    subtitle="Save time by turning regular tasks into a series." 
+                    buttonText="Start a Series" 
+                    onPress={() => navigation.navigate('CreateTab')} 
+                />
             )}
 
             {/* Frequency Modal */}
@@ -322,24 +320,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 40,
-    },
-    emptyText: {
-        textAlign: 'center',
-        fontSize: 16,
-        color: theme.textMuted,
-        marginTop: 16,
-        lineHeight: 24,
-    },
-    createButton: {
-        marginTop: 24,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        backgroundColor: theme.accent,
-        borderRadius: Rounding.pill,
-    },
-    createButtonText: {
-        color: theme.white,
-        fontWeight: '800',
     },
     modalOverlay: {
         flex: 1,

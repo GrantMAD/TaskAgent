@@ -12,6 +12,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 
 export const HomeScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -203,16 +204,13 @@ export const HomeScreen = ({ navigation }) => {
                             )}
                         </>
                     ) : (
-                        <View style={styles.emptyHub}>
-                            <FontAwesome name="calendar-check-o" size={50} color={theme.border} />
-                            <Text style={styles.emptyHubText}>No active tasks right now.</Text>
-                            <TouchableOpacity 
-                                style={styles.browseButton}
-                                onPress={() => navigation.navigate('TasksTab')}
-                            >
-                                <Text style={styles.browseButtonText}>Browse Local Jobs</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <EmptyState 
+                            icon="calendar-check-o" 
+                            title="No active tasks right now." 
+                            buttonText="Browse Local Jobs" 
+                            onPress={() => navigation.navigate('TasksTab')} 
+                            containerStyle={{ marginTop: 20 }}
+                        />
                     )}
                 </>
             )}
@@ -330,30 +328,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         color: theme.primary,
-    },
-    emptyHub: {
-        padding: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyHubText: {
-        color: theme.textMuted,
-        fontSize: 16,
-        marginTop: Spacing.md,
-        marginBottom: Spacing.lg,
-    },
-    browseButton: {
-        backgroundColor: theme.surface,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: Rounding.pill,
-        borderWidth: 2,
-        borderColor: theme.primary,
-    },
-    browseButtonText: {
-        color: theme.primary,
-        fontWeight: '700',
-        fontSize: 14,
     },
     tipsSection: {
         marginTop: Spacing.md,

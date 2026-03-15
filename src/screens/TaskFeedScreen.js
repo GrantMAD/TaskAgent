@@ -7,6 +7,7 @@ import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 import { useLocation } from '../components/LocationContext';
 import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
@@ -242,15 +243,24 @@ export const TaskFeedScreen = ({ navigation }) => {
                         />
                     )}
                     ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <FontAwesome name="search" size={50} color={theme.border} style={{ marginBottom: 16 }} />
-                            <Text style={styles.emptyText}>No tasks found matching your filters.</Text>
-                            {(activeFilterCount > 0 || searchQuery) && (
-                                <TouchableOpacity onPress={() => { clearFilters(); setSearchQuery(''); }} style={styles.resetButton}>
-                                    <Text style={styles.resetButtonText}>Reset Search & Filters</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                        <EmptyState 
+                            icon="search" 
+                            title="No tasks found" 
+                            subtitle={
+                                (activeFilterCount > 0 || searchQuery) 
+                                    ? "Try adjusting your search or filters to see more results." 
+                                    : "There are no tasks available in your area right now."
+                            }
+                            buttonText={(activeFilterCount > 0 || searchQuery) ? "Clear Filters" : "Refresh"}
+                            onPress={() => {
+                                if (activeFilterCount > 0 || searchQuery) {
+                                    clearFilters();
+                                    setSearchQuery('');
+                                } else {
+                                    onRefresh();
+                                }
+                            }}
+                        />
                     }
                 />
             )}
@@ -400,27 +410,5 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     listContent: {
         paddingVertical: Spacing.sm,
         paddingBottom: 100,
-    },
-    emptyState: {
-        padding: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyText: {
-        color: theme.textMuted,
-        fontSize: 16,
-        textAlign: 'center',
-        fontWeight: '600',
-    },
-    resetButton: {
-        marginTop: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        backgroundColor: theme.primary,
-        borderRadius: Rounding.pill,
-    },
-    resetButtonText: {
-        color: theme.white,
-        fontWeight: '700',
     }
 });

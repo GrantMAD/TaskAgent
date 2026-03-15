@@ -8,6 +8,7 @@ import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
 import { useAuth } from '../components/AuthContext';
+import { EmptyState } from '../components/EmptyState';
 
 export const TaskHistoryScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -69,13 +70,13 @@ export const TaskHistoryScreen = ({ navigation }) => {
                         />
                     )}
                     ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <View style={styles.emptyIconCircle}>
-                                <FontAwesome name="history" size={40} color={theme.textMuted} />
-                            </View>
-                            <Text style={styles.emptyTitle}>No history yet</Text>
-                            <Text style={styles.emptySubtext}>Completed tasks will appear here.</Text>
-                        </View>
+                        <EmptyState 
+                            icon="history" 
+                            title="No history yet" 
+                            subtitle="Tasks you complete or posters you hire will appear here." 
+                            buttonText="Browse Jobs" 
+                            onPress={() => navigation.navigate('TasksTab')} 
+                        />
                     }
                 />
             )}
@@ -112,32 +113,5 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     listContent: {
         paddingVertical: Spacing.md,
         paddingBottom: 100,
-    },
-    emptyState: {
-        padding: Spacing.xl,
-        alignItems: 'center',
-        marginTop: 60,
-    },
-    emptyIconCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: theme.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: Spacing.md,
-        ...shadows.subtle,
-    },
-    emptyTitle: {
-        color: theme.text,
-        fontSize: 18,
-        fontWeight: '700',
-        textAlign: 'center',
-    },
-    emptySubtext: {
-        color: theme.textMuted,
-        fontSize: 14,
-        textAlign: 'center',
-        marginTop: 8,
     }
 });

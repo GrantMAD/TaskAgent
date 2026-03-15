@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndicator, Image, TextInput, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from './ThemeContext';
+import { EmptyState } from './EmptyState';
 import { Spacing, Rounding, Shadow } from '../utils/theme';
 import { useAuth } from './AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -547,9 +548,11 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
                                     keyExtractor={item => item.id}
                                     contentContainerStyle={styles.listContent}
                                     ListEmptyComponent={
-                                        <View style={styles.emptyState}>
-                                            <Text style={{ color: theme.textMuted }}>No data found.</Text>
-                                        </View>
+                                        <EmptyState 
+                                            icon="database" 
+                                            title="No data found" 
+                                            subtitle={searchQuery ? "Try adjusting your search query." : "There are no records to display."} 
+                                        />
                                     }
                                 />
                             )}
@@ -763,10 +766,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 13,
         fontWeight: '800',
-    },
-    emptyState: {
-        alignItems: 'center',
-        padding: 40,
     },
     searchContainer: {
         padding: Spacing.md,

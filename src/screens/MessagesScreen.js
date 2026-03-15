@@ -10,6 +10,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -254,11 +255,13 @@ export const MessagesScreen = ({ navigation }) => {
                     );
                 }}
                 ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <FontAwesome name="comments-o" size={48} color={theme.border} style={styles.emptyIcon} />
-                        <Text style={styles.emptyText}>No conversations yet.</Text>
-                        <Text style={styles.emptySubtext}>Message a neighbor about a task to start!</Text>
-                    </View>
+                    <EmptyState 
+                        icon="comments-o" 
+                        title="No conversations yet." 
+                        subtitle="Message a neighbor about a task to start!" 
+                        buttonText="Browse Tasks"
+                        onPress={() => navigation.navigate('TasksTab')}
+                    />
                 }
             />
         </View>
@@ -359,25 +362,5 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     unreadPreview: {
         color: theme.text,
         fontWeight: '700',
-    },
-    emptyState: {
-        padding: Spacing.xl,
-        alignItems: 'center',
-        marginTop: 40,
-    },
-    emptyIcon: {
-        marginBottom: Spacing.md,
-    },
-    emptyText: {
-        color: theme.text,
-        fontSize: 18,
-        fontWeight: '700',
-        textAlign: 'center',
-    },
-    emptySubtext: {
-        color: theme.textMuted,
-        fontSize: 14,
-        textAlign: 'center',
-        marginTop: 8,
     }
 });
