@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient'
 import { notificationService } from './notificationService'
+import { rateLimitService } from './rateLimitService'
+import { sanitizeString } from '../utils/sanitization'
 
 export const messageService = {
     getConversations: async (userId) => {
@@ -79,6 +81,13 @@ export const messageService = {
     },
 
     sendMessage: async (conversationId, senderId, text, imageUrl = null) => {
+        const isRateLimited = await rateLimitService.checkRateLimit('messages', 'sender_id', senderId, 2);
+        if (isRateLimited) {
+            const error = new Error('Rate limit exceeded');
+            error.code = 'RATE_LIMIT_EXCEEDED';
+            throw error;
+        }
+
         // Fetch conversation to find the other_user_id
         const { data: conv, error: convError } = await supabase
             .from('conversations')
@@ -99,7 +108,7 @@ export const messageService = {
             .insert([{
                 conversation_id: conversationId,
                 sender_id: senderId,
-                message_text: text,
+                message_text: sanitizeString(text),
                 image_url: imageUrl
             }])
             .select() // Added .select() to return the created record

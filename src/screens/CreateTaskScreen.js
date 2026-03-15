@@ -294,7 +294,11 @@ export const CreateTaskScreen = ({ navigation }) => {
             navigation.navigate('TasksTab');
             
         } catch (error) {
-            showToast(error.message, 'error');
+            if (error.code === 'TASK_LIMIT_EXCEEDED') {
+                showToast('You have reached the limit of 5 active tasks.', 'warning');
+            } else {
+                showToast(error.message, 'error');
+            }
         } finally {
             setLoading(false);
         }

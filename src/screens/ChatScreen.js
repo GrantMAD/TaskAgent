@@ -241,7 +241,11 @@ export const ChatScreen = ({ route, navigation }) => {
             ));
         } catch (error) {
             console.error(error);
-            showToast('Failed to send message', 'error');
+            if (error.code === 'RATE_LIMIT_EXCEEDED') {
+                showToast('Slow down! Wait a moment before sending again.', 'warning');
+            } else {
+                showToast('Failed to send message', 'error');
+            }
             setMessages((prev) => prev.filter(msg => msg.id !== tempId));
         }
     };

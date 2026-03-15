@@ -172,7 +172,11 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             showToast('Application submitted successfully!', 'success');
             fetchTaskDetails(); // Refresh to update button state
         } catch (error) {
-            showToast(error.message, 'error');
+            if (error.code === 'RATE_LIMIT_EXCEEDED') {
+                showToast('Slow down! You can only apply once per minute.', 'warning');
+            } else {
+                showToast(error.message, 'error');
+            }
         } finally {
             setLoading(false);
         }

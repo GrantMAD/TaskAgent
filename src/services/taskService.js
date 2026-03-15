@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient'
 import { notificationService } from './notificationService'
+import { rateLimitService } from './rateLimitService'
+import { sanitizeString, sanitizeObject } from '../utils/sanitization'
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export const taskService = {
@@ -40,7 +42,17 @@ export const taskService = {
     },
 
     createTask: async (taskData) => {
-        const { data, error } = await supabase.from('tasks').insert([taskData]).select()
+        const isLimitReached = await rateLimitService.checkTaskLimit(taskData.poster_id);
+        if (isLimitReached) {
+            const error = new Error('Task limit reached');
+            error.code = 'TASK_LIMIT_EXCEEDED';
+            throw error;
+        }
+
+        // Sanitize inputs
+        const sanitizedData = sanitizeObject(taskData, ['title', 'description', 'address']);
+
+        const { data, error } = await supabase.from('tasks').insert([sanitizedData]).select()
         if (error) throw error
         return data[0]
     },
@@ -109,6 +121,13 @@ export const taskService = {
     },
 
     applyForTask: async (taskId, workerId, message) => {
+        const isRateLimited = await rateLimitService.checkRateLimit('task_applications', 'worker_id', workerId, 60);
+        if (isRateLimited) {
+            const error = new Error('Rate limit exceeded');
+            error.code = 'RATE_LIMIT_EXCEEDED';
+            throw error;
+        }
+
         // Fetch poster_id for notification
         const { data: task, error: fetchError } = await supabase
             .from('tasks')
@@ -120,7 +139,11 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from('task_applications')
-            .insert([{ task_id: taskId, worker_id: workerId, message }])
+            .insert([{ 
+                task_id: taskId, 
+                worker_id: workerId, 
+                message: sanitizeString(message) 
+            }])
         if (error) throw error
 
         await notificationService.createNotification(

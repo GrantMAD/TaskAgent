@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { notificationService } from './notificationService'
+import { sanitizeString, sanitizeObject } from '../utils/sanitization'
 
 export const userService = {
     getUserProfile: async (userId) => {
@@ -13,9 +14,10 @@ export const userService = {
     },
 
     updateUserProfile: async (userId, updates) => {
+        const sanitizedUpdates = sanitizeObject(updates, ['name', 'bio']);
         const { data, error } = await supabase
             .from('users')
-            .update(updates)
+            .update(sanitizedUpdates)
             .eq('id', userId)
         if (error) throw error
         return data
@@ -32,9 +34,13 @@ export const userService = {
     },
 
     submitReview: async (reviewData) => {
+        const sanitizedData = {
+            ...reviewData,
+            comment: sanitizeString(reviewData.comment)
+        };
         const { data, error } = await supabase
             .from('reviews')
-            .insert([reviewData])
+            .insert([sanitizedData])
             .select()
         if (error) throw error
 
