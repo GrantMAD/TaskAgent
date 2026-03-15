@@ -1,25 +1,66 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useTheme } from '../components/ThemeContext';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import { useLocation } from '../components/LocationContext';
+import { useAuth } from '../components/AuthContext';
+import { userService } from '../services/userService';
+import { supabase } from '../services/supabaseClient';
 
 export const SettingsScreen = ({ navigation }) => {
     const { theme, isDarkMode, toggleTheme, shadows } = useTheme();
+    const { user, userProfile, refreshProfile } = useAuth();
     const { searchRadius, updateSearchRadius } = useLocation();
     const { showToast } = useToast();
+    const [updating, setUpdating] = useState(false);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    const handleToggle = async (value) => {
+    const handleThemeToggle = async (value) => {
         try {
             await toggleTheme();
             showToast(`Dark mode ${value ? 'enabled' : 'disabled'}`, 'info');
         } catch (error) {
             showToast('Failed to update preference', 'error');
         }
+    };
+
+    const handleNotificationToggle = async (key, value) => {
+        if (!user) return;
+        setUpdating(true);
+        try {
+            await userService.updateNotificationPreferences(user.id, { [key]: value });
+            await refreshProfile();
+            showToast('Preferences updated', 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to update notifications', 'error');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleLogout = () => {
+        Alert.alert(
+            "Logout",
+            "Are you sure you want to logout?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Logout", 
+                    style: "destructive",
+                    onPress: async () => {
+                        await supabase.auth.signOut();
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Login' }],
+                        });
+                    }
+                }
+            ]
+        );
     };
 
     const radiusOptions = [
@@ -41,7 +82,7 @@ export const SettingsScreen = ({ navigation }) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.sectionTitle}>Preferences</Text>
+                <Text style={styles.sectionTitle}>Appearance</Text>
                 
                 <View style={styles.settingCard}>
                     <View style={styles.settingInfo}>
@@ -55,11 +96,53 @@ export const SettingsScreen = ({ navigation }) => {
                     </View>
                     <Switch
                         value={isDarkMode}
-                        onValueChange={handleToggle}
+                        onValueChange={handleThemeToggle}
                         trackColor={{ false: theme.border, true: theme.accent }}
                         thumbColor={theme.white}
                     />
                 </View>
+
+                <Text style={styles.sectionTitle}>Notifications</Text>
+                
+                <View style={styles.settingCard}>
+                    <View style={styles.settingInfo}>
+                        <View style={[styles.iconBox, { backgroundColor: '#4A90E2' }]}>
+                            <FontAwesome name="bell" size={18} color={theme.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.settingLabel}>Push Notifications</Text>
+                            <Text style={styles.settingSublabel}>Receive alerts on your device</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={userProfile?.push_notifications ?? true}
+                        onValueChange={(val) => handleNotificationToggle('push_notifications', val)}
+                        disabled={updating}
+                        trackColor={{ false: theme.border, true: theme.accent }}
+                        thumbColor={theme.white}
+                    />
+                </View>
+
+                <View style={styles.settingCard}>
+                    <View style={styles.settingInfo}>
+                        <View style={[styles.iconBox, { backgroundColor: '#7ED321' }]}>
+                            <FontAwesome name="refresh" size={18} color={theme.white} />
+                        </View>
+                        <View>
+                            <Text style={styles.settingLabel}>Task Updates</Text>
+                            <Text style={styles.settingSublabel}>Alerts about task status changes</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={userProfile?.task_update_notifications ?? true}
+                        onValueChange={(val) => handleNotificationToggle('task_update_notifications', val)}
+                        disabled={updating}
+                        trackColor={{ false: theme.border, true: theme.accent }}
+                        thumbColor={theme.white}
+                    />
+                </View>
+
+                <Text style={styles.sectionTitle}>Discovery</Text>
 
                 <View style={[styles.settingCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
                     <View style={styles.settingInfo}>
@@ -112,35 +195,18 @@ export const SettingsScreen = ({ navigation }) => {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={styles.settingCard}
-                    onPress={() => navigation.navigate('RecurringTasks')}
+                    style={[styles.settingCard, { marginTop: Spacing.xl, borderColor: theme.error }]}
+                    onPress={handleLogout}
                 >
                     <View style={styles.settingInfo}>
-                        <View style={[styles.iconBox, { backgroundColor: theme.accent }]}>
-                            <FontAwesome name="refresh" size={18} color={theme.white} />
+                        <View style={[styles.iconBox, { backgroundColor: theme.error }]}>
+                            <FontAwesome name="sign-out" size={18} color={theme.white} />
                         </View>
                         <View>
-                            <Text style={styles.settingLabel}>Recurring Tasks</Text>
-                            <Text style={styles.settingSublabel}>Manage your active task series</Text>
+                            <Text style={[styles.settingLabel, { color: theme.error }]}>Log Out</Text>
+                            <Text style={styles.settingSublabel}>Sign out of your account</Text>
                         </View>
                     </View>
-                    <FontAwesome name="chevron-right" size={14} color={theme.border} />
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.settingCard}
-                    onPress={() => showToast('This feature is coming soon!', 'info')}
-                >
-                    <View style={styles.settingInfo}>
-                        <View style={[styles.iconBox, { backgroundColor: theme.success }]}>
-                            <FontAwesome name="lock" size={18} color={theme.white} />
-                        </View>
-                        <View>
-                            <Text style={styles.settingLabel}>Privacy & Security</Text>
-                            <Text style={styles.settingSublabel}>Manage your password and data</Text>
-                        </View>
-                    </View>
-                    <FontAwesome name="chevron-right" size={14} color={theme.border} />
                 </TouchableOpacity>
 
                 <View style={styles.footer}>

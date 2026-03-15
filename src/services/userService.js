@@ -72,6 +72,14 @@ export const userService = {
         if (error) throw error;
     },
 
+    updateNotificationPreferences: async (userId, preferences) => {
+        const { error } = await supabase
+            .from('users')
+            .update(preferences)
+            .eq('id', userId);
+        if (error) throw error;
+    },
+
     // Upload profile image to avatars bucket
     uploadAvatar: async (userId, uri) => {
         try {
