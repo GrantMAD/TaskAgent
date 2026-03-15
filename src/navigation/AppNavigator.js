@@ -11,6 +11,7 @@ import { notificationService } from '../services/notificationService';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { NotificationProvider, useNotifications } from '../components/NotificationContext';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -209,7 +210,7 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
 const CustomDrawerContent = (props) => {
     const { showToast } = useToast();
     const { theme, shadows } = useTheme();
-    const { userProfile } = useAuth();
+    const { userProfile, session } = useAuth();
     const navigation = useNavigation();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -223,18 +224,40 @@ const CustomDrawerContent = (props) => {
     };
 
     return (
-        <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1, backgroundColor: theme.surface }}>
-            <View style={styles.drawerHeader}>
-                <Image 
-                    source={require('../../assets/images/TaskLogo.png')} 
-                    style={styles.drawerLogo}
-                    resizeMode="contain"
-                />
-                <Text style={styles.drawerTitle}>Task Agent</Text>
-            </View>
-            <View style={{ flex: 1 }}>
+        <DrawerContentScrollView 
+            {...props} 
+            contentContainerStyle={{ flex: 1, backgroundColor: theme.surface }}
+            scrollEnabled={false}
+        >
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.drawerHeaderGradient}
+            >
+                <TouchableOpacity 
+                    style={styles.drawerProfileInfo}
+                    onPress={() => props.navigation.navigate('Profile')}
+                >
+                    <Image 
+                        source={userProfile?.profile_image ? { uri: userProfile.profile_image } : require('../../assets/images/TaskLogo.png')} 
+                        style={styles.drawerAvatar}
+                    />
+                    <View style={styles.drawerProfileTextContainer}>
+                        <Text style={styles.drawerUserName} numberOfLines={1}>
+                            {userProfile?.name || 'User Agent'}
+                        </Text>
+                        <Text style={styles.drawerUserEmail} numberOfLines={1}>
+                            {session?.user?.email || 'neighbor@taskagent.com'}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+            </LinearGradient>
+
+            <View style={styles.drawerContentArea}>
                 <DrawerItemList {...props} />
             </View>
+
             <View style={styles.drawerFooter}>
                 {userProfile?.role === 'admin' && (
                     <DrawerItem
@@ -245,15 +268,22 @@ const CustomDrawerContent = (props) => {
                         style={styles.adminDrawerItem}
                     />
                 )}
-                <DrawerItem
-                    label="Logout"
-                    icon={({ color, size }) => <FontAwesome name="sign-out" size={size} color={color} />}
-                    onPress={handleLogout}
-                    labelStyle={styles.logoutLabel}
-                    activeTintColor={theme.error}
-                    inactiveTintColor={theme.error}
-                    style={styles.logoutDrawerItem}
-                />
+                
+                <TouchableOpacity 
+                    onPress={handleLogout} 
+                    style={styles.logoutButton}
+                >
+                    <LinearGradient
+                        colors={[theme.error, '#B91C1C']}
+                        style={styles.logoutGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                    >
+                        <FontAwesome name="sign-out" size={18} color={theme.white} />
+                        <Text style={styles.logoutButtonText}>Logout</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+                
                 <Text style={styles.versionText}>Task Agent v1.0.0</Text>
             </View>
         </DrawerContentScrollView>
@@ -404,10 +434,22 @@ const MainDrawer = () => {
                         swipeEnabled: true,
                         swipeEdgeWidth: 100,
                         headerStyle: {
-                            backgroundColor: theme.primary,
+                            backgroundColor: 'transparent',
                             ...shadows.medium,
                             height: Platform.OS === 'ios' ? 100 : 80,
                         },
+                        headerBackground: () => (
+                            <LinearGradient
+                                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                                style={{ 
+                                    flex: 1,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+                                }}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0.5 }}
+                            />
+                        ),
                         headerTintColor: theme.white,
                         headerTitleStyle: {
                             fontWeight: '800',
@@ -440,6 +482,12 @@ const MainDrawer = () => {
                         drawerStyle: {
                             backgroundColor: theme.surface,
                         },
+                        drawerItemStyle: {
+                            borderRadius: Rounding.standard,
+                            marginHorizontal: Spacing.md,
+                            paddingVertical: 2,
+                        },
+                        drawerActiveBackgroundColor: theme.background,
                         drawerLabelStyle: {
                             fontWeight: '700',
                             fontSize: 16,
@@ -787,38 +835,70 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.textMuted,
         fontSize: 14,
     },
-    drawerHeader: {
-        padding: Spacing.xl,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.border,
+    drawerHeaderGradient: {
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: Spacing.xl,
+        paddingHorizontal: Spacing.xl,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        ...shadows.medium,
+    },
+    drawerProfileInfo: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: Spacing.md,
     },
-    drawerLogo: {
-        width: 80,
-        height: 80,
-        marginBottom: Spacing.sm,
+    drawerAvatar: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.3)',
     },
-    drawerTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: theme.primary,
+    drawerProfileTextContainer: {
+        marginLeft: Spacing.md,
+        flex: 1,
+    },
+    drawerUserName: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: theme.white,
+    },
+    drawerUserEmail: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.7)',
+        marginTop: 2,
+    },
+    drawerContentArea: {
+        flex: 1,
+        paddingTop: Spacing.lg,
     },
     drawerFooter: {
         borderTopWidth: 1,
         borderTopColor: theme.border,
-        paddingTop: Spacing.sm,
+        paddingHorizontal: Spacing.md,
         paddingBottom: Spacing.xl,
     },
-    logoutLabel: {
-        fontWeight: '700',
-        fontSize: 16,
+    logoutButton: {
+        marginTop: Spacing.md,
+        borderRadius: Rounding.standard,
+        overflow: 'hidden',
+        ...shadows.subtle,
     },
-    logoutDrawerItem: {
-        marginVertical: 0,
+    logoutGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: Spacing.md,
+    },
+    logoutButtonText: {
+        color: theme.white,
+        fontWeight: '800',
+        fontSize: 16,
+        marginLeft: Spacing.sm,
     },
     adminDrawerItem: {
         marginVertical: 0,
+        marginBottom: Spacing.sm,
     },
     drawerLabel: {
         fontWeight: '700',
@@ -827,8 +907,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     versionText: {
         textAlign: 'center',
         color: theme.textMuted,
-        fontSize: 12,
-        marginTop: Spacing.sm,
+        fontSize: 11,
+        marginTop: Spacing.md,
+        fontWeight: '600',
+        opacity: 0.6,
     }
 });
 const styles = StyleSheet.create({}); // Placeholder for legacy styles if needed

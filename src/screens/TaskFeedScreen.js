@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
 import { TaskCard } from '../components/TaskCard';
@@ -126,7 +127,12 @@ export const TaskFeedScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <View style={styles.headerTop}>
                     <View style={styles.headerInfo}>
                         <FontAwesome name="map-marker" size={24} color={theme.white} style={styles.headerIcon} />
@@ -180,7 +186,7 @@ export const TaskFeedScreen = ({ navigation }) => {
                         />
                     </TouchableOpacity>
                 </View>
-            </View>
+            </LinearGradient>
 
             {/* Active Filter Chips */}
             {activeFilterCount > 0 && (
@@ -266,7 +272,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: theme.primary,
         paddingTop: Spacing.lg,
         paddingBottom: Spacing.md,
         paddingHorizontal: Spacing.lg,

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
 import { ConversationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
@@ -174,10 +175,15 @@ export const MessagesScreen = ({ navigation }) => {
     if (loading) {
         return (
             <View style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Neighbor Chat</Text>
-                    <Text style={styles.headerSubtitle}>Manage your task communications</Text>
-                </View>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
+                <Text style={styles.headerTitle}>Neighbor Chat</Text>
+                <Text style={styles.headerSubtitle}>Manage your task communications</Text>
+            </LinearGradient>
                 <View style={styles.listContent}>
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                         <ConversationSkeleton key={i} />
@@ -189,10 +195,15 @@ export const MessagesScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <Text style={styles.headerTitle}>Neighbor Chat</Text>
                 <Text style={styles.headerSubtitle}>Manage your task communications</Text>
-            </View>
+            </LinearGradient>
 
             <FlatList
                 data={conversations}
@@ -260,7 +271,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         backgroundColor: theme.background,
     },
     header: {
-        backgroundColor: theme.primary,
         paddingTop: Spacing.lg,
         paddingBottom: Spacing.lg,
         paddingHorizontal: Spacing.lg,

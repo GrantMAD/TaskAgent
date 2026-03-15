@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
 import { Skeleton } from '../components/skeletons/Skeleton';
@@ -117,7 +118,12 @@ export const HomeScreen = ({ navigation }) => {
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
             }
         >
-            <View style={styles.welcomeSection}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.welcomeSection}
+            >
                 <View style={styles.welcomeHeader}>
                     {loading ? (
                         <Skeleton width={150} height={28} />
@@ -149,7 +155,7 @@ export const HomeScreen = ({ navigation }) => {
                         <Text style={styles.statLabel}>Rating</Text>
                     </View>
                 </View>
-            </View>
+            </LinearGradient>
 
             {loading ? (
                 <View style={styles.section}>
@@ -248,7 +254,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         paddingHorizontal: Spacing.lg,
         paddingBottom: Spacing.xl,
         paddingTop: Spacing.lg,
-        backgroundColor: theme.primary,
         borderBottomLeftRadius: Rounding.soft,
         borderBottomRightRadius: Rounding.soft,
         marginBottom: Spacing.md,
