@@ -36,6 +36,7 @@ const EditProfileScreen = lazy(() => import('../screens/EditProfileScreen').then
 const SettingsScreen = lazy(() => import('../screens/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
 const PublicProfileScreen = lazy(() => import('../screens/PublicProfileScreen').then(module => ({ default: module.PublicProfileScreen })));
 const RecurringTasksScreen = lazy(() => import('../screens/RecurringTasksScreen').then(module => ({ default: module.RecurringTasksScreen })));
+const SavedTasksScreen = lazy(() => import('../screens/SavedTasksScreen').then(module => ({ default: module.SavedTasksScreen })));
 
 // Loading Wrapper for Lazy Screens
 const LazyScreen = (Component) => (props) => (
@@ -264,6 +265,7 @@ const HomeStack = () => (
     <Stack.Navigator screenOptions={commonStackOptions}>
         <Stack.Screen name="HomeMain" component={HomeScreen} />
         <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+        <Stack.Screen name="SavedTasks" component={LazyScreen(SavedTasksScreen)} />
     </Stack.Navigator>
 );
 
@@ -272,6 +274,7 @@ const FeedStack = () => (
     <Stack.Navigator screenOptions={commonStackOptions}>
         <Stack.Screen name="TaskFeed" component={TaskFeedScreen} />
         <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+        <Stack.Screen name="SavedTasks" component={LazyScreen(SavedTasksScreen)} />
     </Stack.Navigator>
 );
 
@@ -291,6 +294,7 @@ const ProfileStack = () => (
         <Stack.Screen name="TaskHistory" component={TaskHistoryScreen} />
         <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
         <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
+        <Stack.Screen name="SavedTasks" component={LazyScreen(SavedTasksScreen)} />
     </Stack.Navigator>
 );
 

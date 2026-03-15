@@ -7,8 +7,23 @@ export const AuthProvider = ({ children }) => {
     const [session, setSession] = useState(null);
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
+    const [savedTaskIds, setSavedTaskIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState(null);
+
+    const fetchSavedTaskIds = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('saved_tasks')
+                .select('task_id')
+                .eq('user_id', userId);
+            
+            if (error) throw error;
+            setSavedTaskIds(data.map(item => item.task_id));
+        } catch (error) {
+            console.error('Error fetching saved task IDs:', error);
+        }
+    };
 
     const fetchProfile = async (userId) => {
         try {
@@ -29,11 +44,51 @@ export const AuthProvider = ({ children }) => {
             } else {
                 setUserProfile(data);
                 setAuthError(null);
+                // Also fetch saved tasks
+                fetchSavedTaskIds(userId);
             }
         } catch (error) {
             console.error('Error fetching user profile in AuthContext:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const toggleSavedTask = async (taskId) => {
+        if (!user) return;
+
+        const isSaved = savedTaskIds.includes(taskId);
+        
+        // Optimistic update
+        if (isSaved) {
+            setSavedTaskIds(prev => prev.filter(id => id !== taskId));
+        } else {
+            setSavedTaskIds(prev => [...prev, taskId]);
+        }
+
+        try {
+            if (isSaved) {
+                const { error } = await supabase
+                    .from('saved_tasks')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('task_id', taskId);
+                
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('saved_tasks')
+                    .insert([{ user_id: user.id, task_id: taskId }]);
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.error('Error toggling saved task:', error);
+            // Revert on error
+            if (isSaved) {
+                setSavedTaskIds(prev => [...prev, taskId]);
+            } else {
+                setSavedTaskIds(prev => prev.filter(id => id !== taskId));
+            }
         }
     };
 
@@ -46,6 +101,7 @@ export const AuthProvider = ({ children }) => {
                 fetchProfile(session.user.id);
             } else {
                 setLoading(false);
+                setSavedTaskIds([]);
             }
         });
 
@@ -60,6 +116,7 @@ export const AuthProvider = ({ children }) => {
                 fetchProfile(session.user.id);
             } else {
                 setUserProfile(null);
+                setSavedTaskIds([]);
                 // Only stop loading if we are signed out or have no session
                 setLoading(false);
             }
@@ -74,6 +131,8 @@ export const AuthProvider = ({ children }) => {
         session,
         user,
         userProfile,
+        savedTaskIds,
+        toggleSavedTask,
         loading,
         authError,
         setAuthError,

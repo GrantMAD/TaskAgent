@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { taskService } from '../services/taskService';
+import { supabase } from '../services/supabaseClient';
 import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { useLocation } from '../components/LocationContext';
+import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { FilterModal } from '../components/FilterModal';
 import { TASK_CATEGORIES } from '../utils/constants';
@@ -13,12 +15,14 @@ import { TASK_CATEGORIES } from '../utils/constants';
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const { userLocation, calculateDistance, searchRadius } = useLocation();
+    const { savedTaskIds } = useAuth();
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState('');
+    const [showSavedOnly, setShowSavedOnly] = useState(false);
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [filters, setFilters] = useState({
         categories: [],
@@ -30,6 +34,9 @@ export const TaskFeedScreen = ({ navigation }) => {
 
     const filteredTasks = useMemo(() => {
         return allTasks.filter(task => {
+            // 0. Show Saved Only Filter
+            if (showSavedOnly && !savedTaskIds.includes(task.id)) return false;
+
             // 1. Distance Filter
             if (userLocation && task.location_lat && task.location_lng) {
                 const distance = calculateDistance(
@@ -61,7 +68,7 @@ export const TaskFeedScreen = ({ navigation }) => {
 
             return true;
         });
-    }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters]);
+    }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters, showSavedOnly, savedTaskIds]);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -160,6 +167,17 @@ export const TaskFeedScreen = ({ navigation }) => {
                                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
                             </View>
                         )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.filterButton, showSavedOnly && { backgroundColor: theme.isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2' }]}
+                        onPress={() => setShowSavedOnly(!showSavedOnly)}
+                    >
+                        <FontAwesome 
+                            name={showSavedOnly ? "heart" : "heart-o"} 
+                            size={18} 
+                            color={showSavedOnly ? theme.error : theme.primary} 
+                        />
                     </TouchableOpacity>
                 </View>
             </View>

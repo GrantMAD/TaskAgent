@@ -466,6 +466,47 @@ export const taskService = {
         }
     },
 
+    // Saved / Favorited Tasks
+    getSavedTaskIds: async (userId) => {
+        const { data, error } = await supabase
+            .from('saved_tasks')
+            .select('task_id')
+            .eq('user_id', userId);
+        
+        if (error) throw error;
+        return data.map(item => item.task_id);
+    },
+
+    getSavedTasks: async (userId) => {
+        const { data, error } = await supabase
+            .from('saved_tasks')
+            .select('task:tasks(*, poster:users!poster_id(id, name, profile_image, rating))')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        // Flatten the structure
+        return data.map(item => item.task).filter(Boolean);
+    },
+
+    toggleSaveTask: async (userId, taskId, isCurrentlySaved) => {
+        if (isCurrentlySaved) {
+            const { error } = await supabase
+                .from('saved_tasks')
+                .delete()
+                .eq('user_id', userId)
+                .eq('task_id', taskId);
+            if (error) throw error;
+            return false;
+        } else {
+            const { error } = await supabase
+                .from('saved_tasks')
+                .insert([{ user_id: userId, task_id: taskId }]);
+            if (error) throw error;
+            return true;
+        }
+    },
+
     subscribeToTasks: (callback) => {
         return supabase
             .channel('tasks_channel')

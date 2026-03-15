@@ -25,7 +25,7 @@ import { ReportModal } from '../components/ReportModal';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
-    const { session } = useAuth();
+    const { session, savedTaskIds, toggleSavedTask } = useAuth();
     const { userLocation, calculateDistance } = useLocation();
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
@@ -36,6 +36,8 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const { showToast } = useToast();
     
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const isSaved = useMemo(() => savedTaskIds.includes(taskId), [savedTaskIds, taskId]);
 
     const distance = useMemo(() => {
         if (userLocation && task?.location_lat && task?.location_lng) {
@@ -153,6 +155,12 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     const onRefresh = () => {
         fetchTaskDetails(true);
+    };
+
+    const handleToggleSave = async () => {
+        const wasSaved = isSaved;
+        await toggleSavedTask(taskId);
+        showToast(wasSaved ? 'Removed from saved tasks' : 'Task saved successfully!', 'success');
     };
 
     const handleApply = async (message) => {
@@ -373,6 +381,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
                 <View style={styles.headerRight}>
+                    <TouchableOpacity onPress={handleToggleSave} style={styles.headerAction}>
+                        <FontAwesome name={isSaved ? "heart" : "heart-o"} size={18} color={isSaved ? theme.error : theme.white} />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={handleShare} style={styles.headerAction}>
                         <FontAwesome name="share-alt" size={20} color={theme.white} />
                     </TouchableOpacity>

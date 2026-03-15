@@ -92,13 +92,23 @@ export const ProfileScreen = ({ navigation }) => {
                         </View>
                     </View>
 
-                    <TouchableOpacity 
-                        style={styles.editButton}
-                        onPress={() => navigation.navigate('EditProfile')}
-                    >
-                        <FontAwesome name="edit" size={16} color={theme.white} style={{ marginRight: 8 }} />
-                        <Text style={styles.editButtonText}>Edit Profile</Text>
-                    </TouchableOpacity>
+                    <View style={styles.buttonRow}>
+                        <TouchableOpacity 
+                            style={styles.editButton}
+                            onPress={() => navigation.navigate('EditProfile')}
+                        >
+                            <FontAwesome name="edit" size={16} color={theme.white} style={{ marginRight: 8 }} />
+                            <Text style={styles.editButtonText}>Edit Profile</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={styles.savedButton}
+                            onPress={() => navigation.navigate('SavedTasks')}
+                        >
+                            <FontAwesome name="heart" size={16} color={theme.white} style={{ marginRight: 8 }} />
+                            <Text style={styles.savedButtonText}>Saved Tasks</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
 
@@ -250,7 +260,7 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         marginRight: 8,
         ...shadows.subtle,
     },
-    recurringButton: {
+    savedButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.2)',
@@ -263,6 +273,11 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         ...shadows.subtle,
     },
     editButtonText: {
+        color: theme.white,
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    savedButtonText: {
         color: theme.white,
         fontWeight: '700',
         fontSize: 14,

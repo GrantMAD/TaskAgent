@@ -4,11 +4,17 @@ import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
 import { useLocation } from './LocationContext';
+import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 
 export const TaskCard = memo(({ task, onPress }) => {
     const { theme, shadows } = useTheme();
     const { userLocation, calculateDistance } = useLocation();
+    const { savedTaskIds, toggleSavedTask } = useAuth();
+    const { showToast } = useToast();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const isSaved = useMemo(() => savedTaskIds.includes(task.id), [savedTaskIds, task.id]);
 
     const distance = useMemo(() => {
         if (userLocation && task.location_lat && task.location_lng) {
@@ -22,11 +28,31 @@ export const TaskCard = memo(({ task, onPress }) => {
         return null;
     }, [userLocation, task.location_lat, task.location_lng]);
 
+    const handleToggleSave = async (e) => {
+        e.stopPropagation();
+        const wasSaved = isSaved;
+        await toggleSavedTask(task.id);
+        showToast(wasSaved ? 'Removed from saved tasks' : 'Task saved successfully!', 'success');
+    };
+
     return (
         <TouchableOpacity style={styles.card} onPress={onPress}>
             <View style={styles.header}>
-                <Text style={styles.title} numberOfLines={1}>{task.title}</Text>
-                <Text style={styles.payment}>{task.payment_amount}</Text>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title} numberOfLines={1}>{task.title}</Text>
+                    <Text style={styles.payment}>{task.payment_amount}</Text>
+                </View>
+                <TouchableOpacity 
+                    onPress={handleToggleSave}
+                    style={styles.saveButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <FontAwesome 
+                        name={isSaved ? "heart" : "heart-o"} 
+                        size={18} 
+                        color={isSaved ? theme.error : theme.textMuted} 
+                    />
+                </TouchableOpacity>
             </View>
             
             <View style={styles.locationRow}>
@@ -70,7 +96,14 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'flex-start',
         marginBottom: 4,
+    },
+    titleContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        flex: 1,
+        marginRight: Spacing.sm,
     },
     title: {
         fontSize: 18,
@@ -83,6 +116,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '800',
         color: theme.accent,
+    },
+    saveButton: {
+        padding: 2,
+        marginLeft: Spacing.xs,
     },
     locationRow: {
         flexDirection: 'row',
@@ -145,3 +182,4 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         textTransform: 'capitalize',
     }
 });
+
