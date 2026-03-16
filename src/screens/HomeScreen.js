@@ -7,6 +7,7 @@ import { Skeleton } from '../components/skeletons/Skeleton';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { supabase } from '../services/supabaseClient';
+import { NEIGHBORHOOD_TIPS } from '../utils/constants';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,12 +23,14 @@ export const HomeScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [rotatedTips, setRotatedTips] = useState([]);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
         fetchAllData();
         checkLocationPermission();
+        rotateTips();
 
         // Subscribe to real-time task updates
         let subscription;
@@ -74,6 +77,12 @@ export const HomeScreen = ({ navigation }) => {
         } catch (error) {
             console.error('Error checking location permission:', error);
         }
+    };
+
+    const rotateTips = () => {
+        // Shuffle the tips and pick first 4
+        const shuffled = [...NEIGHBORHOOD_TIPS].sort(() => 0.5 - Math.random());
+        setRotatedTips(shuffled.slice(0, 4));
     };
 
     const fetchAllData = async () => {
@@ -222,21 +231,13 @@ export const HomeScreen = ({ navigation }) => {
                     <Text style={styles.sectionTitleAlt}>Neighborhood Tips</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
-                    <View style={styles.tipCard}>
-                        <FontAwesome name="shield" size={24} color={theme.accent} />
-                        <Text style={styles.tipTitle}>Stay Safe</Text>
-                        <Text style={styles.tipDesc}>Always meet in public places for the first time.</Text>
-                    </View>
-                    <View style={styles.tipCard}>
-                        <FontAwesome name="star" size={24} color={theme.accent} />
-                        <Text style={styles.tipTitle}>Build Trust</Text>
-                        <Text style={styles.tipDesc}>Complete tasks on time to earn 5-star reviews.</Text>
-                    </View>
-                    <View style={styles.tipCard}>
-                        <FontAwesome name="comments" size={24} color={theme.accent} />
-                        <Text style={styles.tipTitle}>Communicate</Text>
-                        <Text style={styles.tipDesc}>Keep neighbors updated through the chat.</Text>
-                    </View>
+                    {rotatedTips.map((tip) => (
+                        <View key={tip.id} style={styles.tipCard}>
+                            <FontAwesome name={tip.icon} size={24} color={theme.accent} />
+                            <Text style={styles.tipTitle}>{tip.title}</Text>
+                            <Text style={styles.tipDesc}>{tip.description}</Text>
+                        </View>
+                    ))}
                 </ScrollView>
             </View>
         </ScrollView>

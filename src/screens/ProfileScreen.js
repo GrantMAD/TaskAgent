@@ -54,6 +54,12 @@ export const ProfileScreen = ({ navigation }) => {
         fetchProfileData(true);
     };
 
+    const formatJoinDate = (dateString) => {
+        if (!dateString) return 'Neighbor';
+        const date = new Date(dateString);
+        return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    };
+
     if (loading && !refreshing) {
         return <ProfileSkeleton />;
     }
@@ -85,6 +91,7 @@ export const ProfileScreen = ({ navigation }) => {
                     )}
                     <Text style={styles.name}>{profile?.name}</Text>
                     <Text style={styles.phone}>{profile?.phone}</Text>
+                    <Text style={styles.memberSince}>{formatJoinDate(profile?.created_at)}</Text>
                     
                     <View style={styles.statsRow}>
                         <View style={styles.statItem}>
@@ -219,6 +226,12 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 14,
         color: 'rgba(255,255,255,0.7)',
         marginTop: 4,
+    },
+    memberSince: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.8)',
+        marginTop: 4,
+        fontWeight: '600',
     },
     statsRow: {
         flexDirection: 'row',

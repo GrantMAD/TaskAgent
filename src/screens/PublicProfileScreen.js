@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { userService } from '../services/userService';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
@@ -32,6 +33,12 @@ export const PublicProfileScreen = ({ route, navigation }) => {
 
     const getCurrentUser = () => {
         if (session) setCurrentUserId(session.user.id);
+    };
+
+    const formatJoinDate = (dateString) => {
+        if (!dateString) return 'Neighbor';
+        const date = new Date(dateString);
+        return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 
     const fetchProfileData = async () => {
@@ -88,13 +95,18 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     if (loading) {
         return (
             <View style={styles.container}>
-                <View style={styles.header}>
+                <LinearGradient
+                    colors={[theme.primary, theme.secondary || '#1E40AF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <FontAwesome name="times" size={20} color={theme.white} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Profile</Text>
                     <View style={{ width: 40 }} />
-                </View>
+                </LinearGradient>
                 <ProfileSkeleton />
             </View>
         );
@@ -113,7 +125,12 @@ export const PublicProfileScreen = ({ route, navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <FontAwesome name="times" size={20} color={theme.white} />
                 </TouchableOpacity>
@@ -125,10 +142,15 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                         </TouchableOpacity>
                     )}
                 </View>
-            </View>
+            </LinearGradient>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-                <View style={styles.profileHero}>
+                <LinearGradient
+                    colors={[theme.primary, theme.secondary || '#1E40AF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.profileHero}
+                >
                     <View style={styles.avatarContainer}>
                         {profile.profile_image ? (
                             <Image source={{ uri: profile.profile_image }} style={styles.profileImage} />
@@ -137,6 +159,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                         )}
                     </View>
                     <Text style={styles.name}>{profile.name}</Text>
+                    <Text style={styles.memberSince}>{formatJoinDate(profile.created_at)}</Text>
                     
                     <View style={styles.statsRow}>
                         <View style={styles.statItem}>
@@ -159,7 +182,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                             <Text style={styles.messageButtonText}>Message Neighbor</Text>
                         </TouchableOpacity>
                     )}
-                </View>
+                </LinearGradient>
 
                 <View style={styles.content}>
                     {/* Bio Section */}
@@ -317,6 +340,12 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 24,
         fontWeight: '800',
         color: theme.white,
+    },
+    memberSince: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.8)',
+        marginTop: 4,
+        fontWeight: '600',
     },
     statsRow: {
         flexDirection: 'row',
