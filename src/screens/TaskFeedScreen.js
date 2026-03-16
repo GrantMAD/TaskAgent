@@ -16,7 +16,7 @@ import { TASK_CATEGORIES } from '../utils/constants';
 
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
-    const { userLocation, calculateDistance, searchRadius } = useLocation();
+    const { userLocation, calculateDistance, searchRadius, updateSearchRadius } = useLocation();
     const { savedTaskIds } = useAuth();
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -141,6 +141,53 @@ export const TaskFeedScreen = ({ navigation }) => {
         setFilters({ categories: [], minPrice: '', maxPrice: '', sortBy: 'newest' });
     };
 
+    const renderEmptyState = () => {
+        const hasActiveFilters = activeFilterCount > 0 || searchQuery || showSavedOnly;
+        const isRadiusTight = searchRadius < 100;
+
+        if (hasActiveFilters) {
+            return (
+                <EmptyState 
+                    icon="search" 
+                    title="No matching tasks" 
+                    subtitle="Try adjusting your filters or search keywords to see more results." 
+                    buttonText="Clear All Filters"
+                    onPress={() => {
+                        clearFilters();
+                        setSearchQuery('');
+                        setShowSavedOnly(false);
+                    }}
+                />
+            );
+        }
+
+        if (isRadiusTight) {
+            return (
+                <EmptyState 
+                    icon="map-marker" 
+                    title="Quiet neighborhood?" 
+                    subtitle={`We couldn't find any tasks within ${searchRadius}km of you.`}
+                    buttonText="Widen Radius to 100km"
+                    onPress={() => updateSearchRadius(100)}
+                    secondaryButtonText="Refresh"
+                    onSecondaryPress={onRefresh}
+                />
+            );
+        }
+
+        return (
+            <EmptyState 
+                icon="calendar-check-o" 
+                title="All caught up!" 
+                subtitle="There are no open tasks in your area right now. Why not post one yourself?"
+                buttonText="Post a Task"
+                onPress={() => navigation.navigate('CreateTask')}
+                secondaryButtonText="Refresh Feed"
+                onSecondaryPress={onRefresh}
+            />
+        );
+    };
+
     return (
         <View style={styles.container}>
             <LinearGradient
@@ -257,26 +304,7 @@ export const TaskFeedScreen = ({ navigation }) => {
                             onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
                         />
                     )}
-                    ListEmptyComponent={
-                        <EmptyState 
-                            icon="search" 
-                            title="No tasks found" 
-                            subtitle={
-                                (activeFilterCount > 0 || searchQuery) 
-                                    ? "Try adjusting your search or filters to see more results." 
-                                    : "There are no tasks available in your area right now."
-                            }
-                            buttonText={(activeFilterCount > 0 || searchQuery) ? "Clear Filters" : "Refresh"}
-                            onPress={() => {
-                                if (activeFilterCount > 0 || searchQuery) {
-                                    clearFilters();
-                                    setSearchQuery('');
-                                } else {
-                                    onRefresh();
-                                }
-                            }}
-                        />
-                    }
+                    ListEmptyComponent={renderEmptyState}
                 />
             )}
 

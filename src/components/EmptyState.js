@@ -27,6 +27,8 @@ export const EmptyState = ({
     subtitle, 
     buttonText, 
     onPress,
+    secondaryButtonText,
+    onSecondaryPress,
     containerStyle 
 }) => {
     const { theme, shadows } = useTheme();
@@ -64,15 +66,27 @@ export const EmptyState = ({
                 <Text style={styles.subtitle}>{subtitle}</Text>
             )}
 
-            {buttonText && onPress && (
-                <TouchableOpacity 
-                    style={styles.button} 
-                    onPress={onPress}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.buttonText}>{buttonText}</Text>
-                </TouchableOpacity>
-            )}
+            <View style={styles.buttonContainer}>
+                {buttonText && onPress && (
+                    <TouchableOpacity 
+                        style={styles.button} 
+                        onPress={onPress}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.buttonText}>{buttonText}</Text>
+                    </TouchableOpacity>
+                )}
+
+                {secondaryButtonText && onSecondaryPress && (
+                    <TouchableOpacity 
+                        style={styles.secondaryButton} 
+                        onPress={onSecondaryPress}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.secondaryButtonText}>{secondaryButtonText}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
         </Animated.View>
     );
 };
@@ -105,6 +119,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         marginBottom: Spacing.xl,
         paddingHorizontal: Spacing.md,
     },
+    buttonContainer: {
+        alignItems: 'center',
+        gap: Spacing.md,
+    },
     button: {
         backgroundColor: theme.primary,
         paddingVertical: 12,
@@ -116,5 +134,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.white,
         fontWeight: '700',
         fontSize: 15,
+    },
+    secondaryButton: {
+        backgroundColor: 'transparent',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: Rounding.pill,
+        borderWidth: 1.5,
+        borderColor: theme.primary,
+    },
+    secondaryButtonText: {
+        color: theme.primary,
+        fontWeight: '700',
+        fontSize: 14,
     },
 });
