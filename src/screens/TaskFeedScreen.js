@@ -30,12 +30,13 @@ export const TaskFeedScreen = ({ navigation }) => {
         categories: [],
         minPrice: '',
         maxPrice: '',
+        sortBy: 'newest',
     });
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const filteredTasks = useMemo(() => {
-        return allTasks.filter(task => {
+        const result = allTasks.filter(task => {
             // 0. Show Saved Only Filter
             if (showSavedOnly && !savedTaskIds.includes(task.id)) return false;
 
@@ -69,6 +70,20 @@ export const TaskFeedScreen = ({ navigation }) => {
             if (filters.maxPrice && task.payment_amount > parseFloat(filters.maxPrice)) return false;
 
             return true;
+        });
+
+        // Apply Sorting
+        return result.sort((a, b) => {
+            if (filters.sortBy === 'price') {
+                return b.payment_amount - a.payment_amount;
+            } else if (filters.sortBy === 'distance' && userLocation) {
+                const distA = calculateDistance(userLocation.latitude, userLocation.longitude, a.location_lat, a.location_lng);
+                const distB = calculateDistance(userLocation.latitude, userLocation.longitude, b.location_lat, b.location_lng);
+                return distA - distB;
+            } else {
+                // Default: Newest
+                return new Date(b.created_at) - new Date(a.created_at);
+            }
         });
     }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters, showSavedOnly, savedTaskIds]);
 
@@ -123,7 +138,7 @@ export const TaskFeedScreen = ({ navigation }) => {
     };
 
     const clearFilters = () => {
-        setFilters({ categories: [], minPrice: '', maxPrice: '' });
+        setFilters({ categories: [], minPrice: '', maxPrice: '', sortBy: 'newest' });
     };
 
     return (

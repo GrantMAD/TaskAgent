@@ -11,6 +11,12 @@ export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => 
 
     const [localFilters, setLocalFilters] = useState(filters);
 
+    const sortOptions = [
+        { label: 'Newest', value: 'newest', icon: 'clock-o' },
+        { label: 'Highest Price', value: 'price', icon: 'money' },
+        { label: 'Closest', value: 'distance', icon: 'map-marker' },
+    ];
+
     const toggleCategory = (cat) => {
         setLocalFilters(prev => {
             const isSelected = prev.categories.includes(cat);
@@ -43,7 +49,7 @@ export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => 
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Filter Tasks</Text>
                     <TouchableOpacity onPress={() => {
-                        const cleared = { categories: [], minPrice: '', maxPrice: '', distance: 50 };
+                        const cleared = { categories: [], minPrice: '', maxPrice: '', sortBy: 'newest' };
                         setLocalFilters(cleared);
                         onClear();
                     }} style={styles.headerButton}>
@@ -52,6 +58,38 @@ export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => 
                 </View>
 
                 <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                    {/* Sort By */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Sort By</Text>
+                        <View style={styles.categoryGrid}>
+                            {sortOptions.map((opt) => {
+                                const isSelected = localFilters.sortBy === opt.value;
+                                return (
+                                    <TouchableOpacity
+                                        key={opt.value}
+                                        style={[
+                                            styles.categoryChip,
+                                            isSelected && { backgroundColor: theme.accent, borderColor: theme.accent }
+                                        ]}
+                                        onPress={() => setLocalFilters(prev => ({ ...prev, sortBy: opt.value }))}
+                                    >
+                                        <FontAwesome 
+                                            name={opt.icon} 
+                                            size={14} 
+                                            color={isSelected ? theme.white : theme.accent} 
+                                        />
+                                        <Text style={[
+                                            styles.categoryText,
+                                            isSelected && { color: theme.white }
+                                        ]}>
+                                            {opt.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+
                     {/* Categories */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Categories</Text>
@@ -193,6 +231,9 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderRadius: Rounding.pill,
         margin: Spacing.xs,
         backgroundColor: theme.surface,
+    },
+    sortChip: {
+        borderColor: theme.accent,
     },
     categoryText: {
         marginLeft: 8,
