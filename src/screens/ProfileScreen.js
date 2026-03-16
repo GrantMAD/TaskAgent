@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { userService } from '../services/userService';
 import { FontAwesome } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
@@ -70,7 +71,12 @@ export const ProfileScreen = ({ navigation }) => {
                 />
             }
         >
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <View style={styles.profileHeader}>
                     {profile?.profile_image ? (
                         <Image source={{ uri: profile.profile_image }} style={styles.profileImage} />
@@ -110,7 +116,7 @@ export const ProfileScreen = ({ navigation }) => {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </LinearGradient>
 
             <View style={styles.content}>
                 {/* Bio Section */}

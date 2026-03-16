@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, Modal, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NotificationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
@@ -195,7 +196,12 @@ export const NotificationsScreen = ({ navigation, route }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <View style={styles.headerLeft}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <FontAwesome name="chevron-left" size={20} color={theme.white} />
@@ -213,7 +219,7 @@ export const NotificationsScreen = ({ navigation, route }) => {
                 <TouchableOpacity onPress={markAllAsRead}>
                     <Text style={styles.markAllText}>Mark all read</Text>
                 </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             {loading && notifications.length === 0 ? (
                 <View style={styles.listContent}>

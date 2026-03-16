@@ -1,3 +1,5 @@
+export const CURRENCY_SYMBOL = 'R';
+
 export const TASK_CATEGORIES = [
     { label: 'Cleaning', value: 'Cleaning', icon: 'tint' },
     { label: 'Delivery', value: 'Delivery', icon: 'truck' },

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput 
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
-import { TASK_CATEGORIES } from '../utils/constants';
+import { TASK_CATEGORIES, CURRENCY_SYMBOL } from '../utils/constants';
 
 export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => {
     const { theme, shadows } = useTheme();
@@ -86,7 +86,7 @@ export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => 
 
                     {/* Price Range */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Budget Range ($)</Text>
+                        <Text style={styles.sectionTitle}>Budget Range ({CURRENCY_SYMBOL})</Text>
                         <View style={styles.priceRow}>
                             <View style={styles.priceInputContainer}>
                                 <Text style={styles.priceLabel}>Min</Text>

@@ -8,7 +8,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { TASK_CATEGORIES } from '../utils/constants';
+import { TASK_CATEGORIES, CURRENCY_SYMBOL } from '../utils/constants';
 import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
 import { useAuth } from '../components/AuthContext';
 
@@ -411,10 +411,10 @@ export const CreateTaskScreen = ({ navigation }) => {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>BUDGET <Text style={styles.required}>*</Text></Text>
+                                <Text style={styles.label}>BUDGET ({CURRENCY_SYMBOL}) <Text style={styles.required}>*</Text></Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. 50"
+                                    placeholder={`e.g. 50`}
                                     placeholderTextColor={theme.textMuted}
                                     value={paymentAmount}
                                     onChangeText={setPaymentAmount}

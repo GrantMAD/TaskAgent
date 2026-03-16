@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Skeleton } from './Skeleton';
 import { Spacing, Rounding } from '../../utils/theme';
 import { useTheme } from '../ThemeContext';
@@ -59,7 +60,12 @@ export const ProfileSkeleton = () => {
     const { theme, shadows } = useTheme();
     return (
         <View style={styles.profileContainer}>
-            <View style={[styles.profileHeader, { backgroundColor: theme.primary }, shadows.medium]}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.profileHeader, shadows.medium]}
+            >
                 <Skeleton width={100} height={100} borderRadius={50} style={{ alignSelf: 'center', marginBottom: Spacing.md, borderWidth: 3, borderColor: theme.white }} />
                 <Skeleton width="50%" height={24} style={{ alignSelf: 'center', marginBottom: Spacing.sm }} />
                 <Skeleton width="40%" height={16} style={{ alignSelf: 'center', marginBottom: Spacing.md }} />
@@ -68,7 +74,7 @@ export const ProfileSkeleton = () => {
                     <Skeleton width="30%" height={30} />
                     <Skeleton width="30%" height={30} />
                 </View>
-            </View>
+            </LinearGradient>
         </View>
     );
 };
@@ -77,10 +83,15 @@ export const TaskDetailSkeleton = () => {
     const { theme, shadows } = useTheme();
     return (
         <View style={styles.detailContainer}>
-            <View style={[styles.detailHeader, { backgroundColor: theme.primary }]}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.detailHeader}
+            >
                 <Skeleton width="70%" height={32} style={{ marginBottom: Spacing.sm }} />
                 <Skeleton width="40%" height={20} />
-            </View>
+            </LinearGradient>
             <View style={styles.detailBody}>
                 <View style={styles.detailRow}>
                     <Skeleton width="30%" height={20} />

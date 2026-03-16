@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../components/ThemeContext';
 import { Spacing, Rounding } from '../utils/theme';
 import { adminService } from '../services/adminService';
@@ -97,14 +98,34 @@ export const AdminDashboardScreen = ({ navigation }) => {
 
     if (loading && !refreshing) {
         return (
-            <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <LinearGradient
+                    colors={[theme.primary, theme.secondary || '#1E40AF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
+                    <Text style={styles.headerTitle}>Admin Panel</Text>
+                    <Text style={styles.headerSubtitle}>System-wide overview & control</Text>
+                </LinearGradient>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.accent} />
+                </View>
             </View>
         );
     }
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
+                <Text style={styles.headerTitle}>Admin Panel</Text>
+                <Text style={styles.headerSubtitle}>System-wide overview & control</Text>
+            </LinearGradient>
             <ScrollView 
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
@@ -165,6 +186,24 @@ export const AdminDashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    header: {
+        paddingTop: 50,
+        paddingBottom: Spacing.xl,
+        paddingHorizontal: Spacing.lg,
+        borderBottomLeftRadius: Rounding.soft,
+        borderBottomRightRadius: Rounding.soft,
+        zIndex: 10,
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+    headerSubtitle: {
+        fontSize: 15,
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginTop: 4,
     },
     loadingContainer: {
         flex: 1,

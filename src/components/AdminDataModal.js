@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { messageService } from '../services/messageService';
 import { adminService } from '../services/adminService';
 import { UserAvatar } from './UserAvatar';
+import { CURRENCY_SYMBOL } from '../utils/constants';
 
 export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
     const { theme, shadows } = useTheme();
@@ -307,15 +308,15 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
                 contentContainerStyle={styles.listContent}
                 renderItem={() => (
                     <View style={styles.detailCard}>
-                        <View style={styles.detailSection}>
-                            <Text style={[styles.label, { color: theme.textMuted }]}>TITLE</Text>
-                            <Text style={[styles.detailValue, { color: theme.text }]}>{selectedTask.title}</Text>
+                        <View style={styles.detailRow}>
+                            <Text style={[styles.label, { color: theme.textMuted }]}>BUDGET</Text>
+                            <Text style={[styles.detailValue, { color: theme.accent }]}>{CURRENCY_SYMBOL}{selectedTask.payment_amount}</Text>
                         </View>
 
                         <View style={styles.detailRow}>
-                            <View style={styles.detailHalf}>
+                            <View style={styles.detailRow}>
                                 <Text style={[styles.label, { color: theme.textMuted }]}>BUDGET</Text>
-                                <Text style={[styles.detailValue, { color: theme.accent }]}>{selectedTask.payment_amount}</Text>
+                                <Text style={[styles.detailValue, { color: theme.accent }]}>{CURRENCY_SYMBOL}{selectedTask.payment_amount}</Text>
                             </View>
                             <View style={styles.detailHalf}>
                                 <Text style={[styles.label, { color: theme.textMuted }]}>STATUS</Text>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl, Share } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { taskService } from '../services/taskService';
 import { messageService } from '../services/messageService';
@@ -22,6 +23,7 @@ import { TaskActions } from '../components/task-detail/TaskActions';
 import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 import { ApplicationModal } from '../components/ApplicationModal';
 import { ReportModal } from '../components/ReportModal';
+import { CURRENCY_SYMBOL } from '../utils/constants';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -145,7 +147,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const handleShare = async () => {
         try {
             const result = await Share.share({
-                message: `Check out this task on Task Agent: ${task.title}\n\nBudget: ${task.payment_amount}\nCategory: ${task.category}\n\nDescription: ${task.description}`,
+                message: `Check out this task on Task Agent: ${task.title}\n\nBudget: ${CURRENCY_SYMBOL}${task.payment_amount}\nCategory: ${task.category}\n\nDescription: ${task.description}`,
                 title: task.title,
             });
         } catch (error) {
@@ -358,8 +360,22 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     if (loading && !task && !refreshing) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
+            <View style={styles.container}>
+                <LinearGradient
+                    colors={[theme.primary, theme.secondary || '#1E40AF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.header}
+                >
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <FontAwesome name="chevron-left" size={20} color={theme.white} />
+                    </TouchableOpacity>
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
+                    </View>
+                    <View style={styles.headerRight} />
+                </LinearGradient>
+                <TaskDetailSkeleton />
             </View>
         );
     }
@@ -377,7 +393,12 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
@@ -397,7 +418,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         </TouchableOpacity>
                     )}
                 </View>
-            </View>
+            </LinearGradient>
 
             <ScrollView 
                 contentContainerStyle={styles.scrollContent} 
@@ -429,7 +450,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.priceLabel}>Budget</Text>
-                            <Text style={styles.payment}>{task.payment_amount}</Text>
+                            <Text style={styles.payment}>{CURRENCY_SYMBOL}{task.payment_amount}</Text>
                         </View>
                     </View>
                 </View>

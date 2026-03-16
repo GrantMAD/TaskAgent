@@ -173,27 +173,6 @@ export const MessagesScreen = ({ navigation }) => {
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    if (loading) {
-        return (
-            <View style={styles.container}>
-            <LinearGradient
-                colors={[theme.primary, theme.secondary || '#1E40AF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.header}
-            >
-                <Text style={styles.headerTitle}>Neighbor Chat</Text>
-                <Text style={styles.headerSubtitle}>Manage your task communications</Text>
-            </LinearGradient>
-                <View style={styles.listContent}>
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <ConversationSkeleton key={i} />
-                    ))}
-                </View>
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <LinearGradient
@@ -206,64 +185,72 @@ export const MessagesScreen = ({ navigation }) => {
                 <Text style={styles.headerSubtitle}>Manage your task communications</Text>
             </LinearGradient>
 
-            <FlatList
-                data={conversations}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl 
-                        refreshing={refreshing} 
-                        onRefresh={onRefresh} 
-                        colors={[theme.accent]}
-                        tintColor={theme.accent}
-                    />
-                }
-                renderItem={({ item }) => {
-                    const otherUser = getOtherUser(item);
-                    const lastMsg = item.last_message;
-                    const hasUnread = item.unread_count > 0;
+            {loading && !refreshing ? (
+                <View style={styles.listContent}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <ConversationSkeleton key={i} />
+                    ))}
+                </View>
+            ) : (
+                <FlatList
+                    data={conversations}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl 
+                            refreshing={refreshing} 
+                            onRefresh={onRefresh} 
+                            colors={[theme.accent]}
+                            tintColor={theme.accent}
+                        />
+                    }
+                    renderItem={({ item }) => {
+                        const otherUser = getOtherUser(item);
+                        const lastMsg = item.last_message;
+                        const hasUnread = item.unread_count > 0;
 
-                    return (
-                        <TouchableOpacity
-                            style={[styles.conversationRow, hasUnread && styles.unreadRow]}
-                            onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
-                            activeOpacity={0.7}
-                        >
-                            <UserAvatar user={otherUser} size={56} />
-                            {hasUnread && <View style={styles.unreadBadge} />}
-                            
-                            <View style={styles.textContainer}>
-                                <View style={styles.rowHeader}>
-                                    <Text style={[styles.otherUserName, hasUnread && styles.unreadText]} numberOfLines={1}>
-                                        {otherUser?.name || 'Neighbor'}
-                                    </Text>
-                                    <Text style={styles.timeText}>
-                                        {formatMessageTime(lastMsg?.created_at)}
+                        return (
+                            <TouchableOpacity
+                                style={[styles.conversationRow, hasUnread && styles.unreadRow]}
+                                onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
+                                activeOpacity={0.7}
+                            >
+                                <UserAvatar user={otherUser} size={56} />
+                                {hasUnread && <View style={styles.unreadBadge} />}
+                                
+                                <View style={styles.textContainer}>
+                                    <View style={styles.rowHeader}>
+                                        <Text style={[styles.otherUserName, hasUnread && styles.unreadText]} numberOfLines={1}>
+                                            {otherUser?.name || 'Neighbor'}
+                                        </Text>
+                                        <Text style={styles.timeText}>
+                                            {formatMessageTime(lastMsg?.created_at)}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.preview, hasUnread && styles.unreadPreview]} numberOfLines={1}>
+                                        {lastMsg ? (
+                                            lastMsg.message_text || (lastMsg.image_url ? '📷 Image' : 'No content')
+                                        ) : (
+                                            'No messages yet'
+                                        )}
                                     </Text>
                                 </View>
-                                <Text style={[styles.preview, hasUnread && styles.unreadPreview]} numberOfLines={1}>
-                                    {lastMsg ? (
-                                        lastMsg.message_text || (lastMsg.image_url ? '📷 Image' : 'No content')
-                                    ) : (
-                                        'No messages yet'
-                                    )}
-                                </Text>
-                            </View>
-                            <FontAwesome name="chevron-right" size={12} color={theme.border} style={{ marginLeft: 10 }} />
-                        </TouchableOpacity>
-                    );
-                }}
-                ListEmptyComponent={
-                    <EmptyState 
-                        icon="comments-o" 
-                        title="No conversations yet." 
-                        subtitle="Message a neighbor about a task to start!" 
-                        buttonText="Browse Tasks"
-                        onPress={() => navigation.navigate('TasksTab')}
-                    />
-                }
-            />
+                                <FontAwesome name="chevron-right" size={12} color={theme.border} style={{ marginLeft: 10 }} />
+                            </TouchableOpacity>
+                        );
+                    }}
+                    ListEmptyComponent={
+                        <EmptyState 
+                            icon="comments-o" 
+                            title="No conversations yet." 
+                            subtitle="Message a neighbor about a task to start!" 
+                            buttonText="Browse Tasks"
+                            onPress={() => navigation.navigate('TasksTab')}
+                        />
+                    }
+                />
+            )}
         </View>
     );
 };

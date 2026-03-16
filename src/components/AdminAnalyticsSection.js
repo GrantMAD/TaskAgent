@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
+import { CURRENCY_SYMBOL } from '../utils/constants';
 
 const { width } = Dimensions.get('window');
 
@@ -46,10 +47,10 @@ export const AdminAnalyticsSection = ({ analytics, categories }) => {
                     color="#10B981" 
                 />
                 <MetricPill 
-                    label="Avg. Budget" 
-                    value={`R${analytics.avgBudget}`} 
-                    icon="money" 
-                    color="#F59E0B" 
+                    label="Avg. Budget"
+                    value={`${CURRENCY_SYMBOL}${analytics.avgBudget}`}
+                    icon="money"
+                    color="#4ECDC4"
                 />
                 <MetricPill 
                     label="Total Jobs" 

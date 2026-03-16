@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
@@ -43,7 +44,12 @@ export const SavedTasksScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <LinearGradient
+                colors={[theme.primary, theme.secondary || '#1E40AF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
@@ -51,7 +57,7 @@ export const SavedTasksScreen = ({ navigation }) => {
                     <Text style={styles.headerTitle}>Saved Tasks</Text>
                 </View>
                 <View style={styles.headerSpacer} />
-            </View>
+            </LinearGradient>
 
             {loading && !refreshing ? (
                 <View style={styles.listContent}>

@@ -6,6 +6,7 @@ import { useTheme } from '../components/ThemeContext';
 import { useLocation } from './LocationContext';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { CURRENCY_SYMBOL } from '../utils/constants';
 
 export const TaskCard = memo(({ task, onPress }) => {
     const { theme, shadows } = useTheme();
@@ -40,7 +41,7 @@ export const TaskCard = memo(({ task, onPress }) => {
             <View style={styles.header}>
                 <View style={styles.titleContainer}>
                     <Text style={styles.title} numberOfLines={1}>{task.title}</Text>
-                    <Text style={styles.payment}>{task.payment_amount}</Text>
+                    <Text style={styles.payment}>{CURRENCY_SYMBOL}{task.payment_amount}</Text>
                 </View>
                 <TouchableOpacity 
                     onPress={handleToggleSave}

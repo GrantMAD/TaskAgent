@@ -8,6 +8,7 @@ import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import { EmptyState } from '../components/EmptyState';
+import { CURRENCY_SYMBOL } from '../utils/constants';
 
 export const RecurringTasksScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -108,7 +109,7 @@ export const RecurringTasksScreen = ({ navigation }) => {
             <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.category}>{item.category} • {item.payment_amount}</Text>
+                    <Text style={styles.category}>{item.category} • {CURRENCY_SYMBOL}{item.payment_amount}</Text>
                 </View>
                 <Switch
                     value={item.is_active}
