@@ -13,17 +13,19 @@ import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { FilterModal } from '../components/FilterModal';
 import { TASK_CATEGORIES } from '../utils/constants';
+import { interactionService } from '../services/interactionService';
 
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const { userLocation, calculateDistance, searchRadius, updateSearchRadius } = useLocation();
-    const { savedTaskIds } = useAuth();
+    const { session, savedTaskIds } = useAuth();
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [showSavedOnly, setShowSavedOnly] = useState(false);
     const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
     const [filters, setFilters] = useState({
@@ -115,9 +117,43 @@ export const TaskFeedScreen = ({ navigation }) => {
         };
     }, []);
 
+    // Log search interactions (debounced)
+    useEffect(() => {
+        if (!searchQuery && filters.categories.length === 0) return;
+        
+        const timer = setTimeout(() => {
+            let logCategory = filters.categories.length > 0 ? filters.categories[0] : 'All';
+            
+            // Basic keyword heuristic mapping for better market insights
+            if (logCategory === 'All' && searchQuery) {
+                const sq = searchQuery.toLowerCase();
+                if (sq.includes('clean')) logCategory = 'Cleaning';
+                else if (sq.includes('deliver') || sq.includes('courier')) logCategory = 'Delivery';
+                else if (sq.includes('move')) logCategory = 'Moving';
+                else if (sq.includes('tech') || sq.includes('computer') || sq.includes('it')) logCategory = 'Tech';
+                else if (sq.includes('garden') || sq.includes('yard') || sq.includes('lawn')) logCategory = 'Gardening';
+                else if (sq.includes('handy') || sq.includes('plumb') || sq.includes('build')) logCategory = 'Handyman';
+                else if (sq.includes('pet') || sq.includes('dog') || sq.includes('cat')) logCategory = 'Pets';
+            }
+
+            interactionService.logSearch(session?.user?.id, logCategory, searchQuery, filteredTasks.length);
+        }, 1500); // 1.5s debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, filters.categories]);
+
     const fetchTasks = async () => {
         try {
-            const data = await taskService.getNearbyTasks();
+            let data;
+            if (session?.user && filters.sortBy === 'relevance') {
+                data = await taskService.getPersonalizedTasks(
+                    session.user.id, 
+                    userLocation?.latitude, 
+                    userLocation?.longitude
+                );
+            } else {
+                data = await taskService.getNearbyTasks();
+            }
             setAllTasks(data);
         } catch (error) {
             console.error(error);
@@ -211,14 +247,20 @@ export const TaskFeedScreen = ({ navigation }) => {
                 
                 {/* Search & Filter Bar */}
                 <View style={styles.searchRow}>
-                    <View style={[styles.searchContainer, shadows.subtle]}>
-                        <FontAwesome name="search" size={16} color={theme.textMuted} />
+                    <View style={[
+                        styles.searchContainer, 
+                        shadows.subtle,
+                        isSearchFocused && styles.searchContainerFocused
+                    ]}>
+                        <FontAwesome name="search" size={16} color={isSearchFocused ? theme.accent : theme.textMuted} />
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Search tasks..."
                             placeholderTextColor={theme.textMuted}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setIsSearchFocused(false)}
                         />
                         {searchQuery.length > 0 && (
                             <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -379,12 +421,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderRadius: Rounding.standard,
         paddingHorizontal: 12,
         height: 45,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    searchContainerFocused: {
+        borderColor: theme.accent,
     },
     searchInput: {
         flex: 1,
         marginLeft: 10,
         fontSize: 15,
         color: '#333',
+        outlineStyle: 'none',
     },
     filterButton: {
         width: 45,

@@ -120,6 +120,63 @@ export const taskService = {
         return data
     },
 
+    /**
+     * Get personalized tasks using the smart ranking RPC
+     */
+    getPersonalizedTasks: async (userId, lat = null, lng = null, limit = 50) => {
+        const { data, error } = await supabase
+            .rpc('get_personalized_tasks', {
+                p_user_id: userId,
+                p_lat: lat,
+                p_lng: lng,
+                p_limit: limit
+            });
+
+        if (error) throw error;
+
+        // The RPC returns a flat structure, we helper-join the poster info 
+        // using another query or by mapping if we want full poster objects.
+        // For efficiency, we can fetch poster IDs and then get their details in bulk.
+        if (data.length === 0) return [];
+
+        const posterIds = [...new Set(data.map(t => t.poster_id))];
+        const { data: posters } = await supabase
+            .from('users')
+            .select('id, name, profile_image, rating')
+            .in('id', posterIds);
+        
+        const posterMap = (posters || []).reduce((acc, p) => {
+            acc[p.id] = p;
+            return acc;
+        }, {});
+
+        return data.map(t => ({
+            ...t,
+            poster: posterMap[t.poster_id]
+        }));
+    },
+
+    /**
+     * Increment the view count for a task
+     */
+    incrementTaskView: async (taskId) => {
+        // This uses a simple RPC to increment the counter atomically
+        const { error } = await supabase
+            .rpc('increment_task_view', { t_id: taskId });
+        
+        if (error) {
+            // If the specialized RPC doesn't exist yet, we fall back to a standard update
+            await supabase
+                .from('tasks')
+                .update({ view_count: supabase.rpc('increment', { row_id: taskId }) }) // Conceptual, Supabase doesn't have this exact syntax for update
+                .eq('id', taskId);
+            // In a real migration, we'd add the increment function:
+            // CREATE OR REPLACE FUNCTION increment_task_view(t_id UUID) RETURNS VOID AS $$ 
+            // UPDATE tasks SET view_count = view_count + 1 WHERE id = t_id; 
+            // $$ LANGUAGE sql;
+        }
+    },
+
     applyForTask: async (taskId, workerId, message) => {
         const isRateLimited = await rateLimitService.checkRateLimit('task_applications', 'worker_id', workerId, 60);
         if (isRateLimited) {

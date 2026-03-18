@@ -196,5 +196,18 @@ export const adminService = {
         return Object.entries(stats)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
+    },
+
+    /**
+     * Get market insights (Supply vs Demand gaps)
+     * Queries the market_service_gaps view.
+     */
+    getMarketInsights: async () => {
+        const { data, error } = await supabase
+            .from('market_service_gaps')
+            .select('*');
+        
+        if (error) throw error;
+        return data;
     }
 };

@@ -12,6 +12,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { useToast } from '../components/ToastContext';
 import { useAuth } from '../components/AuthContext';
 import { ReportModal } from '../components/ReportModal';
+import { interactionService } from '../services/interactionService';
 
 export const PublicProfileScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -29,6 +30,11 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     useEffect(() => {
         fetchProfileData();
         getCurrentUser();
+        
+        // Log profile view
+        if (userId) {
+            interactionService.logEvent('profile_view', session?.user?.id, userId);
+        }
     }, [userId]);
 
     const getCurrentUser = () => {

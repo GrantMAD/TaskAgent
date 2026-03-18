@@ -14,7 +14,7 @@ export const userService = {
     },
 
     updateUserProfile: async (userId, updates) => {
-        const sanitizedUpdates = sanitizeObject(updates, ['name', 'bio']);
+        const sanitizedUpdates = sanitizeObject(updates, ['name', 'bio', 'phone', 'skills']);
         const { data, error } = await supabase
             .from('users')
             .update(sanitizedUpdates)

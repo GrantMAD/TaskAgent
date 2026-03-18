@@ -12,6 +12,7 @@ export const FilterModal = ({ visible, onClose, filters, onApply, onClear }) => 
     const [localFilters, setLocalFilters] = useState(filters);
 
     const sortOptions = [
+        { label: 'Relevance (Smart)', value: 'relevance', icon: 'magic' },
         { label: 'Newest', value: 'newest', icon: 'clock-o' },
         { label: 'Highest Price', value: 'price', icon: 'money' },
         { label: 'Closest', value: 'distance', icon: 'map-marker' },

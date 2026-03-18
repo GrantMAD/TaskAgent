@@ -7,7 +7,7 @@ import { CURRENCY_SYMBOL } from '../utils/constants';
 
 const { width } = Dimensions.get('window');
 
-export const AdminAnalyticsSection = ({ analytics, categories }) => {
+export const AdminAnalyticsSection = ({ analytics, categories, marketInsights }) => {
     const { theme, shadows } = useTheme();
 
     if (!analytics || !categories) return null;
@@ -60,10 +60,11 @@ export const AdminAnalyticsSection = ({ analytics, categories }) => {
                 />
             </View>
 
+            {/* Popular Categories */}
             <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }, shadows.medium]}>
                 <Text style={[styles.chartTitle, { color: theme.text }]}>Popular Categories</Text>
                 {categories.slice(0, 5).map((cat, index) => {
-                    const percentage = (cat.count / analytics.totalTasks) * 100;
+                    const percentage = (cat.count / (analytics.totalTasks || 1)) * 100;
                     return (
                         <View key={cat.name} style={styles.catRow}>
                             <View style={styles.catLabelRow}>
@@ -85,6 +86,45 @@ export const AdminAnalyticsSection = ({ analytics, categories }) => {
                     );
                 })}
             </View>
+
+            {/* New: Market Opportunity Insights */}
+            {marketInsights && marketInsights.length > 0 && (
+                <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border, marginTop: Spacing.lg }, shadows.medium]}>
+                    <View style={styles.chartHeaderRow}>
+                        <Text style={[styles.chartTitle, { color: theme.text, marginBottom: 0 }]}>Service Gap Analysis</Text>
+                        <View style={styles.infoBadge}>
+                            <Text style={styles.infoBadgeText}>OPPORTUNITY INDEX</Text>
+                        </View>
+                    </View>
+                    <Text style={[styles.chartSubtitle, { color: theme.textMuted }]}>
+                        High scores indicate many searches but few active tasks.
+                    </Text>
+
+                    {marketInsights.slice(0, 4).map((item) => (
+                        <View key={item.category} style={styles.gapRow}>
+                            <View style={styles.gapLabelRow}>
+                                <Text style={[styles.gapCategory, { color: theme.text }]}>{item.category}</Text>
+                                <View style={styles.gapStats}>
+                                    <Text style={[styles.gapStatText, { color: theme.textMuted }]}>
+                                        {item.search_count} searches vs {item.task_count} jobs
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={[styles.gapBarBg, { backgroundColor: theme.background }]}>
+                                <View 
+                                    style={[
+                                        styles.gapBarFill, 
+                                        { 
+                                            width: `${Math.min(item.gap_score * 20, 100)}%`, 
+                                            backgroundColor: item.gap_score > 2 ? theme.error : theme.success 
+                                        }
+                                    ]} 
+                                />
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            )}
         </View>
     );
 };
@@ -181,5 +221,52 @@ const styles = StyleSheet.create({
     progressBarFill: {
         height: '100%',
         borderRadius: 4,
+    },
+    chartHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    chartSubtitle: {
+        fontSize: 11,
+        marginBottom: Spacing.md,
+        fontWeight: '500',
+    },
+    infoBadge: {
+        backgroundColor: '#FEF3C7',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    infoBadgeText: {
+        fontSize: 8,
+        fontWeight: '900',
+        color: '#D97706',
+    },
+    gapRow: {
+        marginBottom: Spacing.md,
+    },
+    gapLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    gapCategory: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    gapStatText: {
+        fontSize: 11,
+    },
+    gapBarBg: {
+        height: 6,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    gapBarFill: {
+        height: '100%',
+        borderRadius: 3,
     }
 });

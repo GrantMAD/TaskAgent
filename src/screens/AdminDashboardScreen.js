@@ -16,6 +16,7 @@ export const AdminDashboardScreen = ({ navigation }) => {
     const [stats, setStats] = useState(null);
     const [analytics, setAnalytics] = useState(null);
     const [categoryStats, setCategoryStats] = useState([]);
+    const [marketInsights, setMarketInsights] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -30,14 +31,16 @@ export const AdminDashboardScreen = ({ navigation }) => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [statsData, analyticsData, catData] = await Promise.all([
+            const [statsData, analyticsData, catData, marketData] = await Promise.all([
                 adminService.getDashboardStats(),
                 adminService.getDetailedAnalytics(),
-                adminService.getCategoryStats()
+                adminService.getCategoryStats(),
+                adminService.getMarketInsights()
             ]);
             setStats(statsData);
             setAnalytics(analyticsData);
             setCategoryStats(catData);
+            setMarketInsights(marketData);
         } catch (error) {
             console.error('Admin Dashboard Error:', error);
             showToast('Could not load admin data', 'error');
@@ -170,6 +173,7 @@ export const AdminDashboardScreen = ({ navigation }) => {
                 <AdminAnalyticsSection 
                     analytics={analytics} 
                     categories={categoryStats} 
+                    marketInsights={marketInsights}
                 />
             </ScrollView>
 

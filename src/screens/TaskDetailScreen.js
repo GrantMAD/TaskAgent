@@ -24,6 +24,7 @@ import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 import { ApplicationModal } from '../components/ApplicationModal';
 import { ReportModal } from '../components/ReportModal';
 import { CURRENCY_SYMBOL } from '../utils/constants';
+import { interactionService } from '../services/interactionService';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -107,6 +108,14 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             supabase.removeChannel(taskSubscription);
             supabase.removeChannel(appSubscription);
         };
+    }, [taskId]);
+
+    // Log interaction and increment view count
+    useEffect(() => {
+        if (taskId) {
+            interactionService.logTaskView(session?.user?.id, taskId);
+            taskService.incrementTaskView(taskId);
+        }
     }, [taskId]);
 
     const fetchTaskDetails = async (isRefreshing = false) => {

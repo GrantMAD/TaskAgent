@@ -46,7 +46,7 @@ export const NEIGHBORHOOD_TIPS = [
         id: 6,
         title: 'Verify Profiles',
         description: "Always check a neighbor's reviews before hiring.",
-        icon: 'user-check'
+        icon: 'check-circle-o'
     },
     {
         id: 7,
