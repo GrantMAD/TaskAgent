@@ -147,13 +147,15 @@ export const adminService = {
             { count: newUsers30d, error: u30Error },
             { count: totalTasks, error: tError },
             { count: completedTasks, error: cError },
-            { data: budgetData, error: bError }
+            { data: budgetData, error: bError },
+            avgReplyTime
         ] = await Promise.all([
             supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
             supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
             supabase.from('tasks').select('*', { count: 'exact', head: true }),
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
-            supabase.from('tasks').select('payment_amount')
+            supabase.from('tasks').select('payment_amount'),
+            adminService.calculatePlatformAvgReplyTime()
         ]);
 
         if (u7Error) throw u7Error;
@@ -172,8 +174,53 @@ export const adminService = {
             totalTasks: totalTasks || 0,
             completedTasks: completedTasks || 0,
             completionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-            avgBudget: avgBudget.toFixed(2)
+            avgBudget: avgBudget.toFixed(2),
+            avgReplyTime
         };
+    },
+
+    /**
+     * Calculate platform-wide average reply time
+     */
+    calculatePlatformAvgReplyTime: async () => {
+        try {
+            const { data: messages, error } = await supabase
+                .from('messages')
+                .select('conversation_id, sender_id, created_at')
+                .order('created_at', { ascending: true })
+                .limit(1000); // Sample last 1k messages for performance
+
+            if (error || !messages || messages.length === 0) return 'N/A';
+
+            let totalDiff = 0;
+            let count = 0;
+
+            const grouped = messages.reduce((acc, msg) => {
+                if (!acc[msg.conversation_id]) acc[msg.conversation_id] = [];
+                acc[msg.conversation_id].push(msg);
+                return acc;
+            }, {});
+
+            Object.values(grouped).forEach(msgs => {
+                for (let i = 0; i < msgs.length - 1; i++) {
+                    if (msgs[i].sender_id !== msgs[i+1].sender_id) {
+                        const start = new Date(msgs[i].created_at);
+                        const end = new Date(msgs[i+1].created_at);
+                        totalDiff += (end - start) / (1000 * 60);
+                        count++;
+                    }
+                }
+            });
+
+            if (count === 0) return 'N/A';
+            const avg = totalDiff / count;
+            
+            if (avg < 60) return `${Math.round(avg)}m`;
+            if (avg < 1440) return `${Math.round(avg / 60)}h`;
+            return `${Math.round(avg / 1440)}d`;
+        } catch (e) {
+            return 'N/A';
+        }
     },
 
     /**

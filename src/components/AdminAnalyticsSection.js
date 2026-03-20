@@ -58,6 +58,12 @@ export const AdminAnalyticsSection = ({ analytics, categories, marketInsights })
                     icon="briefcase" 
                     color="#8B5CF6" 
                 />
+                <MetricPill 
+                    label="Platform Avg Reply" 
+                    value={analytics.avgReplyTime || 'N/A'} 
+                    icon="bolt" 
+                    color="#F59E0B" 
+                />
             </View>
 
             {/* Popular Categories */}

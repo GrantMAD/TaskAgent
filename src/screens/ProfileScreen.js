@@ -12,11 +12,15 @@ import { useToast } from '../components/ToastContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../components/AuthContext';
 
+import { interactionService } from '../services/interactionService';
+import { reliabilityService } from '../services/reliabilityService';
+
 export const ProfileScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
+    const [reliability, setReliability] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const { showToast } = useToast();
@@ -34,13 +38,16 @@ export const ProfileScreen = ({ navigation }) => {
         try {
             if (!session) return;
 
-            const [userData, reviewData] = await Promise.all([
+            const [userData, reviewData, reliabilityData] = await Promise.all([
                 userService.getUserProfile(session.user.id),
-                userService.getUserReviews(session.user.id)
+                userService.getUserReviews(session.user.id),
+                reliabilityService.getUserReliability(session.user.id)
             ]);
 
             setProfile(userData);
-            setReviews(reviewData);
+            // Only keep reviews where the reviewer still exists
+            setReviews(reviewData ? reviewData.filter(r => r.reviewer) : []);
+            setReliability(reliabilityData);
         } catch (error) {
             console.error(error);
             showToast('Could not load profile', 'error');
@@ -105,6 +112,15 @@ export const ProfileScreen = ({ navigation }) => {
                         </View>
                     </View>
 
+                    {reliability && (
+                        <View style={styles.reliabilityBadge}>
+                            <FontAwesome name="shield" size={12} color={theme.white} style={{ marginRight: 6 }} />
+                            <Text style={styles.reliabilityLabel}>
+                                {reliability.label} ({reliability.score})
+                            </Text>
+                        </View>
+                    )}
+
                     <View style={styles.buttonRow}>
                         <TouchableOpacity 
                             style={styles.editButton}
@@ -126,6 +142,31 @@ export const ProfileScreen = ({ navigation }) => {
             </LinearGradient>
 
             <View style={styles.content}>
+                {/* Reliability Insights */}
+                {reliability && reliability.metrics && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>My Trust Signals</Text>
+                        <View style={[styles.card, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
+                            <View style={styles.trustSignal}>
+                                <FontAwesome name="bolt" size={14} color={theme.accent} style={{ width: 20 }} />
+                                <Text style={styles.trustText}>Replies {reliability.metrics.replyTime.label}</Text>
+                            </View>
+                            <View style={styles.trustSignal}>
+                                <FontAwesome name="check-circle" size={14} color={theme.success || '#10B981'} style={{ width: 20 }} />
+                                <Text style={styles.trustText}>{reliability.metrics.completion.rate}% Completion</Text>
+                            </View>
+                            <View style={styles.trustSignal}>
+                                <FontAwesome name="briefcase" size={14} color={theme.primary} style={{ width: 20 }} />
+                                <Text style={styles.trustText}>{reliability.metrics.hireRatio.hires} Hires</Text>
+                            </View>
+                            <View style={styles.trustSignal}>
+                                <FontAwesome name="calendar-times-o" size={14} color={theme.error} style={{ width: 20 }} />
+                                <Text style={styles.trustText}>{reliability.metrics.cancellation.rate}% Cancel Rate</Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
                 {/* Bio Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>About Me</Text>
@@ -156,32 +197,35 @@ export const ProfileScreen = ({ navigation }) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
                     {reviews.length > 0 ? (
-                        reviews.map((review) => (
-                            <View key={review.id} style={styles.reviewCard}>
-                                <View style={styles.reviewHeader}>
-                                    <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
-                                        <UserAvatar user={review.reviewer} size={30} />
-                                    </TouchableOpacity>
-                                    <View style={styles.reviewInfo}>
+                        reviews.map((review) => {
+                            if (!review.reviewer) return null; // Skip reviews from deleted accounts
+                            return (
+                                <View key={review.id} style={styles.reviewCard}>
+                                    <View style={styles.reviewHeader}>
                                         <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
-                                            <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                            <UserAvatar user={review.reviewer} size={30} />
                                         </TouchableOpacity>
-                                        <View style={styles.ratingRow}>
-                                            {[1, 2, 3, 4, 5].map((s) => (
-                                                <FontAwesome 
-                                                    key={s} 
-                                                    name={s <= review.rating ? "star" : "star-o"} 
-                                                    size={12} 
-                                                    color={theme.accent} 
-                                                />
-                                            ))}
+                                        <View style={styles.reviewInfo}>
+                                            <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
+                                                <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                            </TouchableOpacity>
+                                            <View style={styles.ratingRow}>
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <FontAwesome 
+                                                        key={s} 
+                                                        name={s <= review.rating ? "star" : "star-o"} 
+                                                        size={12} 
+                                                        color={theme.accent} 
+                                                    />
+                                                ))}
+                                            </View>
                                         </View>
+                                        <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
                                     </View>
-                                    <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
+                                    <Text style={styles.reviewComment}>{review.comment}</Text>
                                 </View>
-                                <Text style={styles.reviewComment}>{review.comment}</Text>
-                            </View>
-                        ))
+                            );
+                        })
                     ) : (
                         <View style={styles.card}>
                             <Text style={styles.emptyText}>No reviews yet.</Text>
@@ -261,6 +305,20 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         height: 30,
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
+    reliabilityBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: Rounding.pill,
+        marginTop: Spacing.md,
+    },
+    reliabilityLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.white,
+    },
     buttonRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -327,6 +385,19 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 15,
         color: theme.text,
         lineHeight: 22,
+    },
+    trustSignal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '48%',
+        marginBottom: Spacing.sm,
+        padding: 4,
+    },
+    trustText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme.text,
+        marginLeft: 4,
     },
     skillsContainer: {
         flexDirection: 'row',

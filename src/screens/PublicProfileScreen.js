@@ -13,6 +13,7 @@ import { useToast } from '../components/ToastContext';
 import { useAuth } from '../components/AuthContext';
 import { ReportModal } from '../components/ReportModal';
 import { interactionService } from '../services/interactionService';
+import { reliabilityService } from '../services/reliabilityService';
 
 export const PublicProfileScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -20,6 +21,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     const { userId } = route.params;
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
+    const [reliability, setReliability] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState(null);
     const { showToast } = useToast();
@@ -50,13 +52,16 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     const fetchProfileData = async () => {
         try {
             setLoading(true);
-            const [userData, reviewData] = await Promise.all([
+            const [userData, reviewData, reliabilityData] = await Promise.all([
                 userService.getUserProfile(userId),
-                userService.getUserReviews(userId)
+                userService.getUserReviews(userId),
+                reliabilityService.getUserReliability(userId)
             ]);
 
             setProfile(userData);
-            setReviews(reviewData);
+            // Only keep reviews where the reviewer still exists
+            setReviews(reviewData ? reviewData.filter(r => r.reviewer) : []);
+            setReliability(reliabilityData);
         } catch (error) {
             console.error(error);
             showToast('Could not load profile', 'error');
@@ -181,6 +186,15 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                         </View>
                     </View>
 
+                    {reliability && (
+                        <View style={styles.reliabilityBadge}>
+                            <FontAwesome name="shield" size={12} color={theme.white} style={{ marginRight: 6 }} />
+                            <Text style={styles.reliabilityLabel}>
+                                {reliability.label} ({reliability.score})
+                            </Text>
+                        </View>
+                    )}
+
                     {currentUserId !== userId && (
                         <TouchableOpacity 
                             style={styles.messageButton}
@@ -193,12 +207,37 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                 </LinearGradient>
 
                 <View style={styles.content}>
+                    {/* Reliability Insights */}
+                    {reliability && reliability.metrics && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Trust Signals</Text>
+                            <View style={[styles.card, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
+                                <View style={styles.trustSignal}>
+                                    <FontAwesome name="bolt" size={14} color={theme.accent} style={{ width: 20 }} />
+                                    <Text style={styles.trustText}>Replies {reliability.metrics.replyTime.label}</Text>
+                                </View>
+                                <View style={styles.trustSignal}>
+                                    <FontAwesome name="check-circle" size={14} color={theme.success || '#10B981'} style={{ width: 20 }} />
+                                    <Text style={styles.trustText}>{reliability.metrics.completion.rate}% Completion</Text>
+                                </View>
+                                <View style={styles.trustSignal}>
+                                    <FontAwesome name="briefcase" size={14} color={theme.primary} style={{ width: 20 }} />
+                                    <Text style={styles.trustText}>{reliability.metrics.hireRatio.hires} Hires</Text>
+                                </View>
+                                <View style={styles.trustSignal}>
+                                    <FontAwesome name="calendar-times-o" size={14} color={theme.error} style={{ width: 20 }} />
+                                    <Text style={styles.trustText}>{reliability.metrics.cancellation.rate}% Cancel Rate</Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
                     {/* Bio Section */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>About</Text>
                         <View style={styles.card}>
                             <Text style={styles.bioText}>
-                                {profile.bio || `Hi, I'm ${profile.name.split(' ')[0]}! Looking forward to helping out in the neighborhood.`}
+                                {profile.bio || `Hi, I'm ${profile.name ? profile.name.split(' ')[0] : 'your neighbor'}! Looking forward to helping out in the neighborhood.`}
                             </Text>
                         </View>
                     </View>
@@ -223,32 +262,35 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
                         {reviews.length > 0 ? (
-                            reviews.map((review) => (
-                                <View key={review.id} style={styles.reviewCard}>
-                                    <View style={styles.reviewHeader}>
-                                        <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
-                                            <UserAvatar user={review.reviewer} size={30} />
-                                        </TouchableOpacity>
-                                        <View style={styles.reviewInfo}>
+                            reviews.map((review) => {
+                                if (!review.reviewer) return null; // Skip reviews from deleted accounts
+                                return (
+                                    <View key={review.id} style={styles.reviewCard}>
+                                        <View style={styles.reviewHeader}>
                                             <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
-                                                <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                <UserAvatar user={review.reviewer} size={30} />
                                             </TouchableOpacity>
-                                            <View style={styles.ratingRow}>
-                                                {[1, 2, 3, 4, 5].map((s) => (
-                                                    <FontAwesome 
-                                                        key={s} 
-                                                        name={s <= review.rating ? "star" : "star-o"} 
-                                                        size={12} 
-                                                        color={theme.accent} 
-                                                    />
-                                                ))}
+                                            <View style={styles.reviewInfo}>
+                                                <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
+                                                    <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                </TouchableOpacity>
+                                                <View style={styles.ratingRow}>
+                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                        <FontAwesome 
+                                                            key={s} 
+                                                            name={s <= review.rating ? "star" : "star-o"} 
+                                                            size={12} 
+                                                            color={theme.accent} 
+                                                        />
+                                                    ))}
+                                                </View>
                                             </View>
+                                            <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
                                         </View>
-                                        <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
+                                        <Text style={styles.reviewComment}>{review.comment}</Text>
                                     </View>
-                                    <Text style={styles.reviewComment}>{review.comment}</Text>
-                                </View>
-                            ))
+                                );
+                            })
                         ) : (
                             <View style={styles.card}>
                                 <Text style={styles.emptyText}>No reviews yet.</Text>
@@ -383,6 +425,20 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         height: 30,
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
+    reliabilityBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: Rounding.pill,
+        marginTop: Spacing.md,
+    },
+    reliabilityLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.white,
+    },
     messageButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -424,6 +480,19 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 15,
         color: theme.text,
         lineHeight: 22,
+    },
+    trustSignal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '48%',
+        marginBottom: Spacing.sm,
+        padding: 4,
+    },
+    trustText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme.text,
+        marginLeft: 4,
     },
     skillsContainer: {
         flexDirection: 'row',
