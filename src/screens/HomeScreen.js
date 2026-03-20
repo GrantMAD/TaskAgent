@@ -88,7 +88,9 @@ export const HomeScreen = ({ navigation }) => {
     const fetchAllData = async () => {
         try {
             // Process recurring tasks to generate any due instances
-            await taskService.processRecurringTasks();
+            if (session?.user?.id) {
+                await taskService.processRecurringTasks(session.user.id);
+            }
 
             if (session) {
                 // Fetch Profile for stats

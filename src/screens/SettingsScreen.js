@@ -8,6 +8,8 @@ import { useLocation } from '../components/LocationContext';
 import { useAuth } from '../components/AuthContext';
 import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { TextInput } from 'react-native';
 
 export const SettingsScreen = ({ navigation }) => {
     const { theme, isDarkMode, toggleTheme, shadows } = useTheme();
@@ -15,6 +17,9 @@ export const SettingsScreen = ({ navigation }) => {
     const { searchRadius, updateSearchRadius } = useLocation();
     const { showToast } = useToast();
     const [updating, setUpdating] = useState(false);
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -61,6 +66,28 @@ export const SettingsScreen = ({ navigation }) => {
                 }
             ]
         );
+    };
+
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmText !== 'DELETE') {
+            showToast('Please type DELETE to confirm', 'warning');
+            return;
+        }
+
+        setDeleting(true);
+        try {
+            await userService.deleteUserAccount(user.id);
+            showToast('Account deleted successfully. We\'re sorry to see you go.', 'success');
+            
+            // Log out
+            await supabase.auth.signOut();
+            // AppNavigator will automatically switch to AuthStack because session becomes null
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to delete account. Please try again.', 'error');
+            setDeleting(false);
+            setDeleteModalVisible(false);
+        }
     };
 
     const radiusOptions = [
@@ -209,6 +236,40 @@ export const SettingsScreen = ({ navigation }) => {
                     </View>
                 </TouchableOpacity>
 
+                <View style={styles.dangerZone}>
+                    <Text style={styles.dangerTitle}>Danger Zone</Text>
+                    <TouchableOpacity 
+                        style={styles.deleteButton}
+                        onPress={() => setDeleteModalVisible(true)}
+                    >
+                        <FontAwesome name="trash" size={16} color={theme.error} style={{ marginRight: 8 }} />
+                        <Text style={styles.deleteButtonText}>Delete My Account</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.dangerNote}>This action is permanent and cannot be undone.</Text>
+                </View>
+
+                <ConfirmationModal
+                    visible={deleteModalVisible}
+                    title="Delete Account?"
+                    message="This will permanently delete your profile, tasks, and history. Type DELETE below to confirm."
+                    confirmText={deleting ? "Deleting..." : "Permanently Delete"}
+                    type="danger"
+                    onConfirm={handleDeleteAccount}
+                    onCancel={() => {
+                        setDeleteModalVisible(false);
+                        setDeleteConfirmText('');
+                    }}
+                >
+                    <TextInput
+                        style={styles.deleteInput}
+                        placeholder="Type DELETE"
+                        placeholderTextColor={theme.textMuted}
+                        value={deleteConfirmText}
+                        onChangeText={setDeleteConfirmText}
+                        autoCapitalize="characters"
+                    />
+                </ConfirmationModal>
+
                 <View style={styles.footer}>
                     <Text style={styles.versionText}>Task Agent v1.0.0</Text>
                 </View>
@@ -326,5 +387,53 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     radiusTextActive: {
         color: theme.white,
+    },
+    dangerZone: {
+        marginTop: 40,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
+        backgroundColor: theme.isDarkMode ? 'rgba(239, 68, 68, 0.05)' : '#FEF2F2',
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.2)',
+        alignItems: 'center',
+    },
+    dangerTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: theme.error,
+        textTransform: 'uppercase',
+        marginBottom: Spacing.sm,
+    },
+    deleteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: Rounding.pill,
+        borderWidth: 1.5,
+        borderColor: theme.error,
+    },
+    deleteButtonText: {
+        color: theme.error,
+        fontWeight: '800',
+        fontSize: 14,
+    },
+    dangerNote: {
+        fontSize: 11,
+        color: theme.textMuted,
+        marginTop: Spacing.sm,
+        textAlign: 'center',
+    },
+    deleteInput: {
+        backgroundColor: theme.background,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: Rounding.standard,
+        padding: Spacing.md,
+        color: theme.text,
+        fontSize: 16,
+        fontWeight: '700',
+        textAlign: 'center',
+        marginTop: Spacing.sm,
     }
 });

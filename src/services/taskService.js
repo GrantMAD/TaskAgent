@@ -366,13 +366,15 @@ export const taskService = {
         return next;
     },
 
-    processRecurringTasks: async () => {
+    processRecurringTasks: async (userId) => {
+        if (!userId) return;
         try {
             const now = new Date().toISOString();
-            // Get all active templates where next_occurrence_at is due (lte now) or null (first time)
+            // Get templates FOR THIS USER where next_occurrence_at is due (lte now) or null (first time)
             const { data: templates, error: fetchError } = await supabase
                 .from('task_templates')
                 .select('*')
+                .eq('poster_id', userId)
                 .eq('is_active', true)
                 .or(`next_occurrence_at.lte.${now},next_occurrence_at.is.null`)
 

@@ -530,7 +530,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 {/* General View: Posted By */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Posted By</Text>
-                    {task.poster && (
+                    {task.poster ? (
                         <TouchableOpacity 
                             style={styles.posterCard}
                             onPress={() => navigation.navigate('PublicProfile', { userId: task.poster_id })}
@@ -542,6 +542,14 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                             </View>
                             <FontAwesome name="chevron-right" size={14} color={theme.border} />
                         </TouchableOpacity>
+                    ) : (
+                        <View style={styles.posterCard}>
+                            <UserAvatar user={{ name: 'Deleted User' }} size={50} />
+                            <View style={styles.posterInfo}>
+                                <Text style={styles.posterName}>Deleted User</Text>
+                                <Text style={styles.postedDate}>Account no longer exists</Text>
+                            </View>
+                        </View>
                     )}
                 </View>
 

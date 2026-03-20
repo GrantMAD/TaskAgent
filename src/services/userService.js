@@ -111,5 +111,28 @@ export const userService = {
             console.error('Error uploading avatar:', error);
             throw error;
         }
+    },
+    
+    // Account Deletion Orchestration
+    deleteUserAccount: async (userId) => {
+        try {
+            // 1. Delete Storage: avatars folder (User has permission to do this themselves)
+            const { data: files } = await supabase.storage.from('avatars').list(userId);
+            if (files && files.length > 0) {
+                await supabase.storage.from('avatars').remove(files.map(f => `${userId}/${f.name}`));
+            }
+
+            // 2. Call the PostgreSQL RPC function to handle all DB cleanup and Auth deletion
+            // We use RPC because it avoids the Edge Function '401 Unauthorized' gateway issues
+            // and runs with SECURITY DEFINER to bypass RLS.
+            const { error: rpcError } = await supabase.rpc('delete_user_account');
+
+            if (rpcError) throw rpcError;
+
+            return true;
+        } catch (error) {
+            console.error('Error in deleteUserAccount:', error);
+            throw error;
+        }
     }
 }

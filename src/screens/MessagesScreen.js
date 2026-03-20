@@ -160,7 +160,8 @@ export const MessagesScreen = ({ navigation }) => {
 
     const getOtherUser = (item) => {
         if (!userId) return { name: 'Neighbor' };
-        return item.user1_id === userId ? item.user2 : item.user1;
+        const user = item.user1_id === userId ? item.user2 : item.user1;
+        return user || { name: 'Deleted User', profile_image: null };
     };
 
     const formatMessageTime = (dateString) => {
@@ -222,7 +223,7 @@ export const MessagesScreen = ({ navigation }) => {
                                 <View style={styles.textContainer}>
                                     <View style={styles.rowHeader}>
                                         <Text style={[styles.otherUserName, hasUnread && styles.unreadText]} numberOfLines={1}>
-                                            {otherUser?.name || 'Neighbor'}
+                                            {otherUser?.name || 'Deleted User'}
                                         </Text>
                                         <Text style={styles.timeText}>
                                             {formatMessageTime(lastMsg?.created_at)}

@@ -270,7 +270,7 @@ export const CreateTaskScreen = ({ navigation }) => {
                 };
                 await taskService.createTaskTemplate(templateData);
                 // Trigger generation of the first instance
-                await taskService.processRecurringTasks();
+                await taskService.processRecurringTasks(session.user.id);
                 showToast('Recurring task series created!', 'success');
             } else {
                 await taskService.createTask(taskData);

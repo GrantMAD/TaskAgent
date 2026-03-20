@@ -124,7 +124,9 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
                      <FontAwesome name="times" size={24} color={theme.primary} />
                 </TouchableOpacity>
-                <Text style={styles.emptyText}>Profile not found</Text>
+                <FontAwesome name="user-times" size={60} color={theme.textMuted} style={{ marginBottom: 20 }} />
+                <Text style={[styles.emptyText, { fontSize: 20, fontWeight: '700', color: theme.primary }]}>Account no longer exists</Text>
+                <Text style={[styles.emptyText, { marginTop: 10 }]}>This user has deleted their profile.</Text>
             </View>
         );
     }
@@ -142,7 +144,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Profile</Text>
                 <View style={styles.headerRight}>
-                    {currentUserId && currentUserId !== userId && (
+                    {currentUserId && currentUserId !== userId && profile && (
                         <TouchableOpacity onPress={() => setReportModalVisible(true)} style={styles.headerAction}>
                             <FontAwesome name="flag" size={18} color={theme.white} />
                         </TouchableOpacity>

@@ -38,7 +38,8 @@ export const ChatScreen = ({ route, navigation }) => {
 
     const otherUser = useMemo(() => {
         if (!conversation || !userId) return null;
-        return conversation.user1_id === userId ? conversation.user2 : conversation.user1;
+        const user = conversation.user1_id === userId ? conversation.user2 : conversation.user1;
+        return user || { name: 'Deleted User', profile_image: null };
     }, [conversation, userId]);
 
     useEffect(() => {
@@ -263,7 +264,7 @@ export const ChatScreen = ({ route, navigation }) => {
                 <View style={styles.headerInfoContainer}>
                     <UserAvatar user={otherUser} size={36} />
                     <View style={styles.headerTextContainer}>
-                        <Text style={styles.headerTitle} numberOfLines={1}>{otherUser?.name || 'Neighbor'}</Text>
+                        <Text style={styles.headerTitle} numberOfLines={1}>{otherUser?.name || 'Deleted User'}</Text>
                     </View>
                 </View>
                 <View style={{ width: 40 }} />
