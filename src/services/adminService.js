@@ -256,5 +256,60 @@ export const adminService = {
         
         if (error) throw error;
         return data;
+    },
+
+    /**
+     * Get platform-wide reputation and trust analytics
+     */
+    getReputationAnalytics: async () => {
+        try {
+            // Fetch all users with at least one completed task to calculate reputation distribution
+            const { data: users, error: userError } = await supabase
+                .from('users')
+                .select('id, name, profile_image, rating, completed_tasks')
+                .gt('completed_tasks', 0)
+                .order('rating', { ascending: false })
+                .limit(100);
+
+            if (userError) throw userError;
+
+            // Note: Since reliability scores are calculated on-the-fly in the service,
+            // for global admin stats we'll sample the Top 10 users and calculate their 
+            // full reliability reports to show "Superstars"
+            const { reliabilityService } = require('./reliabilityService');
+            
+            const superstarPromises = users.slice(0, 5).map(async (u) => {
+                const report = await reliabilityService.getUserReliability(u.id);
+                return {
+                    ...u,
+                    reliability: report
+                };
+            });
+
+            const superstars = await Promise.all(superstarPromises);
+
+            // Calculate distribution based on Star Ratings (since we can't batch-calculate 
+            // 100+ composite scores efficiently without a DB function)
+            const distribution = {
+                exceptional: users.filter(u => u.rating >= 4.8).length,
+                high: users.filter(u => u.rating >= 4.0 && u.rating < 4.8).length,
+                consistent: users.filter(u => u.rating >= 3.0 && u.rating < 4.0).length,
+                low: users.filter(u => u.rating < 3.0).length
+            };
+
+            const avgRating = users.length > 0 
+                ? users.reduce((sum, u) => sum + u.rating, 0) / users.length 
+                : 0;
+
+            return {
+                avgRating: avgRating.toFixed(1),
+                totalActiveWorkers: users.length,
+                distribution,
+                superstars
+            };
+        } catch (error) {
+            console.error('Reputation Analytics Error:', error);
+            throw error;
+        }
     }
 };

@@ -10,6 +10,8 @@ import { messageService } from '../services/messageService';
 import { adminService } from '../services/adminService';
 import { UserAvatar } from './UserAvatar';
 import { CURRENCY_SYMBOL } from '../utils/constants';
+import { reliabilityService } from '../services/reliabilityService';
+import ReliabilityReport from './ReliabilityReport';
 
 export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
     const { theme, shadows } = useTheme();
@@ -23,6 +25,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
     const [resolvingReport, setResolvingReport] = useState(null); // { id, resolutionText }
     const [selectedUser, setSelectedUser] = useState(null);
     const [userStats, setUserStats] = useState(null);
+    const [reliability, setReliability] = useState(null);
     const [suspendingUser, setSuspendingUser] = useState(null); // { id, reason }
 
     useEffect(() => {
@@ -33,6 +36,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
             setResolvingReport(null);
             setSelectedUser(null);
             setUserStats(null);
+            setReliability(null);
             fetchData();
         }
     }, [visible, type]);
@@ -58,11 +62,16 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
 
     const fetchUserStats = async (userId) => {
         try {
-            const stats = await adminService.getUserStats(userId);
+            const [stats, reliabilityData] = await Promise.all([
+                adminService.getUserStats(userId),
+                reliabilityService.getUserReliability(userId)
+            ]);
             setUserStats(stats);
+            setReliability(reliabilityData);
         } catch (error) {
             console.error('Error fetching user stats:', error);
             setUserStats(null);
+            setReliability(null);
         }
     };
 
@@ -366,14 +375,6 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
 
         return (
             <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
-                <View style={[styles.detailHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-                    <TouchableOpacity onPress={() => setSelectedUser(null)} style={styles.backButton}>
-                        <FontAwesome name="chevron-left" size={20} color={theme.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.detailTitle, { color: theme.text }]}>User Profile</Text>
-                    <View style={{ width: 40 }} />
-                </View>
-
                 <ScrollView contentContainerStyle={styles.detailScroll}>
                     <View style={[styles.profileSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <UserAvatar user={selectedUser} size={80} />
@@ -391,6 +392,13 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
                             </View>
                         </View>
                     </View>
+
+                    {reliability && (
+                        <View style={styles.adminReliabilitySection}>
+                            <Text style={[styles.sectionHeading, { color: theme.textMuted, marginBottom: 8 }]}>Neighbor Trust Signals</Text>
+                            <ReliabilityReport reliability={reliability} />
+                        </View>
+                    )}
 
                     <View style={styles.actionSection}>
                         <Text style={[styles.sectionHeading, { color: theme.textMuted }]}>Administrative Actions</Text>
@@ -1013,5 +1021,8 @@ const styles = StyleSheet.create({
     userHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    adminReliabilitySection: {
+        marginBottom: Spacing.xl,
     }
 });

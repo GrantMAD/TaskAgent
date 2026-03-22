@@ -33,24 +33,16 @@ const ApplicantItem = ({ app, navigation, onMessage, onHire, theme, shadows }) =
         <View style={styles.applicantCard}>
             <View style={styles.applicantHeader}>
                 <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
-                    <UserAvatar user={app.worker} size={40} />
+                    <UserAvatar user={app.worker} size={44} />
                 </TouchableOpacity>
-                <View style={styles.applicantInfo}>
+                
+                <View style={styles.applicantMainInfo}>
                     <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: app.worker_id })}>
                         <Text style={styles.applicantName}>{app.worker.name}</Text>
                     </TouchableOpacity>
-                    <View style={styles.ratingRow}>
-                        <RatingStars rating={app.worker.rating || 5} size={12} />
-                        {loading ? (
-                            <ActivityIndicator size="small" color={theme.primary} style={{ marginLeft: 8 }} />
-                        ) : reliability && (
-                            <View style={styles.reliabilityBadgeSmall}>
-                                <FontAwesome name="shield" size={10} color={theme.primary} />
-                                <Text style={styles.reliabilityTextSmall}>{reliability.score}</Text>
-                            </View>
-                        )}
-                    </View>
+                    <RatingStars rating={app.worker.rating || 5} size={12} />
                 </View>
+
                 <View style={styles.actionButtons}>
                     <TouchableOpacity 
                         style={[styles.msgButtonSmall, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary }]}
@@ -65,6 +57,36 @@ const ApplicantItem = ({ app, navigation, onMessage, onHire, theme, shadows }) =
                         <Text style={styles.acceptButtonTextSmall}>Hire</Text>
                     </TouchableOpacity>
                 </View>
+            </View>
+
+            <View style={styles.metricsContainer}>
+                {!loading && reliability ? (
+                    <>
+                        <View style={styles.metricsRow}>
+                            <View style={styles.trustSignalItem}>
+                                <FontAwesome name="briefcase" size={10} color={theme.textMuted} />
+                                <Text style={styles.trustSignalText}>{app.worker.completed_tasks || 0} jobs done</Text>
+                            </View>
+                            <View style={styles.trustSignalItem}>
+                                <FontAwesome name="shield" size={10} color={theme.primary} />
+                                <Text style={styles.trustSignalText}>Score: {reliability.score}</Text>
+                            </View>
+                        </View>
+                        
+                        <View style={styles.metricsRow}>
+                            <View style={styles.trustSignalItem}>
+                                <FontAwesome name="bolt" size={10} color={theme.accent} />
+                                <Text style={styles.trustSignalText}>Replies {reliability.metrics.replyTime.label}</Text>
+                            </View>
+                            <View style={styles.trustSignalItem}>
+                                <FontAwesome name="check-circle" size={10} color={theme.success} />
+                                <Text style={styles.trustSignalText}>{reliability.metrics.completion.rate}% Done</Text>
+                            </View>
+                        </View>
+                    </>
+                ) : (
+                    loading && <ActivityIndicator size="small" color={theme.primary} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
+                )}
             </View>
             
             {app.message && (
@@ -139,34 +161,36 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    applicantInfo: {
+    applicantMainInfo: {
         flex: 1,
         marginLeft: Spacing.md,
+        justifyContent: 'center',
     },
     applicantName: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
         color: theme.text,
+        marginBottom: 2,
     },
-    ratingRow: {
+    metricsContainer: {
+        marginTop: Spacing.sm,
+        paddingLeft: 44 + Spacing.md,
+    },
+    metricsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 2,
+        marginBottom: 4,
     },
-    reliabilityBadgeSmall: {
+    trustSignalItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-        marginLeft: 8,
+        width: '50%', // Split row in half
     },
-    reliabilityTextSmall: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: theme.primary,
-        marginLeft: 4,
+    trustSignalText: {
+        fontSize: 11,
+        fontWeight: '500',
+        color: theme.textMuted,
+        marginLeft: 6,
     },
     applicantMessage: {
         fontSize: 13,

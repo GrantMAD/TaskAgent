@@ -81,7 +81,7 @@ export const taskService = {
     getTaskApplications: async (taskId) => {
         const { data, error } = await supabase
             .from('task_applications')
-            .select('*, worker:users!worker_id(id, name, profile_image, rating)')
+            .select('*, worker:users!worker_id(id, name, profile_image, rating, completed_tasks)')
             .eq('task_id', taskId)
         if (error) throw error
         return data

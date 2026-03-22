@@ -14,6 +14,7 @@ import { useAuth } from '../components/AuthContext';
 
 import { interactionService } from '../services/interactionService';
 import { reliabilityService } from '../services/reliabilityService';
+import ReliabilityReport from '../components/ReliabilityReport';
 
 export const ProfileScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -143,27 +144,9 @@ export const ProfileScreen = ({ navigation }) => {
 
             <View style={styles.content}>
                 {/* Reliability Insights */}
-                {reliability && reliability.metrics && (
+                {reliability && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>My Trust Signals</Text>
-                        <View style={[styles.card, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
-                            <View style={styles.trustSignal}>
-                                <FontAwesome name="bolt" size={14} color={theme.accent} style={{ width: 20 }} />
-                                <Text style={styles.trustText}>Replies {reliability.metrics.replyTime.label}</Text>
-                            </View>
-                            <View style={styles.trustSignal}>
-                                <FontAwesome name="check-circle" size={14} color={theme.success || '#10B981'} style={{ width: 20 }} />
-                                <Text style={styles.trustText}>{reliability.metrics.completion.rate}% Completion</Text>
-                            </View>
-                            <View style={styles.trustSignal}>
-                                <FontAwesome name="briefcase" size={14} color={theme.primary} style={{ width: 20 }} />
-                                <Text style={styles.trustText}>{reliability.metrics.hireRatio.hires} Hires</Text>
-                            </View>
-                            <View style={styles.trustSignal}>
-                                <FontAwesome name="calendar-times-o" size={14} color={theme.error} style={{ width: 20 }} />
-                                <Text style={styles.trustText}>{reliability.metrics.cancellation.rate}% Cancel Rate</Text>
-                            </View>
-                        </View>
+                        <ReliabilityReport reliability={reliability} />
                     </View>
                 )}
 

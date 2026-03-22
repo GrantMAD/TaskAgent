@@ -7,7 +7,7 @@ import { CURRENCY_SYMBOL } from '../utils/constants';
 
 const { width } = Dimensions.get('window');
 
-export const AdminAnalyticsSection = ({ analytics, categories, marketInsights }) => {
+export const AdminAnalyticsSection = ({ analytics, categories, marketInsights, reputation }) => {
     const { theme, shadows } = useTheme();
 
     if (!analytics || !categories) return null;
@@ -64,7 +64,57 @@ export const AdminAnalyticsSection = ({ analytics, categories, marketInsights })
                     icon="bolt" 
                     color="#F59E0B" 
                 />
+                {reputation && (
+                    <MetricPill 
+                        label="Global Avg Rating" 
+                        value={`${reputation.avgRating} / 5.0`} 
+                        icon="star" 
+                        color="#FCD34D" 
+                    />
+                )}
             </View>
+
+            {/* Reputation & Trust Section */}
+            {reputation && (
+                <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border, marginBottom: Spacing.lg }, shadows.medium]}>
+                    <Text style={[styles.chartTitle, { color: theme.text }]}>Trust & Reputation Distribution</Text>
+                    <View style={styles.distributionRow}>
+                        <View style={styles.distItem}>
+                            <Text style={[styles.distCount, { color: theme.success }]}>{reputation.distribution.exceptional}</Text>
+                            <Text style={[styles.distLabel, { color: theme.textMuted }]}>Exceptional (4.8+)</Text>
+                        </View>
+                        <View style={styles.distItem}>
+                            <Text style={[styles.distCount, { color: theme.primary }]}>{reputation.distribution.high}</Text>
+                            <Text style={[styles.distLabel, { color: theme.textMuted }]}>High (4.0+)</Text>
+                        </View>
+                        <View style={styles.distItem}>
+                            <Text style={[styles.distCount, { color: theme.accent }]}>{reputation.distribution.consistent}</Text>
+                            <Text style={[styles.distLabel, { color: theme.textMuted }]}>Consistent</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <Text style={[styles.chartTitle, { color: theme.text, marginTop: Spacing.md }]}>Superstar Neighbors</Text>
+                    {reputation.superstars.map((user, idx) => (
+                        <View key={user.id} style={styles.superstarRow}>
+                            <View style={styles.superstarInfo}>
+                                <Text style={styles.superstarRank}>{idx + 1}</Text>
+                                <View>
+                                    <Text style={[styles.superstarName, { color: theme.text }]}>{user.name}</Text>
+                                    <Text style={[styles.superstarDetail, { color: theme.textMuted }]}>
+                                        Score: {user.reliability?.score || 0} • {user.completed_tasks} jobs
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={[styles.superstarBadge, { backgroundColor: theme.primary + '15' }]}>
+                                <FontAwesome name="shield" size={10} color={theme.primary} />
+                                <Text style={[styles.superstarBadgeText, { color: theme.primary }]}>TOP TIER</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            )}
 
             {/* Popular Categories */}
             <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }, shadows.medium]}>
@@ -274,5 +324,66 @@ const styles = StyleSheet.create({
     gapBarFill: {
         height: '100%',
         borderRadius: 3,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        marginVertical: Spacing.md,
+    },
+    distributionRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: Spacing.sm,
+    },
+    distItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    distCount: {
+        fontSize: 18,
+        fontWeight: '900',
+    },
+    distLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        marginTop: 2,
+    },
+    superstarRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: Spacing.md,
+        paddingBottom: Spacing.xs,
+    },
+    superstarInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    superstarRank: {
+        fontSize: 14,
+        fontWeight: '900',
+        color: 'rgba(0,0,0,0.15)',
+        width: 25,
+    },
+    superstarName: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    superstarDetail: {
+        fontSize: 11,
+        fontWeight: '500',
+    },
+    superstarBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    superstarBadgeText: {
+        fontSize: 8,
+        fontWeight: '900',
+        marginLeft: 4,
     }
 });

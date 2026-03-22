@@ -16,54 +16,79 @@ export const reliabilityService = {
                 completionData,
                 cancellationData,
                 hireData,
-                replyData
+                replyData,
+                repeatData,
+                recentData,
+                streakData
             ] = await Promise.all([
                 reliabilityService.getCompletionRate(userId),
                 reliabilityService.getCancellationRate(userId),
                 reliabilityService.getHireRatio(userId),
-                reliabilityService.getAverageReplyTime(userId)
+                reliabilityService.getAverageReplyTime(userId),
+                reliabilityService.getRepeatHireRate(userId),
+                reliabilityService.getRecentPerformance(userId),
+                reliabilityService.getStreaks(userId)
             ]);
 
             // Calculate Composite Score (0-100)
-            // Weights: Completion (40%), Reply Speed (30%), Hire Ratio (20%), Low Cancellation (10%)
+            // Enhanced Weights: 
+            // - Completion Rate (30%)
+            // - Recent Performance (20%) - Rewards recent consistency
+            // - Reply Speed (20%)
+            // - Hire Ratio & Repeat Hires (20%)
+            // - Low Cancellation (10%)
             let compositeScore = 0;
             
-            // Completion (0-100% -> 0-40 points)
-            compositeScore += (completionData.rate / 100) * 40;
+            // 1. Completion (0-100% -> 0-30 points)
+            compositeScore += (completionData.rate / 100) * 30;
+
+            // 2. Recent Performance (0-100% -> 0-20 points)
+            // If no recent tasks, defaults to 85% (neutral-positive start)
+            const recentScore = recentData.total > 0 ? recentData.rate : 85;
+            compositeScore += (recentScore / 100) * 20;
             
-            // Reply Speed (0-100% based on speed -> 0-30 points)
-            // 100% = < 1 hour, 0% = > 48 hours
+            // 3. Reply Speed (0-100% based on speed -> 0-20 points)
             const speedScore = reliabilityService.calculateSpeedScore(replyData.averageMinutes);
-            compositeScore += (speedScore / 100) * 30;
+            compositeScore += (speedScore / 100) * 20;
             
-            // Hire Ratio (0-100% -> 0-20 points)
-            // Note: New users might have 0, so we normalize to 70% "potential" if no apps yet
+            // 4. Hire & Loyalty (0-100% -> 0-20 points)
+            // Combines general hire ratio (10pts) and repeat hire rate (10pts)
             const hireScore = hireData.total > 0 ? hireData.ratio : 70;
-            compositeScore += (hireScore / 100) * 20;
+            const repeatScore = repeatData.totalPosters > 1 ? (repeatData.repeatRate * 2) : 50; // Repeat hire is a strong signal
+            compositeScore += (hireScore / 100) * 10;
+            compositeScore += (Math.min(repeatScore, 100) / 100) * 10;
             
-            // Cancellation (Low is better: 0% = 10 pts, 100% = 0 pts)
+            // 5. Cancellation (Low is better: 0% = 10 pts, 100% = 0 pts)
             compositeScore += ((100 - cancellationData.rate) / 100) * 10;
 
+            // Bonus points for streaks (up to +5 pts)
+            if (streakData.current > 3) compositeScore += Math.min(streakData.current * 0.5, 5);
+
             return {
-                score: Math.round(compositeScore),
+                score: Math.min(Math.round(compositeScore), 100),
                 metrics: {
                     completion: completionData,
                     cancellation: cancellationData,
                     hireRatio: hireData,
-                    replyTime: replyData
+                    replyTime: replyData,
+                    loyalty: repeatData,
+                    recent: recentData,
+                    streak: streakData
                 },
                 label: reliabilityService.getScoreLabel(compositeScore)
             };
         } catch (error) {
             console.error('Reliability Service Error:', error);
-            // Return default metrics instead of null to ensure UI renders
             return {
-                score: 70,
+                score: 75,
                 metrics: {
                     completion: { rate: 100, total: 0, completed: 0 },
                     cancellation: { rate: 0, total: 0, cancelled: 0 },
                     hireRatio: { ratio: 0, total: 0, hires: 0 },
-                    replyTime: { averageMinutes: null, label: 'N/A' }
+                    replyTime: { averageMinutes: null, label: 'N/A' },
+                    loyalty: { repeatRate: 0, totalPosters: 0 },
+                    recent: { rate: 100, total: 0 },
+                    streak: { current: 0, best: 0 }
                 },
                 label: 'Building Trust'
             };
@@ -80,7 +105,7 @@ export const reliabilityService = {
             .eq('assigned_worker_id', userId);
 
         if (error) throw error;
-        if (!count) return { rate: 100, total: 0, completed: 0 }; // Neutral start
+        if (!count) return { rate: 100, total: 0, completed: 0 }; 
 
         const completed = data.filter(t => t.status === 'COMPLETED').length;
         return {
@@ -88,6 +113,89 @@ export const reliabilityService = {
             total: count,
             completed
         };
+    },
+
+    /**
+     * Recent Performance: Last 10 tasks completion rate
+     */
+    getRecentPerformance: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('status')
+            .eq('assigned_worker_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+        if (!data || data.length === 0) return { rate: 100, total: 0 };
+
+        const completed = data.filter(t => t.status === 'COMPLETED').length;
+        return {
+            rate: Math.round((completed / data.length) * 100),
+            total: data.length
+        };
+    },
+
+    /**
+     * Repeat Hire Rate: % of posters who hired this worker more than once
+     */
+    getRepeatHireRate: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('poster_id')
+            .eq('assigned_worker_id', userId)
+            .eq('status', 'COMPLETED');
+
+        if (error) throw error;
+        if (!data || data.length === 0) return { repeatRate: 0, totalPosters: 0, totalJobs: 0 };
+
+        const posterCounts = data.reduce((acc, task) => {
+            acc[task.poster_id] = (acc[task.poster_id] || 0) + 1;
+            return acc;
+        }, {});
+
+        const uniquePosters = Object.keys(posterCounts).length;
+        const repeatPosters = Object.values(posterCounts).filter(count => count > 1).length;
+
+        return {
+            repeatRate: uniquePosters > 0 ? Math.round((repeatPosters / uniquePosters) * 100) : 0,
+            totalPosters: uniquePosters,
+            totalJobs: data.length
+        };
+    },
+
+    /**
+     * Streaks: Consecutive completed tasks without cancellation
+     */
+    getStreaks: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('status')
+            .eq('assigned_worker_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (!data || data.length === 0) return { current: 0, best: 0 };
+
+        let current = 0;
+        let best = 0;
+        let countingCurrent = true;
+        let tempStreak = 0;
+
+        // Process in reverse (oldest to newest for best streak, newest to oldest for current)
+        for (const task of data) {
+            if (task.status === 'COMPLETED') {
+                tempStreak++;
+                if (countingCurrent) current++;
+            } else {
+                countingCurrent = false;
+                if (tempStreak > best) best = tempStreak;
+                tempStreak = 0;
+            }
+        }
+        if (tempStreak > best) best = tempStreak;
+
+        return { current, best };
     },
 
     /**
