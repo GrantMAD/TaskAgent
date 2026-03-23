@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
@@ -24,29 +24,51 @@ export const HomeScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState(null);
     const [rotatedTips, setRotatedTips] = useState([]);
+    
+    // Refs to track current lists for the realtime listener without causing loops
+    const myPostedTasksRef = useRef([]);
+    const myGigsRef = useRef([]);
+    
+    useEffect(() => {
+        myPostedTasksRef.current = myPostedTasks;
+    }, [myPostedTasks]);
+
+    useEffect(() => {
+        myGigsRef.current = myGigs;
+    }, [myGigs]);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     useEffect(() => {
-        fetchAllData();
         checkLocationPermission();
         rotateTips();
+    }, [session]);
+
+    useEffect(() => {
+        fetchAllData();
 
         // Subscribe to real-time task updates
         let subscription;
         const setupSubscription = async () => {
             if (session) {
-                subscription = taskService.subscribeToTasks((payload) => {
+                // Use a unique channel for Home to avoid conflicts with other screens
+                subscription = taskService.subscribeToTasks('home_tasks_channel', (payload) => {
                     const userId = session.user.id;
                     const { new: newRecord, old: oldRecord } = payload;
+                    const changedId = newRecord?.id || oldRecord?.id;
                     
-                    // Refresh if any of my tasks changed
-                    if (
+                    // Slightly broader refresh logic for the home screen to be extra safe
+                    const isRelevant = (
                         newRecord?.poster_id === userId || 
                         newRecord?.assigned_worker_id === userId ||
                         oldRecord?.poster_id === userId || 
-                        oldRecord?.assigned_worker_id === userId
-                    ) {
+                        oldRecord?.assigned_worker_id === userId ||
+                        myPostedTasksRef.current.some(t => t.id === changedId) ||
+                        myGigsRef.current.some(t => t.id === changedId) ||
+                        !newRecord // Handles DELETEs more reliably
+                    );
+
+                    if (isRelevant) {
                         fetchAllData();
                     }
                 });
@@ -60,7 +82,15 @@ export const HomeScreen = ({ navigation }) => {
                 supabase.removeChannel(subscription);
             }
         };
-    }, [session]); // Added session to dependency array to re-run subscription setup if session changes
+    }, [session]); 
+
+    // Reliable fallback: refresh when the screen comes into focus
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchAllData();
+        });
+        return unsubscribe;
+    }, [navigation]);
 
     const checkLocationPermission = async () => {
         try {
@@ -120,6 +150,7 @@ export const HomeScreen = ({ navigation }) => {
     const onRefresh = () => {
         setRefreshing(true);
         fetchAllData();
+        rotateTips(); // Manually rotate on pull-to-refresh
     };
 
     return (

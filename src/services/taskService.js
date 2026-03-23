@@ -53,8 +53,38 @@ export const taskService = {
         const sanitizedData = sanitizeObject(taskData, ['title', 'description', 'address']);
 
         const { data, error } = await supabase.from('tasks').insert([sanitizedData]).select()
-        if (error) throw error
-        return data[0]
+        if (error) throw error;
+
+        const newTask = data[0];
+
+        // --- SKILL-BASED NOTIFICATIONS ---
+        // Fire and forget notifying matching workers asynchronously to not block task creation
+        try {
+            // Find users who have this task's category in their skills array
+            // And aren't the poster themselves
+            const { data: matchingUsers } = await supabase
+                .from('users')
+                .select('id')
+                .contains('skills', [newTask.category])
+                .neq('id', newTask.poster_id)
+                .limit(20);
+
+            if (matchingUsers && matchingUsers.length > 0) {
+                const notifications = matchingUsers.map(user => ({
+                    user_id: user.id,
+                    title: 'Perfect Match! 🎯',
+                    message: `A new ${newTask.category} task was just posted nearby: ${newTask.title}`,
+                    type: 'PERFECT_MATCH',
+                    related_id: newTask.id
+                }));
+
+                await supabase.from('notifications').insert(notifications);
+            }
+        } catch (matchError) {
+            console.warn('Silent error sending skill notifications:', matchError);
+        }
+
+        return newTask;
     },
 
     getNearbyTasks: async () => {
@@ -103,7 +133,7 @@ export const taskService = {
             .from('tasks')
             .select('*, worker:users!assigned_worker_id(id, name, profile_image, rating)')
             .eq('poster_id', posterId)
-            .in('status', ['ASSIGNED', 'PENDING_CONFIRMATION'])
+            .in('status', ['OPEN', 'ASSIGNED', 'PENDING_CONFIRMATION'])
             .order('created_at', { ascending: false })
         if (error) throw error
         return data
@@ -610,9 +640,9 @@ export const taskService = {
         }
     },
 
-    subscribeToTasks: (callback) => {
+    subscribeToTasks: (channelName, callback) => {
         return supabase
-            .channel('tasks_channel')
+            .channel(channelName)
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',

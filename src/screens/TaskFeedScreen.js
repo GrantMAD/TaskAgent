@@ -100,7 +100,7 @@ export const TaskFeedScreen = ({ navigation }) => {
         fetchTasks();
 
         // Subscribe to real-time task updates
-        const subscription = taskService.subscribeToTasks((payload) => {
+        const subscription = taskService.subscribeToTasks('feed_tasks_channel', (payload) => {
             // Check if it's a new task or a status change that might affect the feed
             // (e.g., a task becomes OPEN or is no longer OPEN)
             if (

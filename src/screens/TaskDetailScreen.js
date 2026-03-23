@@ -93,7 +93,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         fetchTaskDetails();
 
         // Subscribe to task changes
-        const taskSubscription = taskService.subscribeToTasks((payload) => {
+        const taskSubscription = taskService.subscribeToTasks(`task_detail_channel_${taskId}`, (payload) => {
             if (payload.new?.id === taskId || payload.old?.id === taskId) {
                 fetchTaskDetails();
             }
