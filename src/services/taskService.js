@@ -589,6 +589,27 @@ export const taskService = {
         }
     },
 
+    getFairPriceEstimate: async (category) => {
+        try {
+            const { data, error } = await supabase
+                .from('tasks')
+                .select('payment_amount')
+                .eq('category', category)
+                .eq('status', 'COMPLETED')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            if (!data || data.length === 0) return null;
+
+            const sum = data.reduce((acc, task) => acc + (Number(task.payment_amount) || 0), 0);
+            return Math.round(sum / data.length);
+        } catch (error) {
+            console.error('Error fetching fair price estimate:', error);
+            return null;
+        }
+    },
+
     subscribeToTasks: (callback) => {
         return supabase
             .channel('tasks_channel')

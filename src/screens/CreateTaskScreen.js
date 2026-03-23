@@ -30,6 +30,10 @@ export const CreateTaskScreen = ({ navigation }) => {
     const [isRecurring, setIsRecurring] = useState(false);
     const [frequency, setFrequency] = useState('weekly');
 
+    // Fair-Price Estimator State
+    const [fairPriceEstimate, setFairPriceEstimate] = useState(null);
+    const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
+
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -80,6 +84,20 @@ export const CreateTaskScreen = ({ navigation }) => {
             }
         };
     }, [isModalVisible, navigation]);
+
+    useEffect(() => {
+        const fetchEstimate = async () => {
+            if (!category) {
+                setFairPriceEstimate(null);
+                return;
+            }
+            setIsEstimatingPrice(true);
+            const estimate = await taskService.getFairPriceEstimate(category);
+            setFairPriceEstimate(estimate);
+            setIsEstimatingPrice(false);
+        };
+        fetchEstimate();
+    }, [category]);
 
     const handleAddressChange = async (text) => {
         setAddress(text);
@@ -420,6 +438,16 @@ export const CreateTaskScreen = ({ navigation }) => {
                                     onChangeText={setPaymentAmount}
                                     keyboardType="numeric"
                                 />
+                                {isEstimatingPrice ? (
+                                    <View style={styles.estimateContainer}>
+                                        <ActivityIndicator size="small" color={theme.textMuted} />
+                                        <Text style={styles.estimateText}>Calculating fair price...</Text>
+                                    </View>
+                                ) : fairPriceEstimate ? (
+                                    <View style={styles.estimateContainer}>
+                                        <Text style={styles.estimateText}>💡 Similar tasks average <Text style={styles.estimateHighlight}>{CURRENCY_SYMBOL}{fairPriceEstimate}</Text></Text>
+                                    </View>
+                                ) : null}
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -746,6 +774,22 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         position: 'absolute',
         right: 15,
         top: 15,
+    },
+    estimateContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: Spacing.sm,
+        paddingHorizontal: 4,
+    },
+    estimateText: {
+        fontSize: 12,
+        color: theme.textMuted,
+        marginLeft: 4,
+        fontWeight: '500',
+    },
+    estimateHighlight: {
+        color: theme.primary,
+        fontWeight: '700',
     },
     suggestionsContainer: {
         backgroundColor: theme.card,
