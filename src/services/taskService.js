@@ -131,12 +131,16 @@ export const taskService = {
     getMyPostedTasks: async (posterId) => {
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, worker:users!assigned_worker_id(id, name, profile_image, rating)')
+            .select(`
+                *,
+                worker:users!assigned_worker_id(id, name, profile_image, rating)
+            `)
             .eq('poster_id', posterId)
             .in('status', ['OPEN', 'ASSIGNED', 'PENDING_CONFIRMATION'])
-            .order('created_at', { ascending: false })
-        if (error) throw error
-        return data
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return data;
     },
 
     getTaskHistory: async (userId) => {
@@ -244,6 +248,32 @@ export const taskService = {
         return data
     },
 
+    cancelApplication: async (taskId, workerId) => {
+        const { data: task, error: fetchError } = await supabase
+            .from('tasks')
+            .select('poster_id, title')
+            .eq('id', taskId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+
+        const { error } = await supabase
+            .from('task_applications')
+            .delete()
+            .eq('task_id', taskId)
+            .eq('worker_id', workerId);
+        
+        if (error) throw error;
+
+        await notificationService.createNotification(
+            task.poster_id,
+            'Application Withdrawn',
+            `A worker has withdrawn their application for "${task.title}".`,
+            'WITHDRAWAL',
+            taskId
+        );
+    },
+
     assignWorker: async (taskId, workerId) => {
         // Fetch title for notification
         const { data: task, error: fetchError } = await supabase
@@ -329,12 +359,52 @@ export const taskService = {
     },
 
     cancelTask: async (taskId) => {
-        const { data, error } = await supabase
-            .from('tasks')
-            .update({ status: 'CANCELLED' })
-            .eq('id', taskId)
-        if (error) throw error
-        return data
+        try {
+            // 1. Get task details and applicants
+            const { data: task, error: taskError } = await supabase
+                .from('tasks')
+                .select('title, poster_id')
+                .eq('id', taskId)
+                .single();
+
+            if (taskError) throw taskError;
+
+            const { data: applicants, error: appError } = await supabase
+                .from('task_applications')
+                .select('worker_id')
+                .eq('task_id', taskId);
+
+            if (appError) throw appError;
+
+            // 2. Notify all applicants
+            if (applicants && applicants.length > 0) {
+                const notifications = applicants.map(app => ({
+                    user_id: app.worker_id,
+                    title: 'Task Cancelled',
+                    message: `The task "${task.title}" has been cancelled by the poster.`,
+                    type: 'task_cancelled',
+                    related_id: taskId
+                }));
+
+                const { error: notifyError } = await supabase
+                    .from('notifications')
+                    .insert(notifications);
+
+                if (notifyError) console.error('Error notifying applicants:', notifyError);
+            }
+
+            // 3. Update task status
+            const { data, error } = await supabase
+                .from('tasks')
+                .update({ status: 'CANCELLED' })
+                .eq('id', taskId);
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error in cancelTask:', error);
+            throw error;
+        }
     },
 
     // Recurring Tasks

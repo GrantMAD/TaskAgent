@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -56,9 +56,11 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
-    const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', 'APPROVE', or 'CANCEL'
+    const [modalType, setModalVisibleType] = useState('HIRE'); // 'HIRE', 'COMPLETE', 'APPROVE', 'CANCEL', or 'WITHDRAW'
     const [selectedApplicant, setSelectedApplicant] = useState(null);
     const [completionImage, setCompletionImage] = useState(null);
+    const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+    const scrollRef = useRef(null);
 
     const pickCompletionImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -181,7 +183,11 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setLoading(true);
             await taskService.applyForTask(taskId, session.user.id, message);
             showToast('Application submitted successfully!', 'success');
+            setShowSuccessBanner(true);
             fetchTaskDetails(); // Refresh to update button state
+            setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }, 300);
         } catch (error) {
             if (error.code === 'RATE_LIMIT_EXCEEDED') {
                 showToast('Slow down! You can only apply once per minute.', 'warning');
@@ -279,8 +285,30 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             handleConfirmComplete();
         } else if (modalType === 'CANCEL') {
             handleConfirmCancel();
+        } else if (modalType === 'WITHDRAW') {
+            handleConfirmWithdraw();
         } else {
             handleConfirmApprove();
+        }
+    };
+
+    const handleCancelApplication = () => {
+        setModalVisibleType('WITHDRAW');
+        setModalVisible(true);
+    };
+
+    const handleConfirmWithdraw = async () => {
+        setModalVisible(false);
+        setLoading(true);
+        try {
+            await taskService.cancelApplication(taskId, session.user.id);
+            showToast('Application withdrawn', 'info');
+            setShowSuccessBanner(false);
+            fetchTaskDetails();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -430,6 +458,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             </LinearGradient>
 
             <ScrollView 
+                ref={scrollRef}
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
                 refreshControl={
@@ -441,6 +470,32 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     />
                 }
             >
+                {showSuccessBanner && (
+                    <View style={styles.successBanner}>
+                        <LinearGradient
+                            colors={['#10B981', '#059669']}
+                            style={styles.successBannerGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        >
+                            <View style={styles.successIconContainer}>
+                                <FontAwesome name="check-circle" size={24} color="#FFF" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.successBannerTitle}>Application Sent!</Text>
+                                <Text style={styles.successBannerText}>
+                                    The poster has been notified. Check your messages for updates.
+                                </Text>
+                            </View>
+                            <TouchableOpacity 
+                                onPress={() => setShowSuccessBanner(false)}
+                                style={styles.successBannerClose}
+                            >
+                                <FontAwesome name="times" size={16} color="#FFF" />
+                            </TouchableOpacity>
+                        </LinearGradient>
+                    </View>
+                )}
                 <View style={styles.titleSection}>
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryText}>{task.category}</Text>
@@ -565,6 +620,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     onConfirmCompletion={triggerApproveModal}
                     onMarkAsComplete={triggerCompleteModal}
                     onCancel={triggerCancelModal}
+                    onCancelApplication={handleCancelApplication}
                 />
 
                 {/* Informational Badges */}
@@ -581,21 +637,24 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     modalType === 'HIRE' ? "Hire Applicant" : 
                     modalType === 'COMPLETE' ? "Mark Task Complete" : 
                     modalType === 'CANCEL' ? "Cancel Task" :
+                    modalType === 'WITHDRAW' ? "Withdraw Application" :
                     "Confirm Completion"
                 }
                 message={
                     modalType === 'HIRE' ? `Are you sure you want to hire ${selectedApplicant?.name} for this task?` : 
                     modalType === 'COMPLETE' ? "Are you finished with this task? This will notify the poster to confirm." : 
-                    modalType === 'CANCEL' ? "Are you sure you want to cancel this task? It will be removed from the feed." :
+                    modalType === 'CANCEL' ? "Are you sure you want to cancel this task? Any current applicants will be notified." :
+                    modalType === 'WITHDRAW' ? "Are you sure you want to withdraw your application? The poster will be notified." :
                     "Has the work been completed to your satisfaction? This will officially close the task."
                 }
                 confirmText={
                     modalType === 'HIRE' ? "Approve" : 
                     modalType === 'COMPLETE' ? "Submit Work" : 
-                    modalType === 'CANCEL' ? "Yes, Cancel" :
+                    modalType === 'CANCEL' ? "Yes, Cancel Task" :
+                    modalType === 'WITHDRAW' ? "Withdraw" :
                     "Approve & Close"
                 }
-                type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : modalType === 'CANCEL' ? 'error' : 'primary'}
+                type={modalType === 'COMPLETE' || modalType === 'APPROVE' ? 'success' : (modalType === 'CANCEL' || modalType === 'WITHDRAW') ? 'danger' : 'primary'}
                 onConfirm={handleModalConfirm}
                 onCancel={() => {
                     setModalVisible(false);
@@ -798,7 +857,49 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     description: {
         fontSize: 16,
         color: theme.text,
-        lineHeight: 24,
+    },
+    successBanner: {
+        margin: Spacing.lg,
+        borderRadius: Rounding.soft,
+        overflow: 'hidden',
+        elevation: 8,
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    successBannerGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing.lg,
+    },
+    successIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: Spacing.md,
+    },
+    successBannerTitle: {
+        color: '#FFF',
+        fontSize: 18,
+        fontWeight: '900',
+        marginBottom: 2,
+    },
+    successBannerText: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    successBannerClose: {
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 10,
     },
     addressText: {
         fontSize: 16,

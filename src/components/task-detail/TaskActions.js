@@ -14,7 +14,8 @@ export const TaskActions = ({
     onMessagePoster, 
     onConfirmCompletion, 
     onMarkAsComplete,
-    onCancel
+    onCancel,
+    onCancelApplication
 }) => {
     const { theme, shadows } = useTheme();
     const styles = createStyles(theme, shadows);
@@ -44,23 +45,40 @@ export const TaskActions = ({
                 </TouchableOpacity>
             )}
 
-            {/* Tasker Action: Apply */}
+            {/* Tasker Action: Apply / Withdraw */}
             {!isPoster && !isWorker && task.status === 'OPEN' && (
-                <TouchableOpacity 
-                    style={[styles.applyButton, hasApplied && styles.disabledButton]} 
-                    onPress={onApply}
-                    disabled={hasApplied}
-                >
-                    <FontAwesome 
-                        name={hasApplied ? "clock-o" : "check-circle"} 
-                        size={18} 
-                        color={theme.white} 
-                        style={styles.buttonIcon} 
-                    />
-                    <Text style={styles.applyButtonText}>
-                        {hasApplied ? 'Waiting for Approval' : 'Apply for Task'}
-                    </Text>
-                </TouchableOpacity>
+                <View>
+                    <TouchableOpacity 
+                        style={[styles.applyButton, hasApplied && styles.disabledButton]} 
+                        onPress={onApply}
+                        disabled={hasApplied}
+                        activeOpacity={0.7}
+                    >
+                        <FontAwesome 
+                            name={hasApplied ? "clock-o" : "check-circle"} 
+                            size={18} 
+                            color={theme.white} 
+                            style={styles.buttonIcon} 
+                        />
+                        <Text style={styles.applyButtonText}>
+                            {hasApplied ? 'Waiting for Approval' : 'Apply for Task'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {hasApplied && (
+                        <TouchableOpacity 
+                            style={styles.withdrawButton} 
+                            onPress={() => {
+                                console.log('Withdraw pressed');
+                                onCancelApplication();
+                            }}
+                            activeOpacity={0.6}
+                        >
+                            <FontAwesome name="undo" size={14} color={theme.textMuted} style={styles.buttonIcon} />
+                            <Text style={styles.withdrawButtonText}>Withdraw Application</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             )}
 
             {/* Universal Action: Message */}
@@ -145,5 +163,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     buttonIcon: {
         marginRight: 10,
+    },
+    withdrawButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: Spacing.md,
+        marginTop: -Spacing.xs,
+        marginBottom: Spacing.md,
+        borderRadius: Rounding.pill,
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderStyle: 'dashed',
+    },
+    withdrawButtonText: {
+        color: theme.textMuted,
+        fontSize: 14,
+        fontWeight: '700',
     },
 });
