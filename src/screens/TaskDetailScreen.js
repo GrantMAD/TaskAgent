@@ -143,11 +143,18 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         }
     };
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
+    const formatDate = (dateString = '') => {
+        if (!dateString) return 'recently';
+        // Ensure date string is treated as UTC if it doesn't specify a timezone
+        const utcDateString = (dateString.includes('T') && !dateString.endsWith('Z') && !dateString.includes('+')) 
+            ? `${dateString}Z` 
+            : dateString;
+        const date = new Date(utcDateString);
         const now = new Date();
-        const diffInSeconds = Math.floor((now - date) / 1000);
+        // Supabase created_at is UTC, so we compare UTC times to avoid local timezone offsets
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
         
+        // If the difference is negative or very small (due to slight clock drift), show "Just now"
         if (diffInSeconds < 60) return 'Just now';
         if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
         if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;

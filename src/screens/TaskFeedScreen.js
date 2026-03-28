@@ -84,7 +84,9 @@ export const TaskFeedScreen = ({ navigation }) => {
                 return distA - distB;
             } else {
                 // Default: Newest
-                return new Date(b.created_at) - new Date(a.created_at);
+                const dateA = new Date(a.created_at?.includes('T') && !a.created_at.endsWith('Z') && !a.created_at.includes('+') ? `${a.created_at}Z` : a.created_at);
+                const dateB = new Date(b.created_at?.includes('T') && !b.created_at.endsWith('Z') && !b.created_at.includes('+') ? `${b.created_at}Z` : b.created_at);
+                return dateB - dateA;
             }
         });
     }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters, showSavedOnly, savedTaskIds]);

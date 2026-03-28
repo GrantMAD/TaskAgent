@@ -20,6 +20,7 @@ export const HomeScreen = ({ navigation }) => {
     const { session } = useAuth();
     const [myGigs, setMyGigs] = useState([]);
     const [myPostedTasks, setMyPostedTasks] = useState([]);
+    const [appliedTasks, setAppliedTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState(null);
@@ -28,6 +29,7 @@ export const HomeScreen = ({ navigation }) => {
     // Refs to track current lists for the realtime listener without causing loops
     const myPostedTasksRef = useRef([]);
     const myGigsRef = useRef([]);
+    const appliedTasksRef = useRef([]);
     
     useEffect(() => {
         myPostedTasksRef.current = myPostedTasks;
@@ -36,6 +38,10 @@ export const HomeScreen = ({ navigation }) => {
     useEffect(() => {
         myGigsRef.current = myGigs;
     }, [myGigs]);
+
+    useEffect(() => {
+        appliedTasksRef.current = appliedTasks;
+    }, [appliedTasks]);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -49,15 +55,17 @@ export const HomeScreen = ({ navigation }) => {
 
         // Subscribe to real-time task updates
         let subscription;
-        const setupSubscription = async () => {
+        let appSubscription;
+        
+        const setupSubscriptions = async () => {
             if (session) {
-                // Use a unique channel for Home to avoid conflicts with other screens
+                const userId = session.user.id;
+                
+                // 1. Task Table Subscription
                 subscription = taskService.subscribeToTasks('home_tasks_channel', (payload) => {
-                    const userId = session.user.id;
                     const { new: newRecord, old: oldRecord } = payload;
                     const changedId = newRecord?.id || oldRecord?.id;
                     
-                    // Slightly broader refresh logic for the home screen to be extra safe
                     const isRelevant = (
                         newRecord?.poster_id === userId || 
                         newRecord?.assigned_worker_id === userId ||
@@ -65,22 +73,37 @@ export const HomeScreen = ({ navigation }) => {
                         oldRecord?.assigned_worker_id === userId ||
                         myPostedTasksRef.current.some(t => t.id === changedId) ||
                         myGigsRef.current.some(t => t.id === changedId) ||
-                        !newRecord // Handles DELETEs more reliably
+                        appliedTasksRef.current.some(t => t.id === changedId) ||
+                        !newRecord
                     );
 
                     if (isRelevant) {
                         fetchAllData();
                     }
                 });
+
+                // 2. Task Applications Table Subscription
+                appSubscription = supabase
+                    .channel('home_applications_channel')
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'task_applications'
+                    }, (payload) => {
+                        const { new: newRecord, old: oldRecord } = payload;
+                        if (newRecord?.worker_id === userId || oldRecord?.worker_id === userId) {
+                            fetchAllData();
+                        }
+                    })
+                    .subscribe();
             }
         };
 
-        setupSubscription();
+        setupSubscriptions();
 
         return () => {
-            if (subscription) {
-                supabase.removeChannel(subscription);
-            }
+            if (subscription) supabase.removeChannel(subscription);
+            if (appSubscription) supabase.removeChannel(appSubscription);
         };
     }, [session]); 
 
@@ -131,13 +154,16 @@ export const HomeScreen = ({ navigation }) => {
                     .single();
                 setProfile(userData);
 
-                // 1. Get Tasks I'm Hired For (Worker Role)
-                const gigsData = await taskService.getMyAssignedTasks(session.user.id);
-                setMyGigs(gigsData);
+                // Fetch all task lists in parallel
+                const [gigsData, postedData, appliedData] = await Promise.all([
+                    taskService.getMyAssignedTasks(session.user.id),
+                    taskService.getMyPostedTasks(session.user.id),
+                    taskService.getAppliedTasks(session.user.id)
+                ]);
 
-                // 2. Get Tasks I Created (Poster Role)
-                const postedData = await taskService.getMyPostedTasks(session.user.id);
+                setMyGigs(gigsData);
                 setMyPostedTasks(postedData);
+                setAppliedTasks(appliedData);
             }
         } catch (error) {
             console.error(error);
@@ -211,7 +237,7 @@ export const HomeScreen = ({ navigation }) => {
             ) : (
                 <>
                     {/* In Progress Sections */}
-                    {(myPostedTasks.length > 0 || myGigs.length > 0) ? (
+                    {(myPostedTasks.length > 0 || myGigs.length > 0 || appliedTasks.length > 0) ? (
                         <>
                             {myPostedTasks.length > 0 && (
                                 <View style={styles.section}>
@@ -220,6 +246,22 @@ export const HomeScreen = ({ navigation }) => {
                                         <Text style={styles.sectionTitle}>My Active Postings</Text>
                                     </View>
                                     {myPostedTasks.map((item) => (
+                                        <TaskCard
+                                            key={item.id}
+                                            task={item}
+                                            onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+
+                            {appliedTasks.length > 0 && (
+                                <View style={styles.section}>
+                                    <View style={styles.sectionHeader}>
+                                        <FontAwesome name="send" size={18} color={theme.primary} style={styles.headerIcon} />
+                                        <Text style={styles.sectionTitle}>My Applications</Text>
+                                    </View>
+                                    {appliedTasks.map((item) => (
                                         <TaskCard
                                             key={item.id}
                                             task={item}

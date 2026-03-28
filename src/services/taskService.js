@@ -50,7 +50,9 @@ export const taskService = {
         }
 
         // Sanitize inputs
-        const sanitizedData = sanitizeObject(taskData, ['title', 'description', 'address']);
+        const sanitizedData = {
+            ...sanitizeObject(taskData, ['title', 'description', 'address'])
+        };
 
         const { data, error } = await supabase.from('tasks').insert([sanitizedData]).select()
         if (error) throw error;
@@ -141,6 +143,30 @@ export const taskService = {
         
         if (error) throw error;
         return data;
+    },
+
+    getAppliedTasks: async (workerId) => {
+        const { data, error } = await supabase
+            .from('task_applications')
+            .select(`
+                task:tasks(
+                    *,
+                    poster:users!poster_id(id, name, profile_image, rating)
+                )
+            `)
+            .eq('worker_id', workerId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        return (data || [])
+            .map(item => item.task)
+            .filter(task => 
+                task && 
+                task.status !== 'COMPLETED' && 
+                task.status !== 'CANCELLED' &&
+                task.assigned_worker_id !== workerId
+            );
     },
 
     getTaskHistory: async (userId) => {

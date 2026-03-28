@@ -71,7 +71,8 @@ const commonStackOptions = {
 const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
+    // Supabase created_at is UTC, so we compare UTC times to avoid local timezone offsets
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
