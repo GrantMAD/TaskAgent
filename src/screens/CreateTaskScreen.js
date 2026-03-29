@@ -12,9 +12,11 @@ import { TASK_CATEGORIES, CURRENCY_SYMBOL } from '../utils/constants';
 import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
 import { useAuth } from '../components/AuthContext';
 
-export const CreateTaskScreen = ({ navigation }) => {
+export const CreateTaskScreen = ({ navigation, route }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
+    const { taskId, isEditing } = route.params || {};
+
     // Form State
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -24,6 +26,7 @@ export const CreateTaskScreen = ({ navigation }) => {
     const [locationLat, setLocationLat] = useState(null);
     const [locationLng, setLocationLng] = useState(null);
     const [image, setImage] = useState(null);
+    const [existingImageUrl, setExistingImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Recurring Task State
@@ -33,6 +36,32 @@ export const CreateTaskScreen = ({ navigation }) => {
     // Fair-Price Estimator State
     const [fairPriceEstimate, setFairPriceEstimate] = useState(null);
     const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
+
+    // Fetch Task Details if Editing
+    useEffect(() => {
+        if (isEditing && taskId) {
+            const fetchTaskForEdit = async () => {
+                setLoading(true);
+                try {
+                    const task = await taskService.getTaskDetails(taskId);
+                    setTitle(task.title);
+                    setDescription(task.description);
+                    setCategory(task.category);
+                    setPaymentAmount(task.payment_amount.toString());
+                    setAddress(task.address);
+                    setLocationLat(task.location_lat);
+                    setLocationLng(task.location_lng);
+                    setExistingImageUrl(task.image_url);
+                    setIsModalVisible(true); // Open form automatically when editing
+                } catch (error) {
+                    showToast('Could not load task for editing', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchTaskForEdit();
+        }
+    }, [isEditing, taskId]);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -262,7 +291,7 @@ export const CreateTaskScreen = ({ navigation }) => {
         try {
             if (!session) throw new Error('Not logged in');
 
-            let imageUrl = null;
+            let imageUrl = existingImageUrl;
             if (image) {
                 imageUrl = await taskService.uploadTaskImage(image, session.user.id);
             }
@@ -279,7 +308,10 @@ export const CreateTaskScreen = ({ navigation }) => {
                 image_url: imageUrl
             };
 
-            if (isRecurring) {
+            if (isEditing && taskId) {
+                await taskService.updateTask(taskId, taskData);
+                showToast('Task updated successfully!', 'success');
+            } else if (isRecurring) {
                 const templateData = {
                     ...taskData,
                     frequency,
@@ -304,18 +336,23 @@ export const CreateTaskScreen = ({ navigation }) => {
             setLocationLat(null);
             setLocationLng(null);
             setImage(null);
+            setExistingImageUrl(null);
             setIsRecurring(false);
             setFrequency('weekly');
             setIsModalVisible(false);
 
-            // Redirect to Jobs screen
-            navigation.navigate('TasksTab');
+            // Redirect back if editing, otherwise to Jobs screen
+            if (isEditing) {
+                navigation.goBack();
+            } else {
+                navigation.navigate('TasksTab');
+            }
             
         } catch (error) {
             if (error.code === 'TASK_LIMIT_EXCEEDED') {
-                showToast('You have reached the limit of 5 active tasks.', 'warning');
+                showToast(error.message, 'warning');
             } else {
-                showToast(error.message, 'error');
+                showToast(error.message || 'Could not post task. Please try again.', 'error');
             }
         } finally {
             setLoading(false);

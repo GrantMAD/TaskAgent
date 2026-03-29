@@ -197,9 +197,9 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             }, 300);
         } catch (error) {
             if (error.code === 'RATE_LIMIT_EXCEEDED') {
-                showToast('Slow down! You can only apply once per minute.', 'warning');
+                showToast(error.message, 'warning');
             } else {
-                showToast(error.message, 'error');
+                showToast(error.message || 'Could not apply for task', 'error');
             }
         } finally {
             setLoading(false);
@@ -450,6 +450,17 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
                 <View style={styles.headerRight}>
+                    {isPoster && task.status === 'OPEN' && (
+                        <TouchableOpacity 
+                            onPress={() => navigation.navigate('Main', { 
+                                screen: 'CreateTab', 
+                                params: { taskId: task.id, isEditing: true } 
+                            })} 
+                            style={styles.headerAction}
+                        >
+                            <FontAwesome name="pencil" size={18} color={theme.white} />
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity onPress={handleToggleSave} style={styles.headerAction}>
                         <FontAwesome name={isSaved ? "heart" : "heart-o"} size={18} color={isSaved ? theme.error : theme.white} />
                     </TouchableOpacity>
