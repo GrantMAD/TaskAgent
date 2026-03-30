@@ -10,11 +10,13 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
+import { useNotifications } from '../components/NotificationContext';
 import { EmptyState } from '../components/EmptyState';
 
 export const MessagesScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
+    const { onlineUsers } = useNotifications();
     const [conversations, setConversations] = useState([]);
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -36,28 +38,7 @@ export const MessagesScreen = ({ navigation }) => {
             setUserId(currentUserId);
             
             const data = await messageService.getConversations(currentUserId);
-            
-            // Optimization: Fetch all unread message counts in one go for the user
-            const { data: unreadData, error: unreadError } = await supabase
-                .from('messages')
-                .select('conversation_id')
-                .eq('is_read', false)
-                .neq('sender_id', currentUserId);
-
-            if (unreadError) throw unreadError;
-
-            // Map unread counts to conversations
-            const unreadMap = (unreadData || []).reduce((acc, msg) => {
-                acc[msg.conversation_id] = (acc[msg.conversation_id] || 0) + 1;
-                return acc;
-            }, {});
-
-            const conversationsWithUnread = data.map(conv => ({
-                ...conv,
-                unread_count: unreadMap[conv.id] || 0
-            }));
-
-            setConversations(conversationsWithUnread);
+            setConversations(data);
         } catch (error) {
             console.error('Error fetching conversations:', error);
         } finally {
@@ -217,7 +198,12 @@ export const MessagesScreen = ({ navigation }) => {
                                 onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
                                 activeOpacity={0.7}
                             >
-                                <UserAvatar user={otherUser} size={56} />
+                                <View style={{ position: 'relative' }}>
+                                    <UserAvatar user={otherUser} size={56} />
+                                    {onlineUsers[otherUser?.id] && (
+                                        <View style={styles.onlineBadge} />
+                                    )}
+                                </View>
                                 {hasUnread && <View style={styles.unreadBadge} />}
                                 
                                 <View style={styles.textContainer}>
@@ -312,6 +298,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         borderWidth: 2,
         borderColor: theme.card,
         zIndex: 1,
+    },
+    onlineBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#10B981', // emerald-500
+        borderWidth: 3,
+        borderColor: theme.card,
+        zIndex: 2,
     },
     textContainer: {
         marginLeft: Spacing.md,

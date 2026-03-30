@@ -6,15 +6,20 @@ import { supabase } from '../services/supabaseClient';
 import { MessageBubble } from '../components/MessageBubble';
 import { MessageSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { UserAvatar } from '../components/UserAvatar';
+import { ReportModal } from '../components/ReportModal';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import { useAuth } from '../components/AuthContext';
+import { useNotifications } from '../components/NotificationContext';
+import { Alert, ActionSheetIOS, Modal, TouchableWithoutFeedback } from 'react-native';
+import { useCallback } from 'react';
 
 export const ChatScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
+    const { onlineUsers } = useNotifications();
     const { conversationId } = route.params;
     const [messages, setMessages] = useState([]);
     const [conversation, setConversation] = useState(null);
@@ -29,6 +34,11 @@ export const ChatScreen = ({ route, navigation }) => {
     const [isOtherTyping, setIsOtherTyping] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+    const [selectedMessageForReport, setSelectedMessageForReport] = useState(null);
+    const [isActionModalVisible, setIsActionModalVisible] = useState(false);
+    const [selectedMessageForAction, setSelectedMessageForAction] = useState(null);
+
     const typingTimeoutRef = useRef(null);
     const channelRef = useRef(null);
     const { showToast } = useToast();
@@ -52,9 +62,9 @@ export const ChatScreen = ({ route, navigation }) => {
 
         // Subscribe to messages and typing events
         const channel = supabase
-            .channel(`public:messages:conversation_id=eq.${conversationId}`)
+            .channel(`chat-${conversationId}`)
             .on('postgres_changes', {
-                event: '*', // Listen to all changes (INSERT, UPDATE)
+                event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
                 schema: 'public',
                 table: 'messages',
                 filter: `conversation_id=eq.${conversationId}`
@@ -98,6 +108,8 @@ export const ChatScreen = ({ route, navigation }) => {
                     setMessages((prev) => prev.map(msg => 
                         msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
                     ));
+                } else if (payload.eventType === 'DELETE') {
+                    setMessages((prev) => prev.filter(msg => msg.id !== payload.old.id));
                 }
             })
             .on('broadcast', { event: 'typing' }, (payload) => {
@@ -251,6 +263,45 @@ export const ChatScreen = ({ route, navigation }) => {
         }
     };
 
+    const handleDeleteMessage = async (messageId) => {
+        try {
+            await messageService.deleteMessage(messageId);
+            // Real-time will handle state update via the UPDATE event, 
+            // but we can also do it optimistically
+            setMessages(prev => prev.map(m => 
+                m.id === messageId 
+                ? { ...m, message_text: '[DELETED]', image_url: null } 
+                : m
+            ));
+            showToast('Message deleted', 'success');
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('Failed to delete message', 'error');
+        }
+    };
+
+    const handleReportMessage = (message) => {
+        setSelectedMessageForReport(message);
+        setIsReportModalVisible(true);
+    };
+
+    const handleLongPress = useCallback((message) => {
+        console.log('Long press detected for message:', message.id);
+        setSelectedMessageForAction(message);
+        setIsActionModalVisible(true);
+    }, []);
+
+    const handleActionModalOption = (option) => {
+        setIsActionModalVisible(false);
+        if (!selectedMessageForAction) return;
+
+        if (option === 'delete') {
+            handleDeleteMessage(selectedMessageForAction.id);
+        } else if (option === 'report') {
+            handleReportMessage(selectedMessageForAction);
+        }
+    };
+
     return (
         <KeyboardAvoidingView
             style={styles.container}
@@ -262,9 +313,21 @@ export const ChatScreen = ({ route, navigation }) => {
                     <FontAwesome name="chevron-left" size={20} color={theme.white} />
                 </TouchableOpacity>
                 <View style={styles.headerInfoContainer}>
-                    <UserAvatar user={otherUser} size={36} />
+                    <View style={{ position: 'relative' }}>
+                        <UserAvatar user={otherUser} size={38} />
+                        {onlineUsers[otherUser?.id] && (
+                            <View style={styles.onlineBadge} />
+                        )}
+                    </View>
                     <View style={styles.headerTextContainer}>
                         <Text style={styles.headerTitle} numberOfLines={1}>{otherUser?.name || 'Deleted User'}</Text>
+                        {isOtherTyping ? (
+                            <Text style={[styles.headerSubtitle, { color: theme.white, opacity: 1 }]}>Typing...</Text>
+                        ) : onlineUsers[otherUser?.id] ? (
+                            <Text style={styles.headerSubtitle}>Online Now</Text>
+                        ) : (
+                            <Text style={[styles.headerSubtitle, { opacity: 0.6 }]}>Offline</Text>
+                        )}
                     </View>
                 </View>
                 <View style={{ width: 40 }} />
@@ -293,13 +356,14 @@ export const ChatScreen = ({ route, navigation }) => {
                                 message={item}
                                 isMine={item.sender_id === userId}
                                 status={item.status}
+                                onLongPress={handleLongPress}
                             />
                         )}
                     />
                 )}
                 {isOtherTyping && (
                     <View style={styles.typingIndicator}>
-                        <Text style={styles.typingText}>Neighbor is typing...</Text>
+                        <Text style={styles.typingText}>{otherUser?.name || 'Neighbor'} is typing...</Text>
                     </View>
                 )}
             </View>
@@ -336,6 +400,58 @@ export const ChatScreen = ({ route, navigation }) => {
                     <FontAwesome name="send" size={18} color={theme.white} />
                 </TouchableOpacity>
             </View>
+
+            <ReportModal 
+                visible={isReportModalVisible}
+                onClose={() => setIsReportModalVisible(false)}
+                reportedUserId={selectedMessageForReport?.sender_id}
+                type="user"
+            />
+
+            {/* Cross-platform Message Action Modal */}
+            <Modal
+                visible={isActionModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsActionModalVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setIsActionModalVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.actionSheetContainer}>
+                            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                                <View style={styles.actionSheetContent}>
+                                    <Text style={styles.actionSheetTitle}>Message Options</Text>
+                                    
+                                    {selectedMessageForAction?.sender_id === session?.user?.id ? (
+                                        <TouchableOpacity 
+                                            style={[styles.actionButton, styles.deleteButton]} 
+                                            onPress={() => handleActionModalOption('delete')}
+                                        >
+                                            <FontAwesome name="trash" size={20} color={theme.error} />
+                                            <Text style={styles.deleteButtonText}>Delete Message</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity 
+                                            style={styles.actionButton} 
+                                            onPress={() => handleActionModalOption('report')}
+                                        >
+                                            <FontAwesome name="flag" size={20} color={theme.text} />
+                                            <Text style={styles.actionButtonText}>Report Message</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    
+                                    <TouchableOpacity 
+                                        style={[styles.actionButton, { marginTop: 10 }]} 
+                                        onPress={() => setIsActionModalVisible(false)}
+                                    >
+                                        <Text style={[styles.actionButtonText, { color: theme.textMuted }]}>Cancel</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </KeyboardAvoidingView>
     );
 };
@@ -391,6 +507,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 12,
         color: 'rgba(255,255,255,0.8)',
         fontWeight: '600',
+    },
+    onlineBadge: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#10B981', // emerald-500
+        borderWidth: 2.5,
+        borderColor: theme.primary,
+        zIndex: 2,
     },
     headerSpacer: {
         width: 40,
@@ -469,5 +597,52 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         left: 95,
         backgroundColor: theme.surface,
         borderRadius: 12,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    actionSheetContainer: {
+        padding: Spacing.md,
+    },
+    actionSheetContent: {
+        backgroundColor: theme.surface,
+        borderRadius: Rounding.soft,
+        padding: Spacing.lg,
+        ...shadows.large,
+    },
+    actionSheetTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: theme.textMuted,
+        textAlign: 'center',
+        marginBottom: Spacing.lg,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.md,
+        borderRadius: Rounding.standard,
+        backgroundColor: theme.background,
+        marginBottom: 8,
+    },
+    actionButtonText: {
+        marginLeft: 12,
+        fontSize: 16,
+        fontWeight: '600',
+        color: theme.text,
+    },
+    deleteButton: {
+        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    },
+    deleteButtonText: {
+        marginLeft: 12,
+        fontSize: 16,
+        fontWeight: '700',
+        color: theme.error,
     }
 });

@@ -12,30 +12,22 @@ export const messageService = {
                 task:tasks(title, poster_id, assigned_worker_id),
                 user1:users!user1_id(id, name, profile_image),
                 user2:users!user2_id(id, name, profile_image),
-                last_message:messages!conversation_id(message_text, image_url, created_at, sender_id),
-                unread_count:messages!conversation_id(count)
+                messages:messages!conversation_id(message_text, image_url, created_at, sender_id, is_read)
             `)
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
         
         if (error) throw error;
 
-        // Post-process to get the single last message and actual unread count
-        // Note: Supabase's count/limit in select is tricky with joined tables, 
-        // so we'll fetch them and handle the logic. 
-        // For production scale, a view or RPC is better, but this works for now.
         return data.map(conv => {
-            const messages = conv.last_message || [];
-            const lastMsg = messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            const msgs = conv.messages || [];
+            const lastMsg = msgs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            const unreadCount = msgs.filter(m => !m.is_read && m.sender_id !== userId).length;
             
-            // Re-fetch unread count specifically for this user
-            // (We'll do this in a separate step or via a more complex query if needed, 
-            // but for now let's simplify)
             return {
                 ...conv,
                 last_message: lastMsg,
-                // We'll calculate unread count in the screen or a separate service call 
-                // to avoid complex join logic issues
+                unread_count: unreadCount
             };
         });
     },
@@ -121,12 +113,12 @@ export const messageService = {
                 ? (text.substring(0, 30) + (text.length > 30 ? '...' : ''))
                 : 'Sent an image 📷';
 
-            await notificationService.createNotification(
+            await notificationService.sendDirectPushNotification(
                 otherId,
                 'New Message',
                 notificationBody,
                 'MESSAGE',
-                conversationId
+                { related_id: conversationId }
             )
         }
 
@@ -169,11 +161,24 @@ export const messageService = {
             .eq('conversation_id', conversationId)
             .neq('sender_id', userId)
             .eq('is_read', false);
-        
+
         if (error) throw error;
     },
 
-    uploadChatImage: async (userId, uri) => {
+    deleteMessage: async (messageId) => {
+        const { error } = await supabase
+            .from('messages')
+            .update({ 
+                message_text: '[DELETED]',
+                image_url: null 
+            })
+            .eq('id', messageId);
+
+        if (error) throw error;
+        return true;
+    },
+
+    uploadChatImage: async (userId, fileUri) => {
         try {
             const ext = uri.split('.').pop();
             const fileName = `${Date.now()}.${ext}`;

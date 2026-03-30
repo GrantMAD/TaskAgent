@@ -62,7 +62,7 @@ export const notificationService = {
     // Subscribe to real-time notifications
     subscribeToNotifications: (userId, onNewNotification) => {
         return supabase
-            .channel(`public:notifications:user_id=eq.${userId}`)
+            .channel(`notifications:${userId}`)
             .on(
                 'postgres_changes',
                 {
@@ -76,5 +76,45 @@ export const notificationService = {
                 }
             )
             .subscribe()
+    },
+
+    // Send a direct push notification via the Edge Function without creating an in-app record
+    sendDirectPushNotification: async (userId, title, body, type, data = {}) => {
+        try {
+            // Get user's push token
+            const { data: user, error: userError } = await supabase
+                .from('users')
+                .select('push_token')
+                .eq('id', userId)
+                .single();
+
+            if (userError || !user?.push_token) return;
+
+            // Trigger the push notification Edge Function directly
+            // Note: The Edge Function currently expects a record from the notifications table
+            // However, we can call it manually with a similar payload
+            const response = await fetch('https://ejpjdinrwxodpizgybui.supabase.co/functions/v1/push-notifications', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGpkaW5yd3hvZHBpemd5YnVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNjE4NDIsImV4cCI6MjA4ODYzNzg0Mn0.kEO68nOssVBc5eFcBhSUhJ9I3cGkYevDyPqFLj81kOE`
+                },
+                body: JSON.stringify({
+                    record: {
+                        user_id: userId,
+                        title,
+                        body,
+                        type,
+                        ...data
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to send direct push notification:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error sending direct push notification:', error);
+        }
     }
 }
