@@ -233,6 +233,21 @@ export const taskService = {
     },
 
     /**
+     * Get task history (completed tasks where user was poster or worker)
+     */
+    getTaskHistory: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, poster:users!poster_id(id, name, profile_image, rating), worker:users!assigned_worker_id(id, name, profile_image, rating)')
+            .eq('status', 'COMPLETED')
+            .or(`poster_id.eq.${userId},assigned_worker_id.eq.${userId}`)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return data;
+    },
+
+    /**
      * Increment the view count for a task
      */
     incrementTaskView: async (taskId) => {

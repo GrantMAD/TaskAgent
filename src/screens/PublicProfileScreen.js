@@ -14,6 +14,7 @@ import { useAuth } from '../components/AuthContext';
 import { ReportModal } from '../components/ReportModal';
 import { interactionService } from '../services/interactionService';
 import { reliabilityService } from '../services/reliabilityService';
+import { formatRelativeTime } from '../utils/dateUtils';
 import ReliabilityReport from '../components/ReliabilityReport';
 
 export const PublicProfileScreen = ({ route, navigation }) => {
@@ -25,6 +26,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     const [reliability, setReliability] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [showAllReviews, setShowAllReviews] = useState(false);
     const { showToast } = useToast();
     const [reportModalVisible, setReportModalVisible] = useState(false);
 
@@ -245,35 +247,54 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
                         {reviews.length > 0 ? (
-                            reviews.map((review) => {
-                                if (!review.reviewer) return null; // Skip reviews from deleted accounts
-                                return (
-                                    <View key={review.id} style={styles.reviewCard}>
-                                        <View style={styles.reviewHeader}>
-                                            <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
-                                                <UserAvatar user={review.reviewer} size={30} />
-                                            </TouchableOpacity>
-                                            <View style={styles.reviewInfo}>
+                            <>
+                                {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => {
+                                    if (!review.reviewer) return null; // Skip reviews from deleted accounts
+                                    return (
+                                        <View key={review.id} style={styles.reviewCard}>
+                                            <View style={styles.reviewHeader}>
                                                 <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
-                                                    <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                    <UserAvatar user={review.reviewer} size={30} />
                                                 </TouchableOpacity>
-                                                <View style={styles.ratingRow}>
-                                                    {[1, 2, 3, 4, 5].map((s) => (
-                                                        <FontAwesome 
-                                                            key={s} 
-                                                            name={s <= review.rating ? "star" : "star-o"} 
-                                                            size={12} 
-                                                            color={theme.accent} 
-                                                        />
-                                                    ))}
+                                                <View style={styles.reviewInfo}>
+                                                    <TouchableOpacity onPress={() => navigation.push('PublicProfile', { userId: review.reviewer.id })}>
+                                                        <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                    </TouchableOpacity>
+                                                    <View style={styles.ratingRow}>
+                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                            <FontAwesome 
+                                                                key={s} 
+                                                                name={s <= review.rating ? "star" : "star-o"} 
+                                                                size={12} 
+                                                                color={theme.accent} 
+                                                            />
+                                                        ))}
+                                                    </View>
                                                 </View>
+                                                <Text style={styles.reviewDate}>{formatRelativeTime(review.created_at)}</Text>
                                             </View>
-                                            <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
+                                            <Text style={styles.reviewComment}>{review.comment}</Text>
                                         </View>
-                                        <Text style={styles.reviewComment}>{review.comment}</Text>
-                                    </View>
-                                );
-                            })
+                                    );
+                                })}
+
+                                {reviews.length > 3 && (
+                                    <TouchableOpacity 
+                                        style={styles.showMoreButton}
+                                        onPress={() => setShowAllReviews(!showAllReviews)}
+                                    >
+                                        <Text style={styles.showMoreText}>
+                                            {showAllReviews ? 'Show Less' : `View ${reviews.length - 3} More Reviews`}
+                                        </Text>
+                                        <FontAwesome 
+                                            name={showAllReviews ? "chevron-up" : "chevron-down"} 
+                                            size={10} 
+                                            color={theme.primary} 
+                                            style={{ marginLeft: 6 }}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+                            </>
                         ) : (
                             <View style={styles.card}>
                                 <Text style={styles.emptyText}>No reviews yet.</Text>
@@ -531,5 +552,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontSize: 14,
         color: theme.text,
         lineHeight: 20,
+    },
+    showMoreButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 4,
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        borderRadius: Rounding.soft,
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    showMoreText: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: theme.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     }
 });

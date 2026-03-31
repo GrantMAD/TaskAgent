@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { userService } from '../services/userService';
+import { taskService } from '../services/taskService';
 import { FontAwesome } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { ProfileSkeleton } from '../components/skeletons/SkeletonPlaceholders';
@@ -15,15 +16,19 @@ import { useAuth } from '../components/AuthContext';
 import { interactionService } from '../services/interactionService';
 import { reliabilityService } from '../services/reliabilityService';
 import ReliabilityReport from '../components/ReliabilityReport';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 export const ProfileScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
     const [profile, setProfile] = useState(null);
     const [reviews, setReviews] = useState([]);
+    const [history, setHistory] = useState([]);
     const [reliability, setReliability] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [showAllReviews, setShowAllReviews] = useState(false);
+    const [showAllHistory, setShowAllHistory] = useState(false);
     const { showToast } = useToast();
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
@@ -39,16 +44,18 @@ export const ProfileScreen = ({ navigation }) => {
         try {
             if (!session) return;
 
-            const [userData, reviewData, reliabilityData] = await Promise.all([
+            const [userData, reviewData, reliabilityData, historyData] = await Promise.all([
                 userService.getUserProfile(session.user.id),
                 userService.getUserReviews(session.user.id),
-                reliabilityService.getUserReliability(session.user.id)
+                reliabilityService.getUserReliability(session.user.id),
+                taskService.getTaskHistory(session.user.id)
             ]);
 
             setProfile(userData);
             // Only keep reviews where the reviewer still exists
             setReviews(reviewData ? reviewData.filter(r => r.reviewer) : []);
             setReliability(reliabilityData);
+            setHistory(historyData || []);
         } catch (error) {
             console.error(error);
             showToast('Could not load profile', 'error');
@@ -176,39 +183,119 @@ export const ProfileScreen = ({ navigation }) => {
                     </View>
                 </View>
 
+                {/* Work History Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Work History ({history.length})</Text>
+                    {history.length > 0 ? (
+                        <>
+                            {(showAllHistory ? history : history.slice(0, 3)).map((task) => (
+                                <TouchableOpacity 
+                                    key={task.id} 
+                                    style={styles.historyCard}
+                                    onPress={() => navigation.navigate('TaskDetail', { taskId: task.id })}
+                                >
+                                    <View style={styles.historyHeader}>
+                                        <View style={styles.historyBadge}>
+                                            <FontAwesome name="check-circle" size={12} color={theme.success} />
+                                            <Text style={styles.historyBadgeText}>Completed</Text>
+                                        </View>
+                                        <Text style={styles.historyPrice}>${task.payment_amount}</Text>
+                                    </View>
+                                    <Text style={styles.historyTitle} numberOfLines={1}>{task.title}</Text>
+                                    <View style={styles.historyFooter}>
+                                        <View style={styles.historyRole}>
+                                            <FontAwesome 
+                                                name={task.poster_id === session.user.id ? "bullhorn" : "wrench"} 
+                                                size={10} 
+                                                color={theme.textMuted} 
+                                            />
+                                            <Text style={styles.historyRoleText}>
+                                                {task.poster_id === session.user.id ? 'Posted' : 'Completed'}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.historyDate}>
+                                            {new Date(task.created_at).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                            
+                            {history.length > 3 && (
+                                <TouchableOpacity 
+                                    style={styles.showMoreButton}
+                                    onPress={() => setShowAllHistory(!showAllHistory)}
+                                >
+                                    <Text style={styles.showMoreText}>
+                                        {showAllHistory ? 'Show Less' : `View ${history.length - 3} More History`}
+                                    </Text>
+                                    <FontAwesome 
+                                        name={showAllHistory ? "chevron-up" : "chevron-down"} 
+                                        size={10} 
+                                        color={theme.primary} 
+                                        style={{ marginLeft: 6 }}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        </>
+                    ) : (
+                        <View style={styles.card}>
+                            <Text style={styles.emptyText}>No completed tasks yet.</Text>
+                        </View>
+                    )}
+                </View>
+
                 {/* Reviews Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Reviews ({reviews.length})</Text>
                     {reviews.length > 0 ? (
-                        reviews.map((review) => {
-                            if (!review.reviewer) return null; // Skip reviews from deleted accounts
-                            return (
-                                <View key={review.id} style={styles.reviewCard}>
-                                    <View style={styles.reviewHeader}>
-                                        <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
-                                            <UserAvatar user={review.reviewer} size={30} />
-                                        </TouchableOpacity>
-                                        <View style={styles.reviewInfo}>
+                        <>
+                            {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => {
+                                if (!review.reviewer) return null; // Skip reviews from deleted accounts
+                                return (
+                                    <View key={review.id} style={styles.reviewCard}>
+                                        <View style={styles.reviewHeader}>
                                             <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
-                                                <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                <UserAvatar user={review.reviewer} size={30} />
                                             </TouchableOpacity>
-                                            <View style={styles.ratingRow}>
-                                                {[1, 2, 3, 4, 5].map((s) => (
-                                                    <FontAwesome 
-                                                        key={s} 
-                                                        name={s <= review.rating ? "star" : "star-o"} 
-                                                        size={12} 
-                                                        color={theme.accent} 
-                                                    />
-                                                ))}
+                                            <View style={styles.reviewInfo}>
+                                                <TouchableOpacity onPress={() => navigation.navigate('PublicProfile', { userId: review.reviewer.id })}>
+                                                    <Text style={styles.reviewerName}>{review.reviewer.name}</Text>
+                                                </TouchableOpacity>
+                                                <View style={styles.ratingRow}>
+                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                        <FontAwesome 
+                                                            key={s} 
+                                                            name={s <= review.rating ? "star" : "star-o"} 
+                                                            size={12} 
+                                                            color={theme.accent} 
+                                                        />
+                                                    ))}
+                                                </View>
                                             </View>
+                                            <Text style={styles.reviewDate}>{formatRelativeTime(review.created_at)}</Text>
                                         </View>
-                                        <Text style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString()}</Text>
+                                        <Text style={styles.reviewComment}>{review.comment}</Text>
                                     </View>
-                                    <Text style={styles.reviewComment}>{review.comment}</Text>
-                                </View>
-                            );
-                        })
+                                );
+                            })}
+                            
+                            {reviews.length > 3 && (
+                                <TouchableOpacity 
+                                    style={styles.showMoreButton}
+                                    onPress={() => setShowAllReviews(!showAllReviews)}
+                                >
+                                    <Text style={styles.showMoreText}>
+                                        {showAllReviews ? 'Show Less' : `View ${reviews.length - 3} More Reviews`}
+                                    </Text>
+                                    <FontAwesome 
+                                        name={showAllReviews ? "chevron-up" : "chevron-down"} 
+                                        size={10} 
+                                        color={theme.primary} 
+                                        style={{ marginLeft: 6 }}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        </>
                     ) : (
                         <View style={styles.card}>
                             <Text style={styles.emptyText}>No reviews yet.</Text>
@@ -369,6 +456,70 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.text,
         lineHeight: 22,
     },
+    historyCard: {
+        backgroundColor: theme.card,
+        padding: Spacing.md,
+        borderRadius: Rounding.soft,
+        marginBottom: Spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.border,
+        ...shadows.subtle,
+    },
+    historyHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    historyBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: Rounding.pill,
+    },
+    historyBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.success,
+        marginLeft: 4,
+        textTransform: 'uppercase',
+    },
+    historyPrice: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: theme.primary,
+    },
+    historyTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: theme.text,
+        marginBottom: 8,
+    },
+    historyFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: theme.border,
+        paddingTop: 8,
+    },
+    historyRole: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    historyRoleText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: theme.textMuted,
+        marginLeft: 5,
+    },
+    historyDate: {
+        fontSize: 11,
+        color: theme.textMuted,
+        fontWeight: '500',
+    },
     trustSignal: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -441,5 +592,23 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.textMuted,
         fontSize: 14,
         fontStyle: 'italic',
+    },
+    showMoreButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 4,
+        backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        borderRadius: Rounding.soft,
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    showMoreText: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: theme.primary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     }
 });
