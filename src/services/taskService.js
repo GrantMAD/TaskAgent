@@ -105,13 +105,18 @@ export const taskService = {
         return data[0];
     },
 
-    getNearbyTasks: async () => {
-        // In a real app we'd filter by distance, for now get all OPEN tasks
+    getNearbyTasks: async (userId = null, lat = null, lng = null, limit = 50) => {
+        // Use the smart proximity RPC if we have user context and location
+        if (userId && lat && lng) {
+            return taskService.getPersonalizedTasks(userId, lat, lng, limit);
+        }
+
         const { data, error } = await supabase
             .from('tasks')
             .select('*, poster:users!poster_id(id, name, profile_image, rating)')
             .eq('status', 'OPEN')
             .order('created_at', { ascending: false })
+            .limit(limit);
         if (error) throw error
         return data
     },

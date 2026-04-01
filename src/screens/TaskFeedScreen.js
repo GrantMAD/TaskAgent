@@ -103,8 +103,6 @@ export const TaskFeedScreen = ({ navigation }) => {
 
         // Subscribe to real-time task updates
         const subscription = taskService.subscribeToTasks('feed_tasks_channel', (payload) => {
-            // Check if it's a new task or a status change that might affect the feed
-            // (e.g., a task becomes OPEN or is no longer OPEN)
             if (
                 payload.eventType === 'INSERT' || 
                 payload.eventType === 'UPDATE' || 
@@ -117,7 +115,7 @@ export const TaskFeedScreen = ({ navigation }) => {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, []);
+    }, [userLocation, searchRadius]);
 
     // Log search interactions (debounced)
     useEffect(() => {
@@ -154,7 +152,11 @@ export const TaskFeedScreen = ({ navigation }) => {
                     userLocation?.longitude
                 );
             } else {
-                data = await taskService.getNearbyTasks();
+                data = await taskService.getNearbyTasks(
+                    session?.user?.id,
+                    userLocation?.latitude,
+                    userLocation?.longitude
+                );
             }
             setAllTasks(data);
         } catch (error) {
