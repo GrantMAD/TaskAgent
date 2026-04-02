@@ -114,6 +114,8 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
             case 'APPLICATION':
             case 'HIRED':
             case 'COMPLETED':
+            case 'dispute_raised':
+            case 'dispute_resolved':
                 if (item.related_id) {
                     navigation.navigate('MainDrawer', { 
                         screen: 'Main', 
@@ -624,6 +626,8 @@ export const AppNavigator = () => {
                     case 'APPLICATION':
                     case 'HIRED':
                     case 'COMPLETED':
+                    case 'dispute_raised':
+                    case 'dispute_resolved':
                         navigate('MainDrawer', {
                             screen: 'Main',
                             params: {

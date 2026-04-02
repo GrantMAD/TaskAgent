@@ -15,7 +15,8 @@ export const TaskActions = ({
     onConfirmCompletion, 
     onMarkAsComplete,
     onCancel,
-    onCancelApplication
+    onCancelApplication,
+    onRaiseDispute
 }) => {
     const { theme, shadows } = useTheme();
     const styles = createStyles(theme, shadows);
@@ -42,6 +43,14 @@ export const TaskActions = ({
                 <TouchableOpacity style={[styles.completeButton, { backgroundColor: theme.success }]} onPress={onMarkAsComplete}>
                     <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
                     <Text style={styles.applyButtonText}>Mark as Complete</Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Dispute Action */}
+            {(isPoster || isWorker) && ['ASSIGNED', 'PENDING_CONFIRMATION'].includes(task.status) && (
+                <TouchableOpacity style={styles.disputeButton} onPress={onRaiseDispute}>
+                    <FontAwesome name="shield" size={14} color={theme.textMuted} style={styles.buttonIcon} />
+                    <Text style={styles.disputeButtonText}>Raise a Dispute</Text>
                 </TouchableOpacity>
             )}
 
@@ -180,6 +189,18 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     withdrawButtonText: {
         color: theme.textMuted,
         fontSize: 14,
+        fontWeight: '700',
+    },
+    disputeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: Spacing.md,
+        marginBottom: Spacing.md,
+    },
+    disputeButtonText: {
+        color: theme.textMuted,
+        fontSize: 13,
         fontWeight: '700',
     },
 });

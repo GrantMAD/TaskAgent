@@ -68,6 +68,8 @@ export const NotificationsScreen = ({ navigation, route }) => {
             case 'COMPLETED':
             case 'INVITATION_ACCEPTED':
             case 'INVITATION_DECLINED':
+            case 'dispute_raised':
+            case 'dispute_resolved':
                 if (item.related_id) {
                     navigation.navigate('MainDrawer', { 
                         screen: 'Main', 

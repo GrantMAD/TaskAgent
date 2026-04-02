@@ -23,8 +23,10 @@ import { TaskActions } from '../components/task-detail/TaskActions';
 import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 import { ApplicationModal } from '../components/ApplicationModal';
 import { ReportModal } from '../components/ReportModal';
+import { DisputeModal } from '../components/DisputeModal';
 import { CURRENCY_SYMBOL } from '../utils/constants';
 import { interactionService } from '../services/interactionService';
+import { disputeService } from '../services/disputeService';
 
 export const TaskDetailScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -33,6 +35,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const { taskId } = route.params;
     const [task, setTask] = useState(null);
     const [applications, setApplications] = useState([]);
+    const [dispute, setDispute] = useState(null);
     const [hasApplied, setHasApplied] = useState(false);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -60,6 +63,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const [selectedApplicant, setSelectedApplicant] = useState(null);
     const [completionImage, setCompletionImage] = useState(null);
     const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+    const [disputeModalVisible, setDisputeModalVisible] = useState(false);
     const scrollRef = useRef(null);
 
     const pickCompletionImage = async () => {
@@ -125,6 +129,12 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         try {
             const data = await taskService.getTaskDetails(taskId);
             setTask(data);
+
+            if (!data) {
+                setLoading(false);
+                setRefreshing(false);
+                return;
+            }
             
             // Always fetch applications to check if current user has applied
             const apps = await taskService.getTaskApplications(taskId);
@@ -133,6 +143,13 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             if (session) {
                 const userApplication = apps.find(app => app.worker_id === session.user.id);
                 setHasApplied(!!userApplication);
+            }
+
+            if (data.status === 'DISPUTED') {
+                const disputeData = await disputeService.getTaskDispute(taskId);
+                setDispute(disputeData);
+            } else {
+                setDispute(null);
             }
         } catch (error) {
             console.error(error);
@@ -514,6 +531,23 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         </LinearGradient>
                     </View>
                 )}
+
+                {task.status === 'DISPUTED' && (
+                    <View style={styles.disputeBanner}>
+                        <View style={styles.disputeIconContainer}>
+                            <FontAwesome name="shield" size={24} color="#FFF" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.disputeBannerTitle}>Dispute in Progress</Text>
+                            <Text style={styles.disputeBannerText}>
+                                {dispute?.raised_by?.id === session?.user?.id 
+                                    ? "You have raised a dispute. An admin will review it shortly."
+                                    : "A dispute has been raised. An admin is reviewing the situation."}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 <View style={styles.titleSection}>
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryText}>{task.category}</Text>
@@ -639,6 +673,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     onMarkAsComplete={triggerCompleteModal}
                     onCancel={triggerCancelModal}
                     onCancelApplication={handleCancelApplication}
+                    onRaiseDispute={() => setDisputeModalVisible(true)}
                 />
 
                 {/* Informational Badges */}
@@ -723,6 +758,15 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 reportedTaskId={taskId}
                 reportedUserId={task.poster_id}
                 type="task"
+            />
+
+            <DisputeModal 
+                visible={disputeModalVisible}
+                onClose={() => setDisputeModalVisible(false)}
+                taskId={taskId}
+                taskTitle={task.title}
+                otherPartyId={isPoster ? task.assigned_worker_id : task.poster_id}
+                onDisputeRaised={fetchTaskDetails}
             />
         </View>
     );
@@ -918,6 +962,39 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         alignItems: 'center',
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderRadius: 10,
+    },
+    disputeBanner: {
+        margin: Spacing.lg,
+        padding: Spacing.lg,
+        backgroundColor: '#F59E0B',
+        borderRadius: Rounding.soft,
+        flexDirection: 'row',
+        alignItems: 'center',
+        elevation: 4,
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
+    disputeIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: Spacing.md,
+    },
+    disputeBannerTitle: {
+        color: '#FFF',
+        fontSize: 18,
+        fontWeight: '900',
+        marginBottom: 2,
+    },
+    disputeBannerText: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 13,
+        fontWeight: '600',
     },
     addressText: {
         fontSize: 16,

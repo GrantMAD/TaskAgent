@@ -34,6 +34,15 @@ export const TaskStatusBanner = ({ task, isPoster, isWorker }) => {
                     </Text>
                 </View>
             )}
+
+            {task.status === 'DISPUTED' && (
+                <View style={[styles.infoBadge, { backgroundColor: '#FFFBEB' }]}>
+                    <FontAwesome name="shield" size={16} color="#B45309" style={styles.icon} />
+                    <Text style={[styles.infoBadgeText, { color: '#92400E' }]}>
+                        Dispute in Progress. An admin is mediating.
+                    </Text>
+                </View>
+            )}
         </View>
     );
 };
