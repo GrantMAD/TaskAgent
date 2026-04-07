@@ -27,7 +27,7 @@ export const TaskCard = memo(({ task, onPress }) => {
             );
         }
         return null;
-    }, [userLocation, task.location_lat, task.location_lng]);
+    }, [userLocation, task.location_lat, task.location_lng, calculateDistance]);
 
     const handleToggleSave = async (e) => {
         e.stopPropagation();
@@ -82,6 +82,8 @@ export const TaskCard = memo(({ task, onPress }) => {
         </TouchableOpacity>
     );
 });
+
+TaskCard.displayName = 'TaskCard';
 
 const createStyles = (theme, shadows) => StyleSheet.create({
     card: {

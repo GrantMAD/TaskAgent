@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { userService } from '../services/userService';
 import { messageService } from '../services/messageService';
-import { supabase } from '../services/supabaseClient';
 import { ProfileSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
@@ -32,27 +31,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    useEffect(() => {
-        fetchProfileData();
-        getCurrentUser();
-        
-        // Log profile view
-        if (userId) {
-            interactionService.logEvent('profile_view', session?.user?.id, userId);
-        }
-    }, [userId]);
-
-    const getCurrentUser = () => {
-        if (session) setCurrentUserId(session.user.id);
-    };
-
-    const formatJoinDate = (dateString) => {
-        if (!dateString) return 'Neighbor';
-        const date = new Date(dateString);
-        return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-    };
-
-    const fetchProfileData = async () => {
+    const fetchProfileData = useCallback(async () => {
         try {
             setLoading(true);
             const [userData, reviewData, reliabilityData] = await Promise.all([
@@ -62,15 +41,34 @@ export const PublicProfileScreen = ({ route, navigation }) => {
             ]);
 
             setProfile(userData);
-            // Only keep reviews where the reviewer still exists
-            setReviews(reviewData ? reviewData.filter(r => r.reviewer) : []);
+            setReviews(reviewData || []);
             setReliability(reliabilityData);
         } catch (error) {
-            console.error(error);
-            showToast('Could not load profile', 'error');
+            console.error('Public Profile Error:', error);
+            showToast('Could not load profile data', 'error');
         } finally {
             setLoading(false);
         }
+    }, [userId, showToast]);
+
+    const getCurrentUser = useCallback(() => {
+        if (session) setCurrentUserId(session.user.id);
+    }, [session]);
+
+    useEffect(() => {
+        fetchProfileData();
+        getCurrentUser();
+        
+        // Log profile view
+        if (userId) {
+            interactionService.logEvent('profile_view', session?.user?.id, userId);
+        }
+    }, [userId, fetchProfileData, getCurrentUser, session?.user?.id]);
+
+    const formatJoinDate = (dateString) => {
+        if (!dateString) return 'Neighbor';
+        const date = new Date(dateString);
+        return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
 
     const handleMessage = async () => {
@@ -321,7 +319,7 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     header: {
         backgroundColor: theme.primary,
-        paddingTop: Platform.OS === 'ios' ? 50 : 20,
+        paddingTop: 50,
         paddingBottom: Spacing.md,
         paddingHorizontal: Spacing.lg,
         flexDirection: 'row',

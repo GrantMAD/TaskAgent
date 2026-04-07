@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { TASK_STATUS } from '../utils/constants';
 
 /**
  * ReliabilityService
@@ -107,7 +108,7 @@ export const reliabilityService = {
         if (error) throw error;
         if (!count) return { rate: 100, total: 0, completed: 0 }; 
 
-        const completed = data.filter(t => t.status === 'COMPLETED').length;
+        const completed = data.filter(t => t.status === TASK_STATUS.COMPLETED).length;
         return {
             rate: Math.round((completed / count) * 100),
             total: count,
@@ -129,7 +130,7 @@ export const reliabilityService = {
         if (error) throw error;
         if (!data || data.length === 0) return { rate: 100, total: 0 };
 
-        const completed = data.filter(t => t.status === 'COMPLETED').length;
+        const completed = data.filter(t => t.status === TASK_STATUS.COMPLETED).length;
         return {
             rate: Math.round((completed / data.length) * 100),
             total: data.length
@@ -144,7 +145,7 @@ export const reliabilityService = {
             .from('tasks')
             .select('poster_id')
             .eq('assigned_worker_id', userId)
-            .eq('status', 'COMPLETED');
+            .eq('status', TASK_STATUS.COMPLETED);
 
         if (error) throw error;
         if (!data || data.length === 0) return { repeatRate: 0, totalPosters: 0, totalJobs: 0 };
@@ -184,7 +185,7 @@ export const reliabilityService = {
 
         // Process in reverse (oldest to newest for best streak, newest to oldest for current)
         for (const task of data) {
-            if (task.status === 'COMPLETED') {
+            if (task.status === TASK_STATUS.COMPLETED) {
                 tempStreak++;
                 if (countingCurrent) current++;
             } else {
@@ -210,7 +211,7 @@ export const reliabilityService = {
         if (error) throw error;
         if (!count) return { rate: 0, total: 0 };
 
-        const cancelled = data.filter(t => t.status === 'CANCELLED').length;
+        const cancelled = data.filter(t => t.status === TASK_STATUS.CANCELLED).length;
         return {
             rate: Math.round((cancelled / count) * 100),
             total: count,

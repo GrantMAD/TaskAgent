@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
 import { EmptyState } from '../components/EmptyState';
+import { userService } from '../services/userService';
 
 export const HomeScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -44,6 +45,29 @@ export const HomeScreen = ({ navigation }) => {
     }, [appliedTasks]);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    const fetchAllData = useCallback(async () => {
+        if (!session) return;
+        setLoading(true);
+        try {
+            await taskService.processRecurringTasks(session.user.id);
+            const [gigs, posted, apps, userProfile] = await Promise.all([
+                taskService.getMyAssignedTasks(session.user.id),
+                taskService.getMyPostedTasks(session.user.id),
+                taskService.getAppliedTasks(session.user.id),
+                userService.getUserProfile(session.user.id)
+            ]);
+            setMyGigs(gigs);
+            setMyPostedTasks(posted);
+            setAppliedTasks(apps);
+            setProfile(userProfile);
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [session]);
 
     useEffect(() => {
         checkLocationPermission();
@@ -105,7 +129,7 @@ export const HomeScreen = ({ navigation }) => {
             if (subscription) supabase.removeChannel(subscription);
             if (appSubscription) supabase.removeChannel(appSubscription);
         };
-    }, [session]); 
+    }, [session, fetchAllData]); 
 
     // Reliable fallback: refresh when the screen comes into focus
     useEffect(() => {
@@ -113,7 +137,7 @@ export const HomeScreen = ({ navigation }) => {
             fetchAllData();
         });
         return unsubscribe;
-    }, [navigation]);
+    }, [navigation, fetchAllData]);
 
     const checkLocationPermission = async () => {
         try {
@@ -136,41 +160,6 @@ export const HomeScreen = ({ navigation }) => {
         // Shuffle the tips and pick first 4
         const shuffled = [...NEIGHBORHOOD_TIPS].sort(() => 0.5 - Math.random());
         setRotatedTips(shuffled.slice(0, 4));
-    };
-
-    const fetchAllData = async () => {
-        try {
-            // Process recurring tasks to generate any due instances
-            if (session?.user?.id) {
-                await taskService.processRecurringTasks(session.user.id);
-            }
-
-            if (session) {
-                // Fetch Profile for stats
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-                setProfile(userData);
-
-                // Fetch all task lists in parallel
-                const [gigsData, postedData, appliedData] = await Promise.all([
-                    taskService.getMyAssignedTasks(session.user.id),
-                    taskService.getMyPostedTasks(session.user.id),
-                    taskService.getAppliedTasks(session.user.id)
-                ]);
-
-                setMyGigs(gigsData);
-                setMyPostedTasks(postedData);
-                setAppliedTasks(appliedData);
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
     };
 
     const onRefresh = () => {

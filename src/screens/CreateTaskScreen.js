@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert, Image, Switch } from 'react-native';
+﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, Switch } from 'react-native';
 import { taskService } from '../services/taskService';
-import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { FontAwesome } from '@expo/vector-icons';
@@ -9,13 +8,14 @@ import { useToast } from '../components/ToastContext';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { TASK_CATEGORIES, CURRENCY_SYMBOL } from '../utils/constants';
-import { validateEmail, validatePassword, validatePhone, getMissingFields } from '../utils/validation';
+import { getMissingFields } from '../utils/validation';
 import { useAuth } from '../components/AuthContext';
 
 export const CreateTaskScreen = ({ navigation, route }) => {
     const { theme, shadows } = useTheme();
     const { session } = useAuth();
     const { taskId, isEditing } = route.params || {};
+    const { showToast } = useToast();
 
     // Form State
     const [title, setTitle] = useState('');
@@ -37,6 +37,17 @@ export const CreateTaskScreen = ({ navigation, route }) => {
     const [fairPriceEstimate, setFairPriceEstimate] = useState(null);
     const [isEstimatingPrice, setIsEstimatingPrice] = useState(false);
 
+    // Suggestion State
+    const [suggestions, setSuggestions] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
+
+    // Modal State
+    const [isModalVisible, setIsModalVisible] = useState(false);
+
+    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
     // Fetch Task Details if Editing
     useEffect(() => {
         if (isEditing && taskId) {
@@ -52,8 +63,8 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                     setLocationLat(task.location_lat);
                     setLocationLng(task.location_lng);
                     setExistingImageUrl(task.image_url);
-                    setIsModalVisible(true); // Open form automatically when editing
-                } catch (error) {
+                    setIsModalVisible(true);
+                } catch (_error) {
                     showToast('Could not load task for editing', 'error');
                 } finally {
                     setLoading(false);
@@ -61,9 +72,9 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             };
             fetchTaskForEdit();
         }
-    }, [isEditing, taskId]);
+    }, [isEditing, taskId, showToast]);
 
-    const pickImage = async () => {
+    const pickImage = useCallback(async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
             showToast('Permission to access gallery is required', 'warning');
@@ -80,23 +91,9 @@ export const CreateTaskScreen = ({ navigation, route }) => {
         if (!result.canceled) {
             setImage(result.assets[0].uri);
         }
-    };
-    
-    // Suggestion State
-    const [suggestions, setSuggestions] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [isLocating, setIsLocating] = useState(false);
-
-    // Modal State
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    
-    const { showToast } = useToast();
-
-    const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+    }, [showToast]);
 
     useEffect(() => {
-        // Toggle the Drawer (parent) header
         const parent = navigation.getParent();
         if (parent) {
             parent.setOptions({
@@ -104,7 +101,6 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             });
         }
         
-        // Sync the form state with navigation params so the TabBar knows when to hide
         navigation.setParams({ isFormOpen: isModalVisible });
 
         return () => {
@@ -128,7 +124,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
         fetchEstimate();
     }, [category]);
 
-    const handleAddressChange = async (text) => {
+    const handleAddressChange = useCallback(async (text) => {
         setAddress(text);
         if (text.length > 2) {
             setIsSearching(true);
@@ -142,7 +138,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 }));
                 setSuggestions(processed);
                 setShowSuggestions(true);
-            } catch (error) {
+            } catch (_error) {
                 console.error('Photon fetch error:', error);
             } finally {
                 setIsSearching(false);
@@ -151,17 +147,17 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             setSuggestions([]);
             setShowSuggestions(false);
         }
-    };
+    }, []);
 
-    const selectSuggestion = (item) => {
+    const selectSuggestion = useCallback((item) => {
         setAddress(item.label);
         setLocationLat(item.lat);
         setLocationLng(item.lng);
         setShowSuggestions(false);
         setSuggestions([]);
-    };
+    }, []);
 
-    const handleReverseGeocode = async (latitude, longitude) => {
+    const handleReverseGeocode = useCallback(async (latitude, longitude) => {
         let addr = '';
         try {
             if (Platform.OS === 'web') {
@@ -169,7 +165,6 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 const revData = await revResponse.json();
                 if (revData.features && revData.features.length > 0) {
                     const f = revData.features[0].properties;
-                    // Build a more detailed address
                     const parts = [
                         f.name !== f.street ? f.name : null,
                         f.housenumber,
@@ -180,8 +175,6 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                         f.state,
                         f.country
                     ].filter(Boolean);
-                    
-                    // Remove duplicates (sometimes name is same as street or city)
                     addr = [...new Set(parts)].join(', ');
                 }
             } else {
@@ -202,20 +195,16 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             console.error('Reverse Geocode Error:', e);
             setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
         }
-    };
+    }, [showToast]);
 
-    const getCurrentLocation = async () => {
+    const getCurrentLocation = useCallback(async () => {
         setIsLocating(true);
-        
-        // WEB-SPECIFIC DIRECT APPROACH
         if (Platform.OS === 'web') {
-            
             if (!window.isSecureContext && window.location.hostname !== 'localhost') {
                 showToast('Location requires HTTPS or localhost.', 'error');
                 setIsLocating(false);
                 return;
             }
-
             if (window.navigator.geolocation) {
                 window.navigator.geolocation.getCurrentPosition(
                     async (pos) => {
@@ -226,17 +215,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                         setIsLocating(false);
                     },
                     (err) => {
-                        console.error('Browser Geolocation Error:', err.code, err.message);
-                        let msg = 'Location error.';
-                        if (err.code === 1) {
-                            msg = 'Permission denied. Click the LOCK ICON in your URL bar and set Location to ALLOW, then refresh.';
-                            Alert.alert('Permission Needed', 'Your browser is blocking location. Please click the lock icon in the address bar, allow location, and refresh the page.');
-                        } else if (err.code === 2) {
-                            msg = 'Position unavailable.';
-                        } else if (err.code === 3) {
-                            msg = 'Request timed out.';
-                        }
-                        showToast(msg, 'error');
+                        showToast('Location error.', 'error');
                         setIsLocating(false);
                     },
                     { timeout: 10000, enableHighAccuracy: false }
@@ -244,30 +223,26 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 return;
             }
         }
-
-        // NATIVE MOBILE APPROACH (iOS/Android App)
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 showToast('Location permission denied.', 'error');
                 return;
             }
-
             const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             if (location) {
                 setLocationLat(location.coords.latitude);
                 setLocationLng(location.coords.longitude);
                 await handleReverseGeocode(location.coords.latitude, location.coords.longitude);
             }
-        } catch (error) {
-            console.error('Native Location Error:', error);
+        } catch (_error) {
             showToast('Error: ' + error.message, 'error');
         } finally {
             setIsLocating(false);
         }
-    };
+    }, [handleReverseGeocode, showToast]);
 
-    const handleSubmit = async () => {
+    const handleSubmit = useCallback(async () => {
         const missing = getMissingFields({ 
             Title: title, 
             Description: description, 
@@ -319,7 +294,6 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                     next_occurrence_at: null
                 };
                 await taskService.createTaskTemplate(templateData);
-                // Trigger generation of the first instance
                 await taskService.processRecurringTasks(session.user.id);
                 showToast('Recurring task series created!', 'success');
             } else {
@@ -327,7 +301,6 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 showToast('Your task is live!', 'success');
             }
             
-            // Reset and close
             setTitle('');
             setDescription('');
             setCategory('');
@@ -341,27 +314,20 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             setFrequency('weekly');
             setIsModalVisible(false);
 
-            // Redirect back if editing, otherwise to Jobs screen
             if (isEditing) {
                 navigation.goBack();
             } else {
                 navigation.navigate('TasksTab');
             }
-            
-        } catch (error) {
-            if (error.code === 'TASK_LIMIT_EXCEEDED') {
-                showToast(error.message, 'warning');
-            } else {
-                showToast(error.message || 'Could not post task. Please try again.', 'error');
-            }
+        } catch (_error) {
+            showToast(error.message || 'Could not post task. Please try again.', 'error');
         } finally {
             setLoading(false);
         }
-    };
+    }, [title, description, category, paymentAmount, address, locationLat, locationLng, image, existingImageUrl, isEditing, taskId, isRecurring, frequency, session, navigation, showToast]);
 
     return (
         <View style={styles.container}>
-            {/* Landing Content */}
             <ScrollView contentContainerStyle={styles.landingContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.heroSection}>
                     <View style={styles.iconCircle}>
@@ -375,8 +341,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                         </View>
                     </View>
                     <Text style={styles.landingDescription}>
-                        Whether it's moving furniture, cleaning, or a quick tech fix, 
-                        find trusted local help for any task.
+                        {"Whether it's moving furniture, cleaning, or a quick tech fix, find trusted local help for any task."}
                     </Text>
                 </View>
 
@@ -482,7 +447,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                                     </View>
                                 ) : fairPriceEstimate ? (
                                     <View style={styles.estimateContainer}>
-                                        <Text style={styles.estimateText}>💡 Similar tasks average <Text style={styles.estimateHighlight}>{CURRENCY_SYMBOL}{fairPriceEstimate}</Text></Text>
+                                        <Text style={styles.estimateText}>ðŸ’¡ Similar tasks average <Text style={styles.estimateHighlight}>{CURRENCY_SYMBOL}{fairPriceEstimate}</Text></Text>
                                     </View>
                                 ) : null}
                             </View>

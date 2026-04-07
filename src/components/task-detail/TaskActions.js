@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Spacing, Rounding } from '../../utils/theme';
+import { TASK_STATUS } from '../../utils/constants';
 import { useTheme } from '../../components/ThemeContext';
 
 export const TaskActions = ({ 
@@ -23,7 +24,7 @@ export const TaskActions = ({
 
     return (
         <View style={styles.actions}>
-            {isPoster && task.status === 'OPEN' && (
+            {isPoster && task.status === TASK_STATUS.OPEN && (
                 <TouchableOpacity style={[styles.cancelButton]} onPress={onCancel}>
                     <FontAwesome name="times-circle" size={18} color={theme.error} style={styles.buttonIcon} />
                     <Text style={styles.cancelButtonText}>Cancel Task</Text>
@@ -31,7 +32,7 @@ export const TaskActions = ({
             )}
 
             {/* Poster Action: Confirm Completion */}
-            {isPoster && task.status === 'PENDING_CONFIRMATION' && (
+            {isPoster && task.status === TASK_STATUS.PENDING_CONFIRMATION && (
                 <TouchableOpacity style={styles.completeButton} onPress={onConfirmCompletion}>
                     <FontAwesome name="check-square-o" size={18} color={theme.white} style={styles.buttonIcon} />
                     <Text style={styles.applyButtonText}>Confirm Completion</Text>
@@ -39,7 +40,7 @@ export const TaskActions = ({
             )}
 
             {/* Worker Action: Mark as Complete */}
-            {isWorker && task.status === 'ASSIGNED' && (
+            {isWorker && task.status === TASK_STATUS.ASSIGNED && (
                 <TouchableOpacity style={[styles.completeButton, { backgroundColor: theme.success }]} onPress={onMarkAsComplete}>
                     <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
                     <Text style={styles.applyButtonText}>Mark as Complete</Text>
@@ -47,7 +48,7 @@ export const TaskActions = ({
             )}
 
             {/* Dispute Action */}
-            {(isPoster || isWorker) && ['ASSIGNED', 'PENDING_CONFIRMATION'].includes(task.status) && (
+            {(isPoster || isWorker) && [TASK_STATUS.ASSIGNED, TASK_STATUS.PENDING_CONFIRMATION].includes(task.status) && (
                 <TouchableOpacity style={styles.disputeButton} onPress={onRaiseDispute}>
                     <FontAwesome name="shield" size={14} color={theme.textMuted} style={styles.buttonIcon} />
                     <Text style={styles.disputeButtonText}>Raise a Dispute</Text>
@@ -55,7 +56,7 @@ export const TaskActions = ({
             )}
 
             {/* Tasker Action: Apply / Withdraw */}
-            {!isPoster && !isWorker && task.status === 'OPEN' && (
+            {!isPoster && !isWorker && task.status === TASK_STATUS.OPEN && (
                 <View>
                     <TouchableOpacity 
                         style={[styles.applyButton, hasApplied && styles.disabledButton]} 

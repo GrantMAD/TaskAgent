@@ -180,11 +180,11 @@ export const messageService = {
 
     uploadChatImage: async (userId, fileUri) => {
         try {
-            const ext = uri.split('.').pop();
+            const ext = fileUri.split('.').pop();
             const fileName = `${Date.now()}.${ext}`;
             const filePath = `${userId}/${fileName}`;
 
-            const response = await fetch(uri);
+            const response = await fetch(fileUri);
             const blob = await response.blob();
 
             const { error: uploadError } = await supabase.storage

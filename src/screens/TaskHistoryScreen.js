@@ -1,11 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { taskService } from '../services/taskService';
 import { TaskCard } from '../components/TaskCard';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
-import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
-import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../components/ThemeContext';
 import { useAuth } from '../components/AuthContext';
 import { EmptyState } from '../components/EmptyState';
@@ -19,11 +17,7 @@ export const TaskHistoryScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         try {
             if (session) {
                 const data = await taskService.getTaskHistory(session.user.id);
@@ -35,7 +29,11 @@ export const TaskHistoryScreen = ({ navigation }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [session]);
+
+    useEffect(() => {
+        fetchHistory();
+    }, [fetchHistory]);
 
     const onRefresh = () => {
         setRefreshing(true);

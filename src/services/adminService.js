@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { TASK_STATUS } from '../utils/constants';
 
 export const adminService = {
     /**
@@ -11,7 +12,7 @@ export const adminService = {
             { count: reportCount, error: reportError }
         ] = await Promise.all([
             supabase.from('users').select('*', { count: 'exact', head: true }),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'COMPLETED'),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', TASK_STATUS.COMPLETED),
             supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'PENDING')
         ]);
 
@@ -46,7 +47,7 @@ export const adminService = {
         const { data, error } = await supabase
             .from('tasks')
             .select('*, poster:users!poster_id(name)')
-            .neq('status', 'COMPLETED')
+            .neq('status', TASK_STATUS.COMPLETED)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -105,7 +106,7 @@ export const adminService = {
             { count: completedCount, error: completedError }
         ] = await Promise.all([
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('poster_id', userId),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('assigned_worker_id', userId).eq('status', 'COMPLETED')
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('assigned_worker_id', userId).eq('status', TASK_STATUS.COMPLETED)
         ]);
 
         if (createdError) throw createdError;
@@ -153,7 +154,7 @@ export const adminService = {
             supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
             supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
             supabase.from('tasks').select('*', { count: 'exact', head: true }),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
+            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('status', TASK_STATUS.COMPLETED),
             supabase.from('tasks').select('payment_amount'),
             adminService.calculatePlatformAvgReplyTime()
         ]);
@@ -218,7 +219,7 @@ export const adminService = {
             if (avg < 60) return `${Math.round(avg)}m`;
             if (avg < 1440) return `${Math.round(avg / 60)}h`;
             return `${Math.round(avg / 1440)}d`;
-        } catch (e) {
+        } catch {
             return 'N/A';
         }
     },

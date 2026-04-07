@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Modal, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { messageService } from '../services/messageService';
 import { supabase } from '../services/supabaseClient';
@@ -9,12 +9,10 @@ import { UserAvatar } from '../components/UserAvatar';
 import { ReportModal } from '../components/ReportModal';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
-import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useToast } from '../components/ToastContext';
 import { useAuth } from '../components/AuthContext';
 import { useNotifications } from '../components/NotificationContext';
-import { Alert, ActionSheetIOS, Modal, TouchableWithoutFeedback } from 'react-native';
-import { useCallback } from 'react';
 
 export const ChatScreen = ({ route, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -33,7 +31,6 @@ export const ChatScreen = ({ route, navigation }) => {
 
     const [isOtherTyping, setIsOtherTyping] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
-    const [isUploading, setIsUploading] = useState(false);
     const [isReportModalVisible, setIsReportModalVisible] = useState(false);
     const [selectedMessageForReport, setSelectedMessageForReport] = useState(null);
     const [isActionModalVisible, setIsActionModalVisible] = useState(false);
@@ -51,6 +48,26 @@ export const ChatScreen = ({ route, navigation }) => {
         const user = conversation.user1_id === userId ? conversation.user2 : conversation.user1;
         return user || { name: 'Deleted User', profile_image: null };
     }, [conversation, userId]);
+
+    const fetchChatDetails = useCallback(async () => {
+        try {
+            const [conv, msgs] = await Promise.all([
+                messageService.getConversation(conversationId),
+                messageService.getMessages(conversationId, LIMIT, 0)
+            ]);
+            setConversation(conv);
+            // Inverted: msgs come chronologically from service (after .reverse())
+            // For inverted list, we need newest at start of array
+            setMessages(msgs.reverse());
+            setOffset(LIMIT);
+            if (msgs.length < LIMIT) setHasMore(false);
+        } catch (error) {
+            console.error('Error fetching chat details:', error);
+            showToast('Could not load conversation', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [conversationId, showToast]);
 
     useEffect(() => {
         if (session) {
@@ -124,27 +141,8 @@ export const ChatScreen = ({ route, navigation }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [conversationId]);
+    }, [conversationId, fetchChatDetails, session, showToast]);
 
-    const fetchChatDetails = async () => {
-        try {
-            const [conv, msgs] = await Promise.all([
-                messageService.getConversation(conversationId),
-                messageService.getMessages(conversationId, LIMIT, 0)
-            ]);
-            setConversation(conv);
-            // Inverted: msgs come chronologically from service (after .reverse())
-            // For inverted list, we need newest at start of array
-            setMessages(msgs.reverse());
-            setOffset(LIMIT);
-            if (msgs.length < LIMIT) setHasMore(false);
-        } catch (error) {
-            console.error('Error fetching chat details:', error);
-            showToast('Could not load conversation', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const loadMoreMessages = async () => {
         if (!hasMore || loadingMore) return;

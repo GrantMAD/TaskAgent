@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
 
-const { width } = Dimensions.get('window');
 
 const ReliabilityReport = ({ reliability }) => {
     const { theme } = useTheme();

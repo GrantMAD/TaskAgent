@@ -74,6 +74,8 @@ export const MessageBubble = memo(({ message, isMine, status, onLongPress }) => 
     );
 });
 
+MessageBubble.displayName = 'MessageBubble';
+
 const styles = StyleSheet.create({
     container: {
         marginVertical: 4,

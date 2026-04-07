@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, memo, useCallback, lazy, Suspense } from 'react';
-import { View, TouchableOpacity, Text, Alert, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Text, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
 import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,7 +7,7 @@ import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerI
 import { FontAwesome } from '@expo/vector-icons';
 import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
-import { notificationService } from '../services/notificationService';
+import { TASK_STATUS } from '../utils/constants';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { NotificationProvider, useNotifications } from '../components/NotificationContext';
@@ -40,15 +40,19 @@ const RecurringTasksScreen = lazy(() => import('../screens/RecurringTasksScreen'
 const SavedTasksScreen = lazy(() => import('../screens/SavedTasksScreen').then(module => ({ default: module.SavedTasksScreen })));
 
 // Loading Wrapper for Lazy Screens
-const LazyScreen = (Component) => (props) => (
-    <Suspense fallback={
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-            <ActivityIndicator size="large" color="#2563EB" />
-        </View>
-    }>
-        <Component {...props} />
-    </Suspense>
-);
+const LazyScreen = (Component) => {
+    const WrappedComponent = (props) => (
+        <Suspense fallback={
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                <ActivityIndicator size="large" color="#2563EB" />
+            </View>
+        }>
+            <Component {...props} />
+        </Suspense>
+    );
+    WrappedComponent.displayName = `LazyScreen(${Component.displayName || Component.name || 'Component'})`;
+    return WrappedComponent;
+};
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -97,6 +101,8 @@ const NotificationItem = memo(({ item, onPress, formatTime, styles }) => {
     );
 });
 
+NotificationItem.displayName = 'NotificationItem';
+
 // Notification Dropdown Component
 const NotificationDropdown = ({ visible, onClose, navigation }) => {
     const { theme, shadows } = useTheme();
@@ -113,7 +119,7 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
         switch (item.type) {
             case 'APPLICATION':
             case 'HIRED':
-            case 'COMPLETED':
+            case TASK_STATUS.COMPLETED:
             case 'dispute_raised':
             case 'dispute_resolved':
                 if (item.related_id) {
@@ -214,7 +220,6 @@ const CustomDrawerContent = (props) => {
     const { showToast } = useToast();
     const { theme, shadows } = useTheme();
     const { userProfile, session } = useAuth();
-    const navigation = useNavigation();
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
     const handleLogout = async () => {
@@ -429,8 +434,7 @@ const MainDrawer = () => {
         <>
             <Drawer.Navigator
                 drawerContent={(props) => <CustomDrawerContent {...props} />}
-                screenOptions={({ route }) => {
-                    const routeName = getFocusedRouteNameFromRoute(route);
+                screenOptions={() => {
                     return {
                         headerShown: true,
                         drawerType: 'front',
@@ -602,7 +606,7 @@ async function registerForPushNotificationsAsync() {
 }
 
 export const AppNavigator = () => {
-    const { session, loading, userProfile } = useAuth();
+    const { session, loading } = useAuth();
     const notificationListener = useRef();
     const responseListener = useRef();
 
@@ -625,7 +629,7 @@ export const AppNavigator = () => {
                 switch (type) {
                     case 'APPLICATION':
                     case 'HIRED':
-                    case 'COMPLETED':
+                    case TASK_STATUS.COMPLETED:
                     case 'dispute_raised':
                     case 'dispute_resolved':
                         navigate('MainDrawer', {
@@ -661,7 +665,7 @@ export const AppNavigator = () => {
             notificationListener.current?.remove();
             responseListener.current?.remove();
         };
-    }, [session?.user?.id]);
+    }, [session?.user]);
 
     const handlePushRegistration = async (userId) => {
         try {
@@ -669,8 +673,8 @@ export const AppNavigator = () => {
             if (token) {
                 await userService.updatePushToken(userId, token);
             }
-        } catch (error) {
-            console.error('Error registering for push:', error);
+        } catch (_error) {
+            console.error('Error registering for push:', _error);
         }
     };
 
@@ -918,4 +922,3 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         opacity: 0.6,
     }
 });
-const styles = StyleSheet.create({}); // Placeholder for legacy styles if needed

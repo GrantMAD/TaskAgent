@@ -23,7 +23,7 @@ export const ReportModal = ({
     reportedTaskId, 
     type = 'task' // 'task' or 'user'
 }) => {
-    const { theme, shadows } = useTheme();
+    const { theme } = useTheme();
     const { session } = useAuth();
     const { showToast } = useToast();
     const [selectedReason, setSelectedReason] = useState('');

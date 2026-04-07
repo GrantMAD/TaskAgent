@@ -61,3 +61,14 @@ export const NEIGHBORHOOD_TIPS = [
         icon: 'bolt'
     }
 ];
+
+export const TASK_STATUS = {
+    OPEN: 'OPEN',
+    ASSIGNED: 'ASSIGNED',
+    PENDING_CONFIRMATION: 'PENDING_CONFIRMATION',
+    COMPLETED: 'COMPLETED',
+    CANCELLED: 'CANCELLED',
+    DISPUTED: 'DISPUTED',
+    INVITED: 'INVITED', // Mobile-specific for recurring tasks
+    PENDING_APPROVAL: 'PENDING_APPROVAL' // Mobile-specific for recurring tasks
+};

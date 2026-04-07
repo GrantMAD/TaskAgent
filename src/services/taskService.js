@@ -3,6 +3,7 @@ import { notificationService } from './notificationService'
 import { rateLimitService } from './rateLimitService'
 import { sanitizeString, sanitizeObject } from '../utils/sanitization'
 import * as ImageManipulator from 'expo-image-manipulator';
+import { TASK_STATUS } from '../utils/constants';
 
 export const taskService = {
     uploadTaskImage: async (uri, userId) => {
@@ -114,7 +115,7 @@ export const taskService = {
         const { data, error } = await supabase
             .from('tasks')
             .select('*, poster:users!poster_id(id, name, profile_image, rating)')
-            .eq('status', 'OPEN')
+            .eq('status', TASK_STATUS.OPEN)
             .order('created_at', { ascending: false })
             .limit(limit);
         if (error) throw error
@@ -145,7 +146,7 @@ export const taskService = {
             .from('tasks')
             .select('*, poster:users!poster_id(id, name, profile_image, rating)')
             .eq('assigned_worker_id', workerId)
-            .in('status', ['ASSIGNED', 'PENDING_CONFIRMATION'])
+            .in('status', [TASK_STATUS.ASSIGNED, TASK_STATUS.PENDING_CONFIRMATION])
             .order('created_at', { ascending: false })
         if (error) throw error
         return data
@@ -159,7 +160,7 @@ export const taskService = {
                 worker:users!assigned_worker_id(id, name, profile_image, rating)
             `)
             .eq('poster_id', posterId)
-            .in('status', ['OPEN', 'ASSIGNED', 'PENDING_CONFIRMATION'])
+            .in('status', [TASK_STATUS.OPEN, TASK_STATUS.ASSIGNED, TASK_STATUS.PENDING_CONFIRMATION])
             .order('created_at', { ascending: false });
         
         if (error) throw error;
@@ -184,8 +185,8 @@ export const taskService = {
             .map(item => item.task)
             .filter(task => 
                 task && 
-                task.status !== 'COMPLETED' && 
-                task.status !== 'CANCELLED' &&
+                task.status !== TASK_STATUS.COMPLETED && 
+                task.status !== TASK_STATUS.CANCELLED &&
                 task.assigned_worker_id !== workerId
             );
     },
@@ -194,16 +195,13 @@ export const taskService = {
         const { data, error } = await supabase
             .from('tasks')
             .select('*, poster:users!poster_id(id, name, profile_image, rating), worker:users!assigned_worker_id(id, name, profile_image, rating)')
-            .eq('status', 'COMPLETED')
+            .eq('status', TASK_STATUS.COMPLETED)
             .or(`poster_id.eq.${userId},assigned_worker_id.eq.${userId}`)
             .order('created_at', { ascending: false })
         if (error) throw error
         return data
     },
 
-    /**
-     * Get personalized tasks using the smart ranking RPC
-     */
     getPersonalizedTasks: async (userId, lat = null, lng = null, limit = 50) => {
         const { data, error } = await supabase
             .rpc('get_personalized_tasks', {
@@ -215,9 +213,6 @@ export const taskService = {
 
         if (error) throw error;
 
-        // The RPC returns a flat structure, we helper-join the poster info 
-        // using another query or by mapping if we want full poster objects.
-        // For efficiency, we can fetch poster IDs and then get their details in bulk.
         if (data.length === 0) return [];
 
         const posterIds = [...new Set(data.map(t => t.poster_id))];
@@ -237,39 +232,12 @@ export const taskService = {
         }));
     },
 
-    /**
-     * Get task history (completed tasks where user was poster or worker)
-     */
-    getTaskHistory: async (userId) => {
-        const { data, error } = await supabase
-            .from('tasks')
-            .select('*, poster:users!poster_id(id, name, profile_image, rating), worker:users!assigned_worker_id(id, name, profile_image, rating)')
-            .eq('status', 'COMPLETED')
-            .or(`poster_id.eq.${userId},assigned_worker_id.eq.${userId}`)
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        return data;
-    },
-
-    /**
-     * Increment the view count for a task
-     */
     incrementTaskView: async (taskId) => {
-        // This uses a simple RPC to increment the counter atomically
         const { error } = await supabase
             .rpc('increment_task_view', { t_id: taskId });
         
         if (error) {
-            // If the specialized RPC doesn't exist yet, we fall back to a standard update
-            await supabase
-                .from('tasks')
-                .update({ view_count: supabase.rpc('increment', { row_id: taskId }) }) // Conceptual, Supabase doesn't have this exact syntax for update
-                .eq('id', taskId);
-            // In a real migration, we'd add the increment function:
-            // CREATE OR REPLACE FUNCTION increment_task_view(t_id UUID) RETURNS VOID AS $$ 
-            // UPDATE tasks SET view_count = view_count + 1 WHERE id = t_id; 
-            // $$ LANGUAGE sql;
+            console.warn('Fallback increment failed:', error);
         }
     },
 
@@ -348,7 +316,7 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from('tasks')
-            .update({ assigned_worker_id: workerId, status: 'ASSIGNED' })
+            .update({ assigned_worker_id: workerId, status: TASK_STATUS.ASSIGNED })
             .eq('id', taskId)
         if (error) throw error
 
@@ -376,7 +344,7 @@ export const taskService = {
         const { data, error } = await supabase
             .from('tasks')
             .update({ 
-                status: 'PENDING_CONFIRMATION',
+                status: TASK_STATUS.PENDING_CONFIRMATION,
                 completion_image_url: completionImageUrl
             })
             .eq('id', taskId)
@@ -386,7 +354,7 @@ export const taskService = {
             task.poster_id,
             'Work Submitted',
             `Tasker marked ${task.title} as complete.`,
-            'COMPLETED',
+            TASK_STATUS.COMPLETED,
             taskId
         )
 
@@ -405,7 +373,7 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from('tasks')
-            .update({ status: 'COMPLETED' })
+            .update({ status: TASK_STATUS.COMPLETED })
             .eq('id', taskId)
         if (error) throw error
 
@@ -413,7 +381,7 @@ export const taskService = {
             task.assigned_worker_id,
             'Payment Released',
             `Job ${task.title} is officially complete!`,
-            'COMPLETED',
+            TASK_STATUS.COMPLETED,
             taskId
         )
 
@@ -458,7 +426,7 @@ export const taskService = {
             // 3. Update task status
             const { data, error } = await supabase
                 .from('tasks')
-                .update({ status: 'CANCELLED' })
+                .update({ status: TASK_STATUS.CANCELLED })
                 .eq('id', taskId);
 
             if (error) throw error;
@@ -547,21 +515,6 @@ export const taskService = {
                 // Determine if this is the first instance or a recurrence
                 const isFirstInstance = !template.last_generated_at;
                 
-                // If it's a recurrence, we need to find the last hired worker
-                let previousWorkerId = null;
-                if (!isFirstInstance) {
-                    const { data: lastTasks } = await supabase
-                        .from('tasks')
-                        .select('assigned_worker_id')
-                        .eq('parent_template_id', template.id)
-                        .not('assigned_worker_id', 'is', null)
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-                    
-                    if (lastTasks && lastTasks.length > 0) {
-                        previousWorkerId = lastTasks[0].assigned_worker_id;
-                    }
-                }
 
                 // Generate the task instance
                 const taskData = {
@@ -575,7 +528,7 @@ export const taskService = {
                     location_lng: template.location_lng,
                     image_url: template.image_url,
                     parent_template_id: template.id,
-                    status: isFirstInstance ? 'OPEN' : 'PENDING_APPROVAL'
+                    status: isFirstInstance ? TASK_STATUS.OPEN : TASK_STATUS.PENDING_APPROVAL
                 };
 
                 const { data: newTask, error: insertError } = await supabase
@@ -636,7 +589,7 @@ export const taskService = {
                 .from('tasks')
                 .update({ 
                     assigned_worker_id: workerId, 
-                    status: 'INVITED' 
+                    status: TASK_STATUS.INVITED 
                 })
                 .eq('id', taskId);
             
@@ -655,7 +608,7 @@ export const taskService = {
                 .from('tasks')
                 .update({ 
                     assigned_worker_id: null, 
-                    status: 'OPEN' 
+                    status: TASK_STATUS.OPEN 
                 })
                 .eq('id', taskId);
             
@@ -676,7 +629,7 @@ export const taskService = {
             // Worker accepted
             const { error } = await supabase
                 .from('tasks')
-                .update({ status: 'ASSIGNED' })
+                .update({ status: TASK_STATUS.ASSIGNED })
                 .eq('id', taskId);
             
             if (error) throw error;
@@ -694,7 +647,7 @@ export const taskService = {
                 .from('tasks')
                 .update({ 
                     assigned_worker_id: null, 
-                    status: 'OPEN' 
+                    status: TASK_STATUS.OPEN 
                 })
                 .eq('id', taskId);
             
@@ -757,7 +710,7 @@ export const taskService = {
                 .from('tasks')
                 .select('payment_amount')
                 .eq('category', category)
-                .eq('status', 'COMPLETED')
+                .eq('status', TASK_STATUS.COMPLETED)
                 .order('created_at', { ascending: false })
                 .limit(50);
 

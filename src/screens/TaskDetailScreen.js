@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Image, ActivityIndicator, RefreshControl, Share } from 'react-native';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { taskService } from '../services/taskService';
@@ -24,7 +24,7 @@ import { TaskStatusBanner } from '../components/task-detail/TaskStatusBanner';
 import { ApplicationModal } from '../components/ApplicationModal';
 import { ReportModal } from '../components/ReportModal';
 import { DisputeModal } from '../components/DisputeModal';
-import { CURRENCY_SYMBOL } from '../utils/constants';
+import { CURRENCY_SYMBOL, TASK_STATUS } from '../utils/constants';
 import { interactionService } from '../services/interactionService';
 import { disputeService } from '../services/disputeService';
 
@@ -55,7 +55,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             );
         }
         return null;
-    }, [userLocation, task?.location_lat, task?.location_lng]);
+    }, [userLocation, task?.location_lat, task?.location_lng, calculateDistance]);
 
     // Modal State
     const [modalVisible, setModalVisible] = useState(false);
@@ -95,36 +95,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     // Report Modal State
     const [reportModalVisible, setReportModalVisible] = useState(false);
 
-    useEffect(() => {
-        fetchTaskDetails();
-
-        // Subscribe to task changes
-        const taskSubscription = taskService.subscribeToTasks(`task_detail_channel_${taskId}`, (payload) => {
-            if (payload.new?.id === taskId || payload.old?.id === taskId) {
-                fetchTaskDetails();
-            }
-        });
-
-        // Subscribe to applications for this task
-        const appSubscription = taskService.subscribeToTaskApplications(taskId, () => {
-            fetchTaskDetails(); 
-        });
-
-        return () => {
-            supabase.removeChannel(taskSubscription);
-            supabase.removeChannel(appSubscription);
-        };
-    }, [taskId]);
-
-    // Log interaction and increment view count
-    useEffect(() => {
-        if (taskId) {
-            interactionService.logTaskView(session?.user?.id, taskId);
-            taskService.incrementTaskView(taskId);
-        }
-    }, [taskId]);
-
-    const fetchTaskDetails = async (isRefreshing = false) => {
+    const fetchTaskDetails = useCallback(async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
             const data = await taskService.getTaskDetails(taskId);
@@ -145,7 +116,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 setHasApplied(!!userApplication);
             }
 
-            if (data.status === 'DISPUTED') {
+            if (data.status === TASK_STATUS.DISPUTED) {
                 const disputeData = await disputeService.getTaskDispute(taskId);
                 setDispute(disputeData);
             } else {
@@ -158,7 +129,41 @@ export const TaskDetailScreen = ({ route, navigation }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [taskId, session, showToast]);
+
+    useEffect(() => {
+        setLoading(true);
+        fetchTaskDetails();
+
+        const channel = supabase
+            .channel(`task-${taskId}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'tasks',
+                filter: `id=eq.${taskId}`
+            }, () => {
+                fetchTaskDetails();
+            })
+            .subscribe();
+
+        const appSubscription = taskService.subscribeToTaskApplications(taskId, () => {
+            fetchTaskDetails();
+        });
+
+        return () => {
+            supabase.removeChannel(channel);
+            supabase.removeChannel(appSubscription);
+        };
+    }, [taskId, fetchTaskDetails]);
+
+    // Log interaction and increment view count
+    useEffect(() => {
+        if (taskId) {
+            interactionService.logTaskView(session?.user?.id, taskId);
+            taskService.incrementTaskView(taskId);
+        }
+    }, [taskId, session?.user?.id]);
 
     const formatDate = (dateString = '') => {
         if (!dateString) return 'recently';
@@ -181,11 +186,11 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
     const handleShare = async () => {
         try {
-            const result = await Share.share({
+            await Share.share({
                 message: `Check out this task on Task Agent: ${task.title}\n\nBudget: ${CURRENCY_SYMBOL}${task.payment_amount}\nCategory: ${task.category}\n\nDescription: ${task.description}`,
                 title: task.title,
             });
-        } catch (error) {
+        } catch {
             showToast('Could not share task', 'error');
         }
     };
@@ -467,7 +472,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     <Text style={styles.headerTitle} numberOfLines={1}>Task Details</Text>
                 </View>
                 <View style={styles.headerRight}>
-                    {isPoster && task.status === 'OPEN' && (
+                    {isPoster && task.status === TASK_STATUS.OPEN && (
                         <TouchableOpacity 
                             onPress={() => navigation.navigate('Main', { 
                                 screen: 'CreateTab', 
@@ -532,7 +537,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     </View>
                 )}
 
-                {task.status === 'DISPUTED' && (
+                {task.status === TASK_STATUS.DISPUTED && (
                     <View style={styles.disputeBanner}>
                         <View style={styles.disputeIconContainer}>
                             <FontAwesome name="shield" size={24} color="#FFF" />
@@ -558,8 +563,8 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                         <View>
                             <Text style={styles.priceLabel}>Status</Text>
                             <Text style={[styles.statusText, { 
-                                color: task.status === 'OPEN' ? theme.success : 
-                                       task.status === 'COMPLETED' ? theme.success : theme.accent 
+                                color: task.status === TASK_STATUS.OPEN ? theme.success : 
+                                       task.status === TASK_STATUS.COMPLETED ? theme.success : theme.accent 
                             }]}>
                                 {task.status.replace('_', ' ')}
                             </Text>
@@ -625,7 +630,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 )}
 
                 {/* Poster View: Applicants List */}
-                {isPoster && task.status === 'OPEN' && (
+                {isPoster && task.status === TASK_STATUS.OPEN && (
                     <ApplicantList 
                         applications={applications} 
                         navigation={navigation}

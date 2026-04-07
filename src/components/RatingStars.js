@@ -14,6 +14,8 @@ export const RatingStars = memo(({ rating }) => {
     );
 });
 
+RatingStars.displayName = 'RatingStars';
+
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',

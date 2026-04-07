@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { TASK_STATUS } from '../utils/constants'
 
 export const rateLimitService = {
     /**
@@ -38,7 +39,7 @@ export const rateLimitService = {
             .from('tasks')
             .select('*', { count: 'exact', head: true })
             .eq('poster_id', userId)
-            .in('status', ['OPEN', 'ASSIGNED', 'PENDING_CONFIRMATION']);
+            .in('status', [TASK_STATUS.OPEN, TASK_STATUS.ASSIGNED, TASK_STATUS.PENDING_CONFIRMATION]);
 
         if (error) {
             console.error('Task limit check error:', error);

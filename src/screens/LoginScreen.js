@@ -40,7 +40,7 @@ export const LoginScreen = ({ navigation }) => {
         }
 
         setLoading(true);
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         setLoading(false);
         if (error) {
             console.error('Login error details:', error);

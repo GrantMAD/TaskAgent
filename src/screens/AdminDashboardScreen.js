@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../components/ThemeContext';
 import { Spacing, Rounding } from '../utils/theme';
@@ -11,7 +11,7 @@ import { AdminDataModal } from '../components/AdminDataModal';
 import { AdminAnalyticsSection } from '../components/AdminAnalyticsSection';
 
 export const AdminDashboardScreen = ({ navigation }) => {
-    const { theme, shadows } = useTheme();
+    const { theme } = useTheme();
     const { showToast } = useToast();
     const [stats, setStats] = useState(null);
     const [analytics, setAnalytics] = useState(null);
@@ -25,11 +25,7 @@ export const AdminDashboardScreen = ({ navigation }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             const [statsData, analyticsData, catData, marketData, reputationData] = await Promise.all([
@@ -50,7 +46,11 @@ export const AdminDashboardScreen = ({ navigation }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const handleRefresh = async () => {
         setRefreshing(true);

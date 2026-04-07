@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Platform, Modal } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { Colors, Shadow, Spacing, Rounding } from '../utils/theme';
+import { Shadow, Spacing, Rounding } from '../utils/theme';
 import { useTheme } from './ThemeContext';
 
 const ToastContext = createContext();
@@ -22,6 +22,24 @@ export const ToastProvider = ({ children }) => {
     const timerRef = useRef(null);
 
     const useNativeDriver = false; // Forced to false to resolve "native animated module is missing" warnings
+
+    const hideToast = useCallback(() => {
+        console.log('[Toast] Hiding');
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 250,
+                useNativeDriver,
+            }),
+            Animated.timing(translateY, {
+                toValue: -100,
+                duration: 250,
+                useNativeDriver,
+            }),
+        ]).start(() => {
+            setToast(prev => ({ ...prev, visible: false }));
+        });
+    }, [fadeAnim, translateY, useNativeDriver]);
 
     const showToast = useCallback((message, type = 'info') => {
         console.log(`[Toast] Showing: ${message} (${type})`);
@@ -47,25 +65,7 @@ export const ToastProvider = ({ children }) => {
 
         // Auto Hide
         timerRef.current = setTimeout(hideToast, 3500);
-    }, [fadeAnim, translateY, useNativeDriver]);
-
-    const hideToast = useCallback(() => {
-        console.log('[Toast] Hiding');
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 250,
-                useNativeDriver,
-            }),
-            Animated.timing(translateY, {
-                toValue: -100,
-                duration: 250,
-                useNativeDriver,
-            }),
-        ]).start(() => {
-            setToast(prev => ({ ...prev, visible: false }));
-        });
-    }, [fadeAnim, translateY, useNativeDriver]);
+    }, [fadeAnim, translateY, useNativeDriver, hideToast]);
 
     const getIcon = () => {
         switch (toast.type) {

@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { LightTheme, DarkTheme, getShadow } from '../utils/theme';
-import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
 import { useAuth } from './AuthContext';
 
@@ -26,15 +25,7 @@ export const ThemeProvider = ({ children }) => {
         accent: getShadow('accent', theme),
     };
 
-    useEffect(() => {
-        if (session) {
-            fetchThemePreference();
-        } else {
-            setIsDarkMode(false);
-        }
-    }, [session]);
-
-    const fetchThemePreference = async () => {
+    const fetchThemePreference = useCallback(async () => {
         if (session) {
             try {
                 const profile = await userService.getUserProfile(session.user.id);
@@ -45,7 +36,15 @@ export const ThemeProvider = ({ children }) => {
                 console.error('Error fetching theme preference:', error);
             }
         }
-    };
+    }, [session]);
+
+    useEffect(() => {
+        if (session) {
+            fetchThemePreference();
+        } else {
+            setIsDarkMode(false);
+        }
+    }, [session, fetchThemePreference]);
 
     const toggleTheme = async () => {
         const newMode = !isDarkMode;

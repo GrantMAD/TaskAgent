@@ -92,7 +92,7 @@ const ApplicantItem = ({ app, navigation, onMessage, onHire, theme, shadows }) =
             {app.message && (
                 <View style={styles.messageBox}>
                     <Text style={styles.applicantMessage}>
-                        "{app.message}"
+                        {`"${app.message}"`}
                     </Text>
                 </View>
             )}

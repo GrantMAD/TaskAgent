@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
 import { useAuth } from './AuthContext';
 
@@ -13,7 +12,7 @@ export const LocationProvider = ({ children }) => {
     const [searchRadius, setSearchRadius] = useState(10); // Default 10km
     const { session } = useAuth();
 
-    const loadSettings = async () => {
+    const loadSettings = useCallback(async () => {
         try {
             if (session) {
                 const profile = await userService.getUserProfile(session.user.id);
@@ -24,7 +23,7 @@ export const LocationProvider = ({ children }) => {
         } catch (e) {
             console.error('Error loading searchRadius:', e);
         }
-    };
+    }, [session]);
 
     const updateSearchRadius = async (newRadius) => {
         try {
@@ -81,7 +80,7 @@ export const LocationProvider = ({ children }) => {
 
             return () => subscription.remove();
         })();
-    }, []);
+    }, [loadSettings]);
 
     // Haversine formula to calculate distance in km
     const calculateDistance = (lat1, lon1, lat2, lon2) => {

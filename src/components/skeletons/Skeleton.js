@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import { Animated } from 'react-native';
 import { useTheme } from '../ThemeContext';
 
 export const Skeleton = ({ width, height, borderRadius, style }) => {

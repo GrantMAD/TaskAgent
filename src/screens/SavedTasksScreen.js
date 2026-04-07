@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
@@ -21,9 +21,9 @@ export const SavedTasksScreen = ({ navigation }) => {
 
     useEffect(() => {
         fetchSavedTasks();
-    }, [savedTaskIds]); // Re-fetch or filter when savedTaskIds change
+    }, [savedTaskIds, fetchSavedTasks]); // Re-fetch or filter when savedTaskIds change
 
-    const fetchSavedTasks = async (isRefreshing = false) => {
+    const fetchSavedTasks = useCallback(async (isRefreshing = false) => {
         if (!user) return;
         if (isRefreshing) setRefreshing(true);
         
@@ -36,7 +36,7 @@ export const SavedTasksScreen = ({ navigation }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [user]);
 
     const onRefresh = () => {
         fetchSavedTasks(true);

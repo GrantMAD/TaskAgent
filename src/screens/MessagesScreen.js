@@ -24,13 +24,7 @@ export const MessagesScreen = ({ navigation }) => {
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchConversations();
-        }, [])
-    );
-
-    const fetchConversations = async (isRefreshing = false) => {
+    const fetchConversations = useCallback(async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
             if (!session) return;
@@ -45,7 +39,13 @@ export const MessagesScreen = ({ navigation }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [session]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchConversations();
+        }, [fetchConversations])
+    );
 
     // Real-time subscription for new messages
     useEffect(() => {
@@ -133,7 +133,7 @@ export const MessagesScreen = ({ navigation }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId]);
+    }, [userId, fetchConversations]);
 
     const onRefresh = () => {
         fetchConversations(true);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, Modal, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NotificationSkeleton } from '../components/skeletons/SkeletonPlaceholders';
@@ -12,6 +12,7 @@ import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
 import { UserAvatar } from '../components/UserAvatar';
+import { TASK_STATUS } from '../utils/constants';
 
 export const NotificationsScreen = ({ navigation, route }) => {
     const { theme, shadows } = useTheme();
@@ -33,76 +34,7 @@ export const NotificationsScreen = ({ navigation, route }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalData, setModalData] = useState(null); // { type, task, previousWorker }
 
-    // Handle deep link from dropdown
-    useEffect(() => {
-        if (route.params?.notificationId && notifications.length > 0) {
-            const notif = notifications.find(n => n.id === route.params.notificationId);
-            if (notif) {
-                handleNotificationPress(notif);
-                // Clear param so it doesn't re-trigger
-                navigation.setParams({ notificationId: null });
-            }
-        }
-    }, [route.params?.notificationId, notifications]);
-
-    const handleNotificationPress = async (item) => {
-        if (!item.is_read) {
-            markAsRead(item.id);
-        }
-
-        // Action Logic for recurring tasks
-        if (item.type === 'RECURRING_APPROVAL') {
-            prepareRecurringApproval(item);
-            return;
-        }
-
-        if (item.type === 'RECURRING_INVITATION') {
-            prepareRecurringInvitation(item);
-            return;
-        }
-
-        // Navigation Logic
-        switch (item.type) {
-            case 'APPLICATION':
-            case 'HIRED':
-            case 'COMPLETED':
-            case 'INVITATION_ACCEPTED':
-            case 'INVITATION_DECLINED':
-            case 'dispute_raised':
-            case 'dispute_resolved':
-                if (item.related_id) {
-                    navigation.navigate('MainDrawer', { 
-                        screen: 'Main', 
-                        params: {
-                            screen: 'HomeTab', 
-                            params: { 
-                                screen: 'TaskDetail', 
-                                params: { taskId: item.related_id } 
-                            }
-                        }
-                    });
-                }
-                break;
-            case 'MESSAGE':
-                if (item.related_id) {
-                    navigation.navigate('MainDrawer', { 
-                        screen: 'Main', 
-                        params: {
-                            screen: 'MessagesTab', 
-                            params: { 
-                                screen: 'Chat', 
-                                params: { conversationId: item.related_id } 
-                            }
-                        }
-                    });
-                }
-                break;
-            default:
-                break;
-        }
-    };
-
-    const prepareRecurringApproval = async (item) => {
+    const prepareRecurringApproval = useCallback(async (item) => {
         setActionLoading(true);
         try {
             const { data: task } = await supabase
@@ -137,9 +69,9 @@ export const NotificationsScreen = ({ navigation, route }) => {
         } finally {
             setActionLoading(false);
         }
-    };
+    }, [supabase, userService]);
 
-    const prepareRecurringInvitation = async (item) => {
+    const prepareRecurringInvitation = useCallback(async (item) => {
         setActionLoading(true);
         try {
             const { data: task } = await supabase
@@ -160,7 +92,76 @@ export const NotificationsScreen = ({ navigation, route }) => {
         } finally {
             setActionLoading(false);
         }
-    };
+    }, [supabase]);
+
+    const handleNotificationPress = useCallback(async (item) => {
+        if (!item.is_read) {
+            markAsRead(item.id);
+        }
+
+        // Action Logic for recurring tasks
+        if (item.type === 'RECURRING_APPROVAL') {
+            prepareRecurringApproval(item);
+            return;
+        }
+
+        if (item.type === 'RECURRING_INVITATION') {
+            prepareRecurringInvitation(item);
+            return;
+        }
+
+        // Navigation Logic
+        switch (item.type) {
+            case 'APPLICATION':
+            case 'HIRED':
+            case TASK_STATUS.COMPLETED:
+            case 'INVITATION_ACCEPTED':
+            case 'INVITATION_DECLINED':
+            case 'dispute_raised':
+            case 'dispute_resolved':
+                if (item.related_id) {
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'HomeTab', 
+                            params: { 
+                                screen: 'TaskDetail', 
+                                params: { taskId: item.related_id } 
+                            }
+                        }
+                    });
+                }
+                break;
+            case 'MESSAGE':
+                if (item.related_id) {
+                    navigation.navigate('MainDrawer', { 
+                        screen: 'Main', 
+                        params: {
+                            screen: 'MessagesTab', 
+                            params: { 
+                                screen: 'Chat', 
+                                params: { conversationId: item.related_id } 
+                            }
+                        }
+                    });
+                }
+                break;
+            default:
+                break;
+        }
+    }, [markAsRead, prepareRecurringApproval, prepareRecurringInvitation, navigation]);
+
+    // Handle deep link from dropdown
+    useEffect(() => {
+        if (route.params?.notificationId && notifications.length > 0) {
+            const notif = notifications.find(n => n.id === route.params.notificationId);
+            if (notif) {
+                handleNotificationPress(notif);
+                // Clear param so it doesn't re-trigger
+                navigation.setParams({ notificationId: null });
+            }
+        }
+    }, [route.params?.notificationId, notifications, handleNotificationPress, navigation]);
 
     const handleAction = async (actionType) => {
         setActionLoading(true);
@@ -314,7 +315,7 @@ export const NotificationsScreen = ({ navigation, route }) => {
                             {modalData?.type === 'APPROVAL' ? (
                                 <>
                                     <Text style={styles.modalMessage}>
-                                        This recurring task is ready. Choose how you'd like to proceed:
+                                        {"Choose how you'd like to proceed:"}
                                     </Text>
                                     
                                     {modalData.previousWorker && (
@@ -344,7 +345,7 @@ export const NotificationsScreen = ({ navigation, route }) => {
                             ) : (
                                 <>
                                     <Text style={styles.modalMessage}>
-                                        You've been invited back for this task. Would you like to accept?
+                                        {"You've been invited back for this task. Would you like to accept?"}
                                     </Text>
                                     
                                     <View style={styles.invitationRow}>

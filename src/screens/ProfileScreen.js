@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { userService } from '../services/userService';
 import { taskService } from '../services/taskService';
 import { FontAwesome } from '@expo/vector-icons';
-import { supabase } from '../services/supabaseClient';
 import { ProfileSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
@@ -13,7 +12,6 @@ import { useToast } from '../components/ToastContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../components/AuthContext';
 
-import { interactionService } from '../services/interactionService';
 import { reliabilityService } from '../services/reliabilityService';
 import ReliabilityReport from '../components/ReliabilityReport';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -33,13 +31,7 @@ export const ProfileScreen = ({ navigation }) => {
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    useFocusEffect(
-        React.useCallback(() => {
-            fetchProfileData();
-        }, [])
-    );
-
-    const fetchProfileData = async (isRefreshing = false) => {
+    const fetchProfileData = useCallback(async (isRefreshing = false) => {
         if (isRefreshing) setRefreshing(true);
         try {
             if (!session) return;
@@ -63,7 +55,13 @@ export const ProfileScreen = ({ navigation }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [session, showToast]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfileData();
+        }, [fetchProfileData])
+    );
 
     const onRefresh = () => {
         fetchProfileData(true);

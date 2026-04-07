@@ -54,8 +54,8 @@ export const NotificationProvider = ({ children }) => {
             } else {
                 setUnreadMessagesCount(0);
             }
-        } catch (error) {
-            console.error('Error fetching counts:', error);
+        } catch (_error) {
+            console.error('Error fetching counts:', _error);
         } finally {
             setLoading(false);
         }
@@ -66,8 +66,8 @@ export const NotificationProvider = ({ children }) => {
         try {
             const data = await notificationService.getNotifications(userId);
             setNotifications(data);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
+        } catch (_error) {
+            console.error('Error fetching notifications:', _error);
         }
     }, []);
 
@@ -163,7 +163,7 @@ export const NotificationProvider = ({ children }) => {
 
         try {
             await notificationService.markAsRead(id);
-        } catch (error) {
+        } catch {
             setNotifications(previousNotifs);
             setUnreadCount(previousNotifs.filter(n => !n.is_read).length);
             showToast('Failed to update notification', 'error');
@@ -180,7 +180,7 @@ export const NotificationProvider = ({ children }) => {
 
         try {
             await notificationService.markAllAsRead(session.user.id);
-        } catch (error) {
+        } catch {
             setNotifications(previousNotifs);
             setUnreadCount(previousNotifs.filter(n => !n.is_read).length);
             showToast('Failed to mark all as read', 'error');
@@ -201,7 +201,7 @@ export const NotificationProvider = ({ children }) => {
         try {
             await notificationService.deleteNotification(id);
             showToast('Notification deleted', 'info');
-        } catch (error) {
+        } catch (_error) {
             setNotifications(previousNotifs);
             setUnreadCount(previousNotifs.filter(n => !n.is_read).length);
             showToast('Failed to delete notification', 'error');

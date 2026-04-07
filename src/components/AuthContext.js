@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const AuthContext = createContext();
@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState(null);
 
-    const fetchSavedTaskIds = async (userId) => {
+    const fetchSavedTaskIds = useCallback(async (userId) => {
         try {
             const { data, error } = await supabase
                 .from('saved_tasks')
@@ -23,9 +23,9 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error('Error fetching saved task IDs:', error);
         }
-    };
+    }, []);
 
-    const fetchProfile = async (userId) => {
+    const fetchProfile = useCallback(async (userId) => {
         try {
             const { data, error } = await supabase
                 .from('users')
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [fetchSavedTaskIds]);
 
     const toggleSavedTask = async (taskId) => {
         if (!user) return;
@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }) => {
         return () => {
             subscription?.unsubscribe();
         };
-    }, []);
+    }, [fetchProfile]);
 
     const value = {
         session,

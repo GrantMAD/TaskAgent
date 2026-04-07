@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../services/supabaseClient';
 import { userService } from '../services/userService';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
@@ -26,11 +25,7 @@ export const EditProfileScreen = ({ navigation }) => {
     });
     const [skillInput, setSkillInput] = useState('');
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         try {
             if (!session) return;
             const data = await userService.getUserProfile(session.user.id);
@@ -43,13 +38,17 @@ export const EditProfileScreen = ({ navigation }) => {
                     profile_image: data.profile_image || null
                 });
             }
-        } catch (error) {
-            console.error(error);
+        } catch (_error) {
+            console.error(_error);
             showToast('Failed to load profile', 'error');
         } finally {
             setLoading(false);
         }
-    };
+    }, [session, showToast]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -71,7 +70,7 @@ export const EditProfileScreen = ({ navigation }) => {
             const imageUrl = await userService.uploadAvatar(session.user.id, uri);
             setProfile(prev => ({ ...prev, profile_image: imageUrl }));
             showToast('Profile image updated!', 'success');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to upload image', 'error');
         } finally {
             setSaving(false);
@@ -102,7 +101,7 @@ export const EditProfileScreen = ({ navigation }) => {
             await userService.updateUserProfile(session.user.id, profile);
             showToast('Profile updated successfully!', 'success');
             navigation.goBack();
-        } catch (error) {
+        } catch (_error) {
             showToast(error.message, 'error');
         } finally {
             setSaving(false);

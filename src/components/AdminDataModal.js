@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndicator, Image, TextInput, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, ActivityIndicator, TextInput, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from './ThemeContext';
 import { EmptyState } from './EmptyState';
-import { Spacing, Rounding, Shadow } from '../utils/theme';
+import { Spacing, Rounding } from '../utils/theme';
 import { useAuth } from './AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { messageService } from '../services/messageService';
@@ -28,20 +28,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
     const [reliability, setReliability] = useState(null);
     const [suspendingUser, setSuspendingUser] = useState(null); // { id, reason }
 
-    useEffect(() => {
-        if (visible && type) {
-            setSearchQuery('');
-            setRoleFilter('all');
-            setSelectedTask(null);
-            setResolvingReport(null);
-            setSelectedUser(null);
-            setUserStats(null);
-            setReliability(null);
-            fetchData();
-        }
-    }, [visible, type]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             let result = [];
@@ -53,14 +40,27 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
                 result = await adminService.getReports(false); // Fetch all reports
             }
             setData(result);
-        } catch (error) {
-            console.error(`Error fetching ${type}:`, error);
+        } catch (_error) {
+            console.error(`Error fetching ${type}:`, _error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [type]);
 
-    const fetchUserStats = async (userId) => {
+    useEffect(() => {
+        if (visible && type) {
+            setSearchQuery('');
+            setRoleFilter('all');
+            setSelectedTask(null);
+            setResolvingReport(null);
+            setSelectedUser(null);
+            setUserStats(null);
+            setReliability(null);
+            fetchData();
+        }
+    }, [visible, type, fetchData]);
+
+    const fetchUserStats = useCallback(async (userId) => {
         try {
             const [stats, reliabilityData] = await Promise.all([
                 adminService.getUserStats(userId),
@@ -68,12 +68,12 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
             ]);
             setUserStats(stats);
             setReliability(reliabilityData);
-        } catch (error) {
-            console.error('Error fetching user stats:', error);
+        } catch (_error) {
+            console.error('Error fetching user stats:', _error);
             setUserStats(null);
             setReliability(null);
         }
-    };
+    }, []);
 
     const handleUserPress = (user) => {
         setSelectedUser(user);
@@ -908,12 +908,6 @@ const styles = StyleSheet.create({
         padding: Spacing.md,
         justifyContent: 'space-between',
         borderBottomWidth: 1,
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     detailTitle: {
         fontSize: 18,

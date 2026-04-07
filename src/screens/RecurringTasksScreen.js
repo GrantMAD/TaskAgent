@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Switch, ActivityIndicator, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
 import { taskService } from '../services/taskService';
-import { supabase } from '../services/supabaseClient';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';
 import { useAuth } from '../components/AuthContext';
@@ -22,23 +21,23 @@ export const RecurringTasksScreen = ({ navigation }) => {
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
-    useEffect(() => {
-        fetchTemplates();
-    }, []);
-
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         try {
             if (session) {
                 const data = await taskService.getMyRecurringTemplates(session.user.id);
                 setTemplates(data);
             }
-        } catch (error) {
-            console.error(error);
+        } catch (_error) {
+            console.error(_error);
             showToast('Failed to load recurring tasks', 'error');
         } finally {
             setLoading(false);
         }
-    };
+    }, [session, showToast]);
+
+    useEffect(() => {
+        fetchTemplates();
+    }, [fetchTemplates]);
 
     const toggleTemplate = async (id, currentStatus) => {
         setProcessingId(id);
@@ -46,7 +45,7 @@ export const RecurringTasksScreen = ({ navigation }) => {
             await taskService.updateTaskTemplate(id, { is_active: !currentStatus });
             setTemplates(templates.map(t => t.id === id ? { ...t, is_active: !currentStatus } : t));
             showToast(`Series ${!currentStatus ? 'resumed' : 'paused'}`, 'success');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to update status', 'error');
         } finally {
             setProcessingId(null);
@@ -73,7 +72,7 @@ export const RecurringTasksScreen = ({ navigation }) => {
                 next_occurrence_at: nextDate.toISOString()
             } : t));
             showToast(`Frequency updated to ${newFreq}`, 'success');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to update frequency', 'error');
         } finally {
             setProcessingId(null);
@@ -95,7 +94,7 @@ export const RecurringTasksScreen = ({ navigation }) => {
                             await taskService.deleteTaskTemplate(id);
                             setTemplates(templates.filter(t => t.id !== id));
                             showToast('Series cancelled permanently', 'success');
-                        } catch (error) {
+                        } catch (_error) {
                             showToast('Failed to delete series', 'error');
                         }
                     }
@@ -109,7 +108,7 @@ export const RecurringTasksScreen = ({ navigation }) => {
             <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.category}>{item.category} • {CURRENCY_SYMBOL}{item.payment_amount}</Text>
+                    <Text style={styles.category}>{item.category} â€¢ {CURRENCY_SYMBOL}{item.payment_amount}</Text>
                 </View>
                 <Switch
                     value={item.is_active}

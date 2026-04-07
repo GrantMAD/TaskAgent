@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
@@ -12,7 +12,6 @@ import { useLocation } from '../components/LocationContext';
 import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { FilterModal } from '../components/FilterModal';
-import { TASK_CATEGORIES } from '../utils/constants';
 import { interactionService } from '../services/interactionService';
 
 export const TaskFeedScreen = ({ navigation }) => {
@@ -98,6 +97,31 @@ export const TaskFeedScreen = ({ navigation }) => {
         return count;
     }, [filters]);
 
+    const fetchTasks = useCallback(async () => {
+        try {
+            let data;
+            if (session?.user && filters.sortBy === 'relevance') {
+                data = await taskService.getPersonalizedTasks(
+                    session.user.id, 
+                    userLocation?.latitude, 
+                    userLocation?.longitude
+                );
+            } else {
+                data = await taskService.getNearbyTasks(
+                    session?.user?.id,
+                    userLocation?.latitude,
+                    userLocation?.longitude
+                );
+            }
+            setAllTasks(data || []);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [session?.user, filters.sortBy, userLocation]);
+
     useEffect(() => {
         fetchTasks();
 
@@ -115,7 +139,7 @@ export const TaskFeedScreen = ({ navigation }) => {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [userLocation, searchRadius]);
+    }, [userLocation, searchRadius, fetchTasks]);
 
     // Log search interactions (debounced)
     useEffect(() => {
@@ -140,32 +164,7 @@ export const TaskFeedScreen = ({ navigation }) => {
         }, 1500); // 1.5s debounce
 
         return () => clearTimeout(timer);
-    }, [searchQuery, filters.categories]);
-
-    const fetchTasks = async () => {
-        try {
-            let data;
-            if (session?.user && filters.sortBy === 'relevance') {
-                data = await taskService.getPersonalizedTasks(
-                    session.user.id, 
-                    userLocation?.latitude, 
-                    userLocation?.longitude
-                );
-            } else {
-                data = await taskService.getNearbyTasks(
-                    session?.user?.id,
-                    userLocation?.latitude,
-                    userLocation?.longitude
-                );
-            }
-            setAllTasks(data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
+    }, [searchQuery, filters.categories, filteredTasks.length, session?.user?.id]);
 
     const onRefresh = () => {
         setRefreshing(true);

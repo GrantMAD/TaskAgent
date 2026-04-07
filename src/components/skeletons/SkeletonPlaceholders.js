@@ -80,7 +80,7 @@ export const ProfileSkeleton = () => {
 };
 
 export const TaskDetailSkeleton = () => {
-    const { theme, shadows } = useTheme();
+    const { theme } = useTheme();
     return (
         <View style={styles.detailContainer}>
             <LinearGradient

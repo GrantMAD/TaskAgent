@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+﻿import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
 import { useTheme } from '../components/ThemeContext';
 import { Spacing, Rounding } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
@@ -9,7 +9,6 @@ import { useAuth } from '../components/AuthContext';
 import { userService } from '../services/userService';
 import { supabase } from '../services/supabaseClient';
 import { ConfirmationModal } from '../components/ConfirmationModal';
-import { TextInput } from 'react-native';
 
 export const SettingsScreen = ({ navigation }) => {
     const { theme, isDarkMode, toggleTheme, shadows } = useTheme();
@@ -27,7 +26,7 @@ export const SettingsScreen = ({ navigation }) => {
         try {
             await toggleTheme();
             showToast(`Dark mode ${value ? 'enabled' : 'disabled'}`, 'info');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to update preference', 'error');
         }
     };
@@ -39,7 +38,7 @@ export const SettingsScreen = ({ navigation }) => {
             await userService.updateNotificationPreferences(user.id, { [key]: value });
             await refreshProfile();
             showToast('Preferences updated', 'success');
-        } catch (error) {
+        } catch (_error) {
             console.error(error);
             showToast('Failed to update notifications', 'error');
         } finally {
@@ -82,7 +81,7 @@ export const SettingsScreen = ({ navigation }) => {
             // Log out
             await supabase.auth.signOut();
             // AppNavigator will automatically switch to AuthStack because session becomes null
-        } catch (error) {
+        } catch (_error) {
             console.error(error);
             showToast('Failed to delete account. Please try again.', 'error');
             setDeleting(false);
@@ -118,7 +117,7 @@ export const SettingsScreen = ({ navigation }) => {
                         </View>
                         <View>
                             <Text style={styles.settingLabel}>Dark Mode</Text>
-                            <Text style={styles.settingSublabel}>Adjust the app's appearance</Text>
+                            <Text style={styles.settingSublabel}>{"Adjust the app's appearance"}</Text>
                         </View>
                     </View>
                     <Switch

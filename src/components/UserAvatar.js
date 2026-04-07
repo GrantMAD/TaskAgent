@@ -22,6 +22,8 @@ export const UserAvatar = memo(({ user, size = 40 }) => {
     );
 });
 
+UserAvatar.displayName = 'UserAvatar';
+
 const styles = StyleSheet.create({
     container: {
         overflow: 'hidden',

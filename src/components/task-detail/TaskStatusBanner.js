@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Spacing, Rounding } from '../../utils/theme';
+import { TASK_STATUS } from '../../utils/constants';
 import { useTheme } from '../../components/ThemeContext';
 
 export const TaskStatusBanner = ({ task, isPoster, isWorker }) => {
@@ -10,14 +11,14 @@ export const TaskStatusBanner = ({ task, isPoster, isWorker }) => {
 
     return (
         <View>
-            {isPoster && task.status === 'ASSIGNED' && (
+            {isPoster && task.status === TASK_STATUS.ASSIGNED && (
                 <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(74, 144, 226, 0.2)' : '#E6F0FA' }]}>
                     <FontAwesome name="handshake-o" size={16} color={theme.primary} style={styles.icon} />
                     <Text style={[styles.infoBadgeText, { color: theme.primary }]}>Worker Assigned & In Progress</Text>
                 </View>
             )}
 
-            {task.status === 'PENDING_CONFIRMATION' && (
+            {task.status === TASK_STATUS.PENDING_CONFIRMATION && (
                 <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(230, 138, 0, 0.2)' : '#FFF4E5' }]}>
                     <FontAwesome name="clock-o" size={16} color={theme.accent} style={styles.icon} />
                     <Text style={[styles.infoBadgeText, { color: theme.accent }]}>
@@ -26,7 +27,7 @@ export const TaskStatusBanner = ({ task, isPoster, isWorker }) => {
                 </View>
             )}
 
-            {task.status === 'COMPLETED' && (
+            {task.status === TASK_STATUS.COMPLETED && (
                 <View style={[styles.infoBadge, { backgroundColor: theme.isDarkMode ? 'rgba(40, 167, 69, 0.2)' : '#E8F3ED' }]}>
                     <FontAwesome name="check-circle" size={16} color={theme.success} style={styles.icon} />
                     <Text style={[styles.infoBadgeText, { color: theme.success }]}>
@@ -35,7 +36,7 @@ export const TaskStatusBanner = ({ task, isPoster, isWorker }) => {
                 </View>
             )}
 
-            {task.status === 'DISPUTED' && (
+            {task.status === TASK_STATUS.DISPUTED && (
                 <View style={[styles.infoBadge, { backgroundColor: '#FFFBEB' }]}>
                     <FontAwesome name="shield" size={16} color="#B45309" style={styles.icon} />
                     <Text style={[styles.infoBadgeText, { color: '#92400E' }]}>

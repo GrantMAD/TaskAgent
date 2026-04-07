@@ -6,7 +6,6 @@ import Animated, {
     withRepeat, 
     withTiming, 
     withSequence,
-    withDelay,
     Easing,
     FadeInUp
 } from 'react-native-reanimated';
@@ -45,7 +44,7 @@ export const EmptyState = ({
             ),
             -1) // Infinite repeat
         ;
-    }, []);
+    }, [translateY]);
 
     const animatedIconStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: translateY.value }],

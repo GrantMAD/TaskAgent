@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { notificationService } from './notificationService';
+import { TASK_STATUS } from '../utils/constants';
 
 export const disputeService = {
     /**
@@ -26,7 +27,7 @@ export const disputeService = {
         // 2. Update the task status to DISPUTED
         const { error: taskError } = await supabase
             .from('tasks')
-            .update({ status: 'DISPUTED' })
+            .update({ status: TASK_STATUS.DISPUTED })
             .eq('id', task_id);
 
         if (taskError) throw taskError;

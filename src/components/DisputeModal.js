@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from './ThemeContext';
-import { Spacing, Rounding } from '../utils/theme';
+import { Spacing } from '../utils/theme';
 import { disputeService } from '../services/disputeService';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
