@@ -249,14 +249,22 @@ export const taskService = {
             throw error;
         }
 
-        // Fetch poster_id for notification
+        // Fetch poster_id and title for notification
         const { data: task, error: fetchError } = await supabase
             .from('tasks')
-            .select('poster_id')
+            .select('poster_id, title')
             .eq('id', taskId)
             .single()
         
         if (fetchError) throw fetchError
+
+        const { data: worker, error: workerError } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', workerId)
+            .single()
+
+        if (workerError) throw workerError
 
         const { data, error } = await supabase
             .from('task_applications')
@@ -270,7 +278,7 @@ export const taskService = {
         await notificationService.createNotification(
             task.poster_id,
             'New Application',
-            'Someone applied for your job...',
+            `${worker.name} applied for your task: ${task.title}`,
             'APPLICATION',
             taskId
         )
