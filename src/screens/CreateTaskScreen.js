@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, Switch } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
+import { Image } from 'expo-image';
 import { taskService } from '../services/taskService';
 import { Spacing, Rounding } from '../utils/theme';
 import { useTheme } from '../components/ThemeContext';

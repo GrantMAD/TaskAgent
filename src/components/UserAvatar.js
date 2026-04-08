@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Colors, Shadow } from '../utils/theme';
 import { FontAwesome } from '@expo/vector-icons';
 

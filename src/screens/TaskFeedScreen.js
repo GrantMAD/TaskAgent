@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { taskService } from '../services/taskService';
 import { supabase } from '../services/supabaseClient';
@@ -21,6 +21,12 @@ export const TaskFeedScreen = ({ navigation }) => {
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Pagination State
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const offsetRef = useRef(0);
+    const LIMIT = 10;
     
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState('');
@@ -97,28 +103,52 @@ export const TaskFeedScreen = ({ navigation }) => {
         return count;
     }, [filters]);
 
-    const fetchTasks = useCallback(async () => {
+    const fetchTasks = useCallback(async (isLoadMore = false) => {
         try {
+            if (isLoadMore) {
+                setLoadingMore(true);
+            } else {
+                offsetRef.current = 0;
+            }
+
             let data;
             if (session?.user && filters.sortBy === 'relevance') {
                 data = await taskService.getPersonalizedTasks(
                     session.user.id, 
                     userLocation?.latitude, 
-                    userLocation?.longitude
+                    userLocation?.longitude,
+                    LIMIT,
+                    offsetRef.current
                 );
             } else {
                 data = await taskService.getNearbyTasks(
                     session?.user?.id,
                     userLocation?.latitude,
-                    userLocation?.longitude
+                    userLocation?.longitude,
+                    LIMIT,
+                    offsetRef.current
                 );
             }
-            setAllTasks(data || []);
+
+            if (isLoadMore) {
+                setAllTasks(prev => {
+                    const newTasks = (data || []).filter(d => !prev.some(p => p.id === d.id));
+                    return [...prev, ...newTasks];
+                });
+            } else {
+                setAllTasks(data || []);
+            }
+            
+            setHasMore((data || []).length === LIMIT);
+            if ((data || []).length > 0) {
+                offsetRef.current += LIMIT;
+            }
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
             setRefreshing(false);
+            setLoadingMore(false);
         }
     }, [session?.user, filters.sortBy, userLocation]);
 
@@ -168,7 +198,12 @@ export const TaskFeedScreen = ({ navigation }) => {
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchTasks();
+        fetchTasks(false);
+    };
+
+    const loadMoreTasks = () => {
+        if (!hasMore || loadingMore || loading) return;
+        fetchTasks(true);
     };
 
     const handleApplyFilters = (newFilters) => {
@@ -350,6 +385,15 @@ export const TaskFeedScreen = ({ navigation }) => {
                         />
                     )}
                     ListEmptyComponent={renderEmptyState}
+                    onEndReached={loadMoreTasks}
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={() => 
+                        loadingMore ? (
+                            <View style={{ paddingVertical: 20 }}>
+                                <ActivityIndicator size="small" color={theme.accent} />
+                            </View>
+                        ) : null
+                    }
                 />
             )}
 

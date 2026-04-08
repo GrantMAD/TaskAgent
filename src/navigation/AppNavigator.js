@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, memo, useCallback, lazy, Suspense } from 'react';
-import { View, TouchableOpacity, Text, Platform, Image, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Text, Platform, StyleSheet, Modal, TouchableWithoutFeedback, ScrollView, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { NavigationContainer, useNavigation, getFocusedRouteNameFromRoute, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -181,7 +182,7 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
                                 <>
                                     <ScrollView style={styles.notificationList} showsVerticalScrollIndicator={false}>
                                         {notifications.length > 0 ? (
-                                            notifications.slice(0, 5).map((item) => (
+                                            notifications.slice(0, 8).map((item) => (
                                                 <NotificationItem 
                                                     key={item.id} 
                                                     item={item} 

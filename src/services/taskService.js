@@ -106,10 +106,10 @@ export const taskService = {
         return data[0];
     },
 
-    getNearbyTasks: async (userId = null, lat = null, lng = null, limit = 50) => {
+    getNearbyTasks: async (userId = null, lat = null, lng = null, limit = 10, offset = 0) => {
         // Use the smart proximity RPC if we have user context and location
         if (userId && lat && lng) {
-            return taskService.getPersonalizedTasks(userId, lat, lng, limit);
+            return taskService.getPersonalizedTasks(userId, lat, lng, limit, offset);
         }
 
         const { data, error } = await supabase
@@ -117,7 +117,7 @@ export const taskService = {
             .select('*, poster:users!poster_id(id, name, profile_image, rating)')
             .eq('status', TASK_STATUS.OPEN)
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .range(offset, offset + limit - 1);
         if (error) throw error
         return data
     },
@@ -202,13 +202,14 @@ export const taskService = {
         return data
     },
 
-    getPersonalizedTasks: async (userId, lat = null, lng = null, limit = 50) => {
+    getPersonalizedTasks: async (userId, lat = null, lng = null, limit = 10, offset = 0) => {
         const { data, error } = await supabase
             .rpc('get_personalized_tasks', {
                 p_user_id: userId,
                 p_lat: lat,
                 p_lng: lng,
-                p_limit: limit
+                p_limit: limit,
+                p_offset: offset
             });
 
         if (error) throw error;
@@ -237,7 +238,7 @@ export const taskService = {
             .rpc('increment_task_view', { t_id: taskId });
         
         if (error) {
-            console.warn('Fallback increment failed:', error);
+            console.warn('Increment task view RPC failed, skipping view count update');
         }
     },
 
