@@ -142,7 +142,7 @@ export const AdminDashboardScreen = ({ navigation }) => {
                 <View style={styles.statsSection}>
                     <Text style={[styles.sectionTitle, { color: theme.primary }]}>Platform Overview</Text>
                     <Text style={[styles.sectionDesc, { color: theme.textMuted }]}>
-                        Monitor neighborhood activity at a glance. Tap any card below to see detailed records and manage users, tasks, or flags.
+                        Monitor neighbourhood activity at a glance. Tap any card below to see detailed records and manage users, tasks, or flags.
                     </Text>
 
                     <AdminStatCard 

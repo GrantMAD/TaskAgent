@@ -257,7 +257,7 @@ const CustomDrawerContent = (props) => {
                             {userProfile?.name || 'User Agent'}
                         </Text>
                         <Text style={styles.drawerUserEmail} numberOfLines={1}>
-                            {session?.user?.email || 'neighbor@taskagent.com'}
+                            {session?.user?.email || 'neighbour@taskagent.com'}
                         </Text>
                     </View>
                 </TouchableOpacity>

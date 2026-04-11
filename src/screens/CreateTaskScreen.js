@@ -338,7 +338,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                         <FontAwesome name="pencil-square-o" size={32} color={theme.primary} style={styles.landingHeaderIcon} />
                         <View>
                             <Text style={styles.landingTitle}>Post a New Job</Text>
-                            <Text style={styles.landingSubtitle}>Get help from your neighborhood</Text>
+                            <Text style={styles.landingSubtitle}>Get help from your neighbourhood</Text>
                         </View>
                     </View>
                     <Text style={styles.landingDescription}>
@@ -481,7 +481,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                                 <View>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="e.g. 123 Neighborhood St"
+                                        placeholder="e.g. 123 Neighbourhood St"
                                         placeholderTextColor={theme.textMuted}
                                         value={address}
                                         onChangeText={handleAddressChange}

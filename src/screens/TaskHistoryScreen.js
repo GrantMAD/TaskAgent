@@ -44,7 +44,7 @@ export const TaskHistoryScreen = ({ navigation }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Task History</Text>
-                <Text style={styles.headerSubtitle}>A record of your completed neighborhood jobs.</Text>
+                <Text style={styles.headerSubtitle}>A record of your completed neighbourhood jobs.</Text>
             </View>
 
             {loading ? (

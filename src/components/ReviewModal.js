@@ -27,7 +27,7 @@ export const ReviewModal = ({
             <View style={styles.overlay}>
                 <View style={[styles.modalCard, Shadow.medium]}>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Rate Your Neighbor</Text>
+                        <Text style={styles.title}>Rate Your Neighbour</Text>
                         <TouchableOpacity onPress={onCancel} style={styles.closeIcon}>
                             <FontAwesome name="times" size={20} color={Colors.textMuted} />
                         </TouchableOpacity>

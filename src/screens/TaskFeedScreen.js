@@ -13,6 +13,7 @@ import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { FilterModal } from '../components/FilterModal';
 import { interactionService } from '../services/interactionService';
+import { useTaskFilters } from '../hooks/useTaskFilters';
 
 export const TaskFeedScreen = ({ navigation }) => {
     const { theme, shadows } = useTheme();
@@ -28,17 +29,25 @@ export const TaskFeedScreen = ({ navigation }) => {
     const offsetRef = useRef(0);
     const LIMIT = 10;
     
-    // Search & Filter State
-    const [searchQuery, setSearchQuery] = useState('');
+    // Search & Filter State from Custom Hook
+    const {
+        filters,
+        setFilters,
+        searchQuery,
+        setSearchQuery,
+        showSavedOnly,
+        setShowSavedOnly,
+        isFilterModalVisible,
+        setIsFilterModalVisible,
+        activeFilterCount,
+        handleApplyFilters,
+        clearFilters,
+        removeCategory,
+        clearPriceRange,
+        resetAll
+    } = useTaskFilters();
+
     const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const [showSavedOnly, setShowSavedOnly] = useState(false);
-    const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-    const [filters, setFilters] = useState({
-        categories: [],
-        minPrice: '',
-        maxPrice: '',
-        sortBy: 'newest',
-    });
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -95,13 +104,6 @@ export const TaskFeedScreen = ({ navigation }) => {
             }
         });
     }, [allTasks, userLocation, searchRadius, calculateDistance, searchQuery, filters, showSavedOnly, savedTaskIds]);
-
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        if (filters.categories.length > 0) count += 1;
-        if (filters.minPrice || filters.maxPrice) count += 1;
-        return count;
-    }, [filters]);
 
     const fetchTasks = useCallback(async (isLoadMore = false) => {
         try {
@@ -206,15 +208,6 @@ export const TaskFeedScreen = ({ navigation }) => {
         fetchTasks(true);
     };
 
-    const handleApplyFilters = (newFilters) => {
-        setFilters(newFilters);
-        setIsFilterModalVisible(false);
-    };
-
-    const clearFilters = () => {
-        setFilters({ categories: [], minPrice: '', maxPrice: '', sortBy: 'newest' });
-    };
-
     const renderEmptyState = () => {
         const hasActiveFilters = activeFilterCount > 0 || searchQuery || showSavedOnly;
         const isRadiusTight = searchRadius < 100;
@@ -239,7 +232,7 @@ export const TaskFeedScreen = ({ navigation }) => {
             return (
                 <EmptyState 
                     icon="map-marker" 
-                    title="Quiet neighborhood?" 
+                    title="Quiet neighbourhood?" 
                     subtitle={`We couldn't find any tasks within ${searchRadius}km of you.`}
                     buttonText="Widen Radius to 100km"
                     onPress={() => updateSearchRadius(100)}
@@ -338,7 +331,7 @@ export const TaskFeedScreen = ({ navigation }) => {
                         {filters.categories.map(cat => (
                             <View key={cat} style={styles.chip}>
                                 <Text style={styles.chipText}>{cat}</Text>
-                                <TouchableOpacity onPress={() => setFilters(f => ({ ...f, categories: f.categories.filter(c => c !== cat) }))}>
+                                <TouchableOpacity onPress={() => removeCategory(cat)}>
                                     <FontAwesome name="times" size={10} color={theme.primary} style={{ marginLeft: 6 }} />
                                 </TouchableOpacity>
                             </View>
@@ -348,7 +341,7 @@ export const TaskFeedScreen = ({ navigation }) => {
                                 <Text style={styles.chipText}>
                                     Price: {filters.minPrice ? `$${filters.minPrice}` : '$0'} - {filters.maxPrice ? `$${filters.maxPrice}` : 'Any'}
                                 </Text>
-                                <TouchableOpacity onPress={() => setFilters(f => ({ ...f, minPrice: '', maxPrice: '' }))}>
+                                <TouchableOpacity onPress={clearPriceRange}>
                                     <FontAwesome name="times" size={10} color={theme.primary} style={{ marginLeft: 6 }} />
                                 </TouchableOpacity>
                             </View>

@@ -41,7 +41,7 @@
         "expo-location",
         {
           "locationAlwaysPermission": "Allow TaskAgent to use your location to find nearby tasks even when the app is in the background.",
-          "locationWhenInUsePermission": "Allow TaskAgent to use your location to help you find and post tasks in your neighborhood."
+          "locationWhenInUsePermission": "Allow TaskAgent to use your location to help you find and post tasks in your neighbourhood."
         }
       ]
     ],

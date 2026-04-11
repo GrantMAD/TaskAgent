@@ -78,7 +78,7 @@ export const ReportModal = ({
                 <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
                     <View style={styles.header}>
                         <Text style={[styles.title, { color: theme.primary }]}>
-                            Report {type === 'task' ? 'Task' : 'Neighbor'}
+                            Report {type === 'task' ? 'Task' : 'Neighbour'}
                         </Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <FontAwesome name="times" size={20} color={theme.textMuted} />

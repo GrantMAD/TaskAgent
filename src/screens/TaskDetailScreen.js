@@ -256,7 +256,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
     const handleMessagePoster = async () => {
         try {
             if (!session) {
-                showToast('Please login to message neighbors', 'info');
+                showToast('Please login to message neighbours', 'info');
                 return;
             }
 
@@ -745,7 +745,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
 
             <ReviewModal 
                 visible={reviewModalVisible}
-                userName={task.worker?.name || "your neighbor"}
+                userName={task.worker?.name || "your neighbour"}
                 loading={reviewLoading}
                 onSubmit={handleReviewSubmit}
                 onCancel={() => setReviewModalVisible(false)}

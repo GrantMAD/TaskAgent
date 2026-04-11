@@ -227,7 +227,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
                                     <View style={[styles.inputBox, { backgroundColor: theme.background, borderColor: theme.border }]}>
                                         <TextInput
                                             style={[styles.resolutionInput, { color: theme.text }]}
-                                            placeholder="Enter resolution notes for the neighbor..."
+                                            placeholder="Enter resolution notes for the neighbour..."
                                             placeholderTextColor={theme.textMuted}
                                             multiline
                                             value={resolvingReport.resolutionText}
@@ -303,7 +303,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
         if (selectedTask) return 'Examine task specifics, poster details, and location for administrative oversight.';
         if (selectedUser) return 'View detailed information and manage account status for this user.';
         if (type === 'users') return 'Manage user accounts. You can search by name/email and filter by account role.';
-        if (type === 'tasks') return 'Monitor all active neighborhood postings. Tap a task to view full details.';
+        if (type === 'tasks') return 'Monitor all active neighbourhood postings. Tap a task to view full details.';
         if (type === 'reports') return 'Review and resolve flags submitted by users regarding tasks or user behavior.';
         return '';
     };
@@ -395,7 +395,7 @@ export const AdminDataModal = ({ visible, onClose, type, onAction }) => {
 
                     {reliability && (
                         <View style={styles.adminReliabilitySection}>
-                            <Text style={[styles.sectionHeading, { color: theme.textMuted, marginBottom: 8 }]}>Neighbor Trust Signals</Text>
+                            <Text style={[styles.sectionHeading, { color: theme.textMuted, marginBottom: 8 }]}>Neighbour Trust Signals</Text>
                             <ReliabilityReport reliability={reliability} />
                         </View>
                     )}

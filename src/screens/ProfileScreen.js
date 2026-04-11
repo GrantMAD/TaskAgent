@@ -69,7 +69,7 @@ export const ProfileScreen = ({ navigation }) => {
     };
 
     const formatJoinDate = (dateString) => {
-        if (!dateString) return 'Neighbor';
+        if (!dateString) return 'Neighbour';
         const date = new Date(dateString);
         return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
@@ -161,7 +161,7 @@ export const ProfileScreen = ({ navigation }) => {
                     <Text style={styles.sectionTitle}>About Me</Text>
                     <View style={styles.card}>
                         <Text style={styles.bioText}>
-                            {profile?.bio || "No bio added yet. Tell your neighbors about yourself!"}
+                            {profile?.bio || "No bio added yet. Tell your neighbours about yourself!"}
                         </Text>
                     </View>
                 </View>

@@ -140,7 +140,7 @@ export const MessagesScreen = ({ navigation }) => {
     };
 
     const getOtherUser = (item) => {
-        if (!userId) return { name: 'Neighbor' };
+        if (!userId) return { name: 'Neighbour' };
         const user = item.user1_id === userId ? item.user2 : item.user1;
         return user || { name: 'Deleted User', profile_image: null };
     };
@@ -163,7 +163,7 @@ export const MessagesScreen = ({ navigation }) => {
                 end={{ x: 1, y: 1 }}
                 style={styles.header}
             >
-                <Text style={styles.headerTitle}>Neighbor Chat</Text>
+                <Text style={styles.headerTitle}>Neighbour Chat</Text>
                 <Text style={styles.headerSubtitle}>Manage your task communications</Text>
             </LinearGradient>
 
@@ -231,7 +231,7 @@ export const MessagesScreen = ({ navigation }) => {
                         <EmptyState 
                             icon="comments-o" 
                             title="No conversations yet." 
-                            subtitle="Message a neighbor about a task to start!" 
+                            subtitle="Message a neighbour about a task to start!" 
                             buttonText="Browse Tasks"
                             onPress={() => navigation.navigate('TasksTab')}
                         />

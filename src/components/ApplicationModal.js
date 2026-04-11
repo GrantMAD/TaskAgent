@@ -40,7 +40,7 @@ export const ApplicationModal = ({ visible, onClose, onSubmit, taskTitle }) => {
                             </Text>
 
                             <View style={styles.inputContainer}>
-                                <Text style={styles.label}>SEND A MESSAGE TO THE NEIGHBOR</Text>
+                                <Text style={styles.label}>SEND A MESSAGE TO THE NEIGHBOUR</Text>
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Explain why you're a good fit or ask a question..."

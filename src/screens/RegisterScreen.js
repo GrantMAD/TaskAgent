@@ -111,7 +111,7 @@ export const RegisterScreen = ({ navigation }) => {
                         <Text style={styles.label}>Email Address</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="neighbor@example.com"
+                            placeholder="neighbour@example.com"
                             placeholderTextColor={theme.textMuted}
                             value={email}
                             onChangeText={setEmail}

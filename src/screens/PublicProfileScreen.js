@@ -67,7 +67,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     }, [userId, fetchProfileData, getCurrentUser, session?.user?.id]);
 
     const formatJoinDate = (dateString) => {
-        if (!dateString) return 'Neighbor';
+        if (!dateString) return 'Neighbour';
         const date = new Date(dateString);
         return `Member since ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     };
@@ -75,7 +75,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
     const handleMessage = async () => {
         try {
             if (!currentUserId) {
-                showToast('Please login to message neighbors', 'info');
+                showToast('Please login to message neighbours', 'info');
                 return;
             }
 
@@ -203,7 +203,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                             onPress={handleMessage}
                         >
                             <FontAwesome name="envelope" size={16} color={theme.white} style={{ marginRight: 8 }} />
-                            <Text style={styles.messageButtonText}>Message Neighbor</Text>
+                            <Text style={styles.messageButtonText}>Message Neighbour</Text>
                         </TouchableOpacity>
                     )}
                 </LinearGradient>
@@ -221,7 +221,7 @@ export const PublicProfileScreen = ({ route, navigation }) => {
                         <Text style={styles.sectionTitle}>About</Text>
                         <View style={styles.card}>
                             <Text style={styles.bioText}>
-                                {profile.bio || `Hi, I'm ${profile.name ? profile.name.split(' ')[0] : 'your neighbor'}! Looking forward to helping out in the neighborhood.`}
+                                {profile.bio || `Hi, I'm ${profile.name ? profile.name.split(' ')[0] : 'your neighbour'}! Looking forward to helping out in the neighbourhood.`}
                             </Text>
                         </View>
                     </View>

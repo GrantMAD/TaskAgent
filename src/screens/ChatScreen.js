@@ -362,7 +362,7 @@ export const ChatScreen = ({ route, navigation }) => {
                 )}
                 {isOtherTyping && (
                     <View style={styles.typingIndicator}>
-                        <Text style={styles.typingText}>{otherUser?.name || 'Neighbor'} is typing...</Text>
+                        <Text style={styles.typingText}>{otherUser?.name || 'Neighbour'} is typing...</Text>
                     </View>
                 )}
             </View>

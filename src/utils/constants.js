@@ -11,7 +11,7 @@ export const TASK_CATEGORIES = [
     { label: 'Other', value: 'Other', icon: 'ellipsis-h' },
 ];
 
-export const NEIGHBORHOOD_TIPS = [
+export const NEIGHBOURHOOD_TIPS = [
     {
         id: 1,
         title: 'Stay Safe',
@@ -27,7 +27,7 @@ export const NEIGHBORHOOD_TIPS = [
     {
         id: 3,
         title: 'Communicate',
-        description: 'Keep neighbors updated through the chat.',
+        description: 'Keep neighbours updated through the chat.',
         icon: 'comments'
     },
     {
@@ -45,7 +45,7 @@ export const NEIGHBORHOOD_TIPS = [
     {
         id: 6,
         title: 'Verify Profiles',
-        description: "Always check a neighbor's reviews before hiring.",
+        description: "Always check a neighbour's reviews before hiring.",
         icon: 'check-circle-o'
     },
     {

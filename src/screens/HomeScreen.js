@@ -7,7 +7,7 @@ import { Skeleton } from '../components/skeletons/Skeleton';
 import { TaskCardSkeleton } from '../components/skeletons/SkeletonPlaceholders';
 import { Spacing, Rounding } from '../utils/theme';
 import { supabase } from '../services/supabaseClient';
-import { NEIGHBORHOOD_TIPS } from '../utils/constants';
+import { NEIGHBOURHOOD_TIPS } from '../utils/constants';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -158,7 +158,7 @@ export const HomeScreen = ({ navigation }) => {
 
     const rotateTips = () => {
         // Shuffle the tips and pick first 4
-        const shuffled = [...NEIGHBORHOOD_TIPS].sort(() => 0.5 - Math.random());
+        const shuffled = [...NEIGHBOURHOOD_TIPS].sort(() => 0.5 - Math.random());
         setRotatedTips(shuffled.slice(0, 4));
     };
 
@@ -188,11 +188,11 @@ export const HomeScreen = ({ navigation }) => {
                     ) : (
                         <View style={styles.welcomeGreeting}>
                             <FontAwesome name="hand-paper-o" size={24} color={theme.accent} style={{ marginRight: 10 }} />
-                            <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbor'}</Text>
+                            <Text style={styles.welcomeText}>Hello, {profile?.name?.split(' ')[0] || 'Neighbour'}</Text>
                         </View>
                     )}
                 </View>
-                <Text style={styles.subtitleText}>Your neighborhood task hub</Text>
+                <Text style={styles.subtitleText}>Your neighbourhood task hub</Text>
                 
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
@@ -275,35 +275,54 @@ export const HomeScreen = ({ navigation }) => {
                                     ))}
                                 </View>
                             )}
+
+                            {/* Quick Tips Section at bottom when there is content */}
+                            <View style={[styles.tipsSection, { paddingBottom: 100 }]}>
+                                <View style={styles.sectionHeaderAlt}>
+                                    <FontAwesome name="lightbulb-o" size={20} color={theme.primary} style={styles.headerIcon} />
+                                    <Text style={styles.sectionTitleAlt}>Neighbourhood Tips</Text>
+                                </View>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
+                                    {rotatedTips.map((tip) => (
+                                        <View key={tip.id} style={styles.tipCard}>
+                                            <FontAwesome name={tip.icon} size={24} color={theme.accent} />
+                                            <Text style={styles.tipTitle}>{tip.title}</Text>
+                                            <Text style={styles.tipDesc}>{tip.description}</Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
                         </>
                     ) : (
-                        <EmptyState 
-                            icon="calendar-check-o" 
-                            title="No active tasks right now." 
-                            buttonText="Browse Local Jobs" 
-                            onPress={() => navigation.navigate('TasksTab')} 
-                            containerStyle={{ marginTop: 20 }}
-                        />
+                        <>
+                            {/* Quick Tips Section at top when empty for better onboarding */}
+                            <View style={[styles.tipsSection, { paddingBottom: Spacing.md }]}>
+                                <View style={styles.sectionHeaderAlt}>
+                                    <FontAwesome name="lightbulb-o" size={20} color={theme.primary} style={styles.headerIcon} />
+                                    <Text style={styles.sectionTitleAlt}>Neighbourhood Tips</Text>
+                                </View>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
+                                    {rotatedTips.map((tip) => (
+                                        <View key={tip.id} style={styles.tipCard}>
+                                            <FontAwesome name={tip.icon} size={24} color={theme.accent} />
+                                            <Text style={styles.tipTitle}>{tip.title}</Text>
+                                            <Text style={styles.tipDesc}>{tip.description}</Text>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+
+                            <EmptyState 
+                                icon="calendar-check-o" 
+                                title="No active tasks right now." 
+                                buttonText="Browse Local Jobs" 
+                                onPress={() => navigation.navigate('TasksTab')} 
+                                containerStyle={{ marginTop: 20 }}
+                            />
+                        </>
                     )}
                 </>
             )}
-
-            {/* Quick Tips Section */}
-            <View style={styles.tipsSection}>
-                <View style={styles.sectionHeaderAlt}>
-                    <FontAwesome name="lightbulb-o" size={20} color={theme.primary} style={styles.headerIcon} />
-                    <Text style={styles.sectionTitleAlt}>Neighborhood Tips</Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsScroll}>
-                    {rotatedTips.map((tip) => (
-                        <View key={tip.id} style={styles.tipCard}>
-                            <FontAwesome name={tip.icon} size={24} color={theme.accent} />
-                            <Text style={styles.tipTitle}>{tip.title}</Text>
-                            <Text style={styles.tipDesc}>{tip.description}</Text>
-                        </View>
-                    ))}
-                </ScrollView>
-            </View>
         </ScrollView>
     );
 };
@@ -396,7 +415,6 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     tipsSection: {
         marginTop: Spacing.md,
-        paddingBottom: 120,
     },
     tipsScroll: {
         paddingLeft: Spacing.lg,
