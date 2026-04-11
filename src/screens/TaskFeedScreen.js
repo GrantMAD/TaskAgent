@@ -47,9 +47,25 @@ export const TaskFeedScreen = ({ navigation }) => {
         resetAll
     } = useTaskFilters();
 
+    const [searchInput, setSearchInput] = useState(searchQuery);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
+
+    // Sync searchInput when searchQuery changes from outside (e.g. clear filters)
+    useEffect(() => {
+        setSearchInput(searchQuery);
+    }, [searchQuery]);
+
+    // Debounce searchInput -> searchQuery
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchInput !== searchQuery) {
+                setSearchQuery(searchInput);
+            }
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchInput, setSearchQuery, searchQuery]);
 
     const filteredTasks = useMemo(() => {
         const result = allTasks.filter(task => {
@@ -288,13 +304,13 @@ export const TaskFeedScreen = ({ navigation }) => {
                             style={styles.searchInput}
                             placeholder="Search tasks..."
                             placeholderTextColor={theme.textMuted}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
+                            value={searchInput}
+                            onChangeText={setSearchInput}
                             onFocus={() => setIsSearchFocused(true)}
                             onBlur={() => setIsSearchFocused(false)}
                         />
-                        {searchQuery.length > 0 && (
-                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        {searchInput.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchInput('')}>
                                 <FontAwesome name="times-circle" size={16} color={theme.textMuted} />
                             </TouchableOpacity>
                         )}
