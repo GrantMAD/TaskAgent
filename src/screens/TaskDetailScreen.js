@@ -122,7 +122,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         handleModalConfirm,
         handleReviewSubmit,
         handleCancelApplication
-    } = useTaskDetailActions(task, session, taskId, fetchTaskDetails, showToast, navigation);
+    } = useTaskDetailActions(task, session, taskId, fetchTaskDetails, showToast, navigation, setTask, setApplications, setHasApplied);
 
     useEffect(() => {
         setLoading(true);

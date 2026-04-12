@@ -45,7 +45,11 @@ export const LoginScreen = ({ navigation }) => {
         setLoading(false);
         if (error) {
             console.error('Login error details:', error);
-            showToast(error.message, 'error');
+            if (error.message.includes('Email not confirmed')) {
+                setAuthError('Your email address has not been verified yet. Please check your inbox for the confirmation link.');
+            } else {
+                showToast(error.message, 'error');
+            }
         }
     };
 
