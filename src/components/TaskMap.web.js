@@ -1,21 +1,31 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 
-const TaskMap = ({ latitude, longitude, title, Rounding }) => {
+const TaskMap = () => {
     return (
-        <View style={{ width: '100%', height: '100%' }}>
-            <iframe
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                scrolling="no"
-                marginHeight="0"
-                marginWidth="0"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01}%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`}
-                style={{ border: 0, borderRadius: Rounding || 8 }}
-            />
+        <View style={styles.container}>
+            <FontAwesome name="map-marker" size={24} color="#666" />
+            <Text style={styles.text}>Map preview not available on web</Text>
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#f5f5f5',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+    },
+    text: {
+        marginTop: 8,
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '600',
+    }
+});
 
 export default TaskMap;

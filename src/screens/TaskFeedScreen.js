@@ -13,6 +13,7 @@ import { useAuth } from '../components/AuthContext';
 import { FontAwesome } from '@expo/vector-icons';
 import { FilterModal } from '../components/FilterModal';
 import { interactionService } from '../services/interactionService';
+import TaskMapFeed from '../components/TaskMapFeed';
 import { useTaskFilters } from '../hooks/useTaskFilters';
 
 export const TaskFeedScreen = ({ navigation }) => {
@@ -22,6 +23,7 @@ export const TaskFeedScreen = ({ navigation }) => {
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
     
     // Pagination State
     const [hasMore, setHasMore] = useState(true);
@@ -337,6 +339,17 @@ export const TaskFeedScreen = ({ navigation }) => {
                             color={showSavedOnly ? theme.error : theme.primary} 
                         />
                     </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.filterButton, viewMode === 'map' && styles.filterButtonActive]}
+                        onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+                    >
+                        <FontAwesome 
+                            name={viewMode === 'list' ? "map" : "list"} 
+                            size={18} 
+                            color={viewMode === 'map' ? theme.white : theme.primary} 
+                        />
+                    </TouchableOpacity>
                 </View>
             </LinearGradient>
 
@@ -368,14 +381,13 @@ export const TaskFeedScreen = ({ navigation }) => {
                     </ScrollView>
                 </View>
             )}
-
             {loading ? (
                 <View style={styles.listContent}>
                     {[1, 2, 3, 4, 5].map((i) => (
                         <TaskCardSkeleton key={i} />
                     ))}
                 </View>
-            ) : (
+            ) : viewMode === 'list' ? (
                 <FlatList
                     data={filteredTasks}
                     keyExtractor={(item) => item.id}
@@ -403,6 +415,15 @@ export const TaskFeedScreen = ({ navigation }) => {
                             </View>
                         ) : null
                     }
+                />
+            ) : (
+                <TaskMapFeed 
+                    tasks={filteredTasks}
+                    userLocation={userLocation}
+                    searchRadius={searchRadius}
+                    navigation={navigation}
+                    theme={theme}
+                    shadows={shadows}
                 />
             )}
 
