@@ -47,6 +47,9 @@ export const CreateTaskScreen = ({ navigation, route }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
+    const [pastTaskers, setPastTaskers] = useState([]);
+    const [invitedWorkerId, setInvitedWorkerId] = useState(null);
+    const [isLoadingTaskers, setIsLoadingTaskers] = useState(false);
 
     // Modal State
     const [isModalVisible, setIsModalVisible] = useState(true);
@@ -160,6 +163,22 @@ export const CreateTaskScreen = ({ navigation, route }) => {
         };
         fetchEstimate();
     }, [category]);
+
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        const fetchTaskers = async () => {
+            setIsLoadingTaskers(true);
+            try {
+                const taskers = await taskService.getPastTaskers(session.user.id);
+                setPastTaskers(taskers);
+            } catch (err) {
+                console.warn('Error fetching taskers:', err);
+            } finally {
+                setIsLoadingTaskers(false);
+            }
+        };
+        fetchTaskers();
+    }, [session?.user?.id]);
 
     const handleAddressChange = useCallback(async (text) => {
         setAddress(text);
@@ -319,7 +338,8 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 location_lng: locationLng,
                 image_url: imageUrl,
                 deadline: deadline ? deadline.toISOString() : null,
-                is_urgent: isUrgent
+                is_urgent: isUrgent,
+                assigned_worker_id: invitedWorkerId
             };
 
             if (isEditing && taskId) {
@@ -565,6 +585,50 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                                     />
                                 </View>
                             </View>
+
+                            {pastTaskers.length > 0 && (
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>INVITE A PREVIOUS TASKER? (OPTIONAL)</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.taskerScroll}>
+                                        <TouchableOpacity 
+                                            style={[styles.taskerChip, !invitedWorkerId && styles.taskerChipSelected]}
+                                            onPress={() => setInvitedWorkerId(null)}
+                                        >
+                                            <View style={[styles.taskerAvatar, { backgroundColor: theme.border }]}>
+                                                <FontAwesome name="users" size={16} color={theme.textMuted} />
+                                            </View>
+                                            <Text style={[styles.taskerName, !invitedWorkerId && styles.taskerNameSelected]}>Public</Text>
+                                        </TouchableOpacity>
+
+                                        {pastTaskers.map(tasker => (
+                                            <TouchableOpacity 
+                                                key={tasker.id}
+                                                style={[styles.taskerChip, invitedWorkerId === tasker.id && styles.taskerChipSelected]}
+                                                onPress={() => setInvitedWorkerId(tasker.id)}
+                                            >
+                                                <View style={styles.taskerAvatar}>
+                                                    {tasker.profile_image ? (
+                                                        <Image source={{ uri: tasker.profile_image }} style={styles.avatarImg} />
+                                                    ) : (
+                                                        <Text style={styles.avatarInitial}>{tasker.name.charAt(0)}</Text>
+                                                    )}
+                                                    {invitedWorkerId === tasker.id && (
+                                                        <View style={styles.checkOverlay}>
+                                                            <FontAwesome name="check" size={12} color={theme.white} />
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <Text style={[styles.taskerName, invitedWorkerId === tasker.id && styles.taskerNameSelected]}>
+                                                    {tasker.name.split(' ')[0]}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                    {invitedWorkerId && (
+                                        <Text style={styles.inviteNote}>* Creating a private invitation for this tasker</Text>
+                                    )}
+                                </View>
+                            )}
 
                             {isRecurring && (
                                 <View style={styles.inputGroup}>
@@ -981,5 +1045,67 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontWeight: '700',
         color: theme.primary,
         marginLeft: 6,
-    }
+    },
+    // Past Taskers
+    taskerScroll: {
+        marginTop: Spacing.sm,
+        marginHorizontal: -Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+    },
+    taskerChip: {
+        alignItems: 'center',
+        marginRight: Spacing.md,
+        padding: Spacing.xs,
+        borderRadius: Rounding.md,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    taskerChipSelected: {
+        borderColor: theme.accent,
+        backgroundColor: theme.accent + '10',
+    },
+    taskerAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: theme.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    avatarImg: {
+        width: '100%',
+        height: '100%',
+    },
+    avatarInitial: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: theme.primary,
+    },
+    checkOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: theme.accent + '80',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    taskerName: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.textMuted,
+        marginTop: 6,
+        textTransform: 'uppercase',
+    },
+    taskerNameSelected: {
+        color: theme.accent,
+    },
+    inviteNote: {
+        fontSize: 10,
+        color: theme.accent,
+        fontWeight: '700',
+        fontStyle: 'italic',
+        marginTop: 8,
+        marginLeft: 4,
+    },
 });

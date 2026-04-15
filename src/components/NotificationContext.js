@@ -3,6 +3,8 @@ import { supabase } from '../services/supabaseClient';
 import { notificationService } from '../services/notificationService';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
+import { navigate } from '../navigation/AppNavigator';
+import { TASK_STATUS } from '../utils/constants';
 
 const NotificationContext = createContext();
 
@@ -86,7 +88,59 @@ export const NotificationProvider = ({ children }) => {
             notifSub = notificationService.subscribeToNotifications(userId, (newNotif) => {
                 setNotifications(prev => [newNotif, ...prev]);
                 setUnreadCount(prev => prev + 1);
-                showToast(`New ${newNotif.title}`, 'info');
+                
+                // Add click handling to toast
+                const handleNotifClick = () => {
+                    const type = newNotif.type;
+                    const related_id = newNotif.related_id;
+
+                    if (type && related_id) {
+                        switch (type) {
+                            case 'APPLICATION':
+                            case 'HIRED':
+                            case TASK_STATUS.COMPLETED:
+                            case 'INVITATION_ACCEPTED':
+                            case 'INVITATION_DECLINED':
+                            case 'TASK_INVITATION':
+                            case 'dispute_raised':
+                            case 'dispute_resolved':
+                                navigate('MainDrawer', {
+                                    screen: 'Main',
+                                    params: {
+                                        screen: 'HomeTab',
+                                        params: { 
+                                            screen: 'TaskDetail', 
+                                            params: { taskId: related_id } 
+                                        }
+                                    }
+                                });
+                                break;
+                            case 'MESSAGE':
+                                navigate('MainDrawer', {
+                                    screen: 'Main',
+                                    params: {
+                                        screen: 'MessagesTab',
+                                        params: { 
+                                            screen: 'Chat', 
+                                            params: { conversationId: related_id } 
+                                        }
+                                    }
+                                });
+                                break;
+                            case 'RECURRING_APPROVAL':
+                            case 'RECURRING_INVITATION':
+                                navigate('Notifications', { notificationId: newNotif.id });
+                                break;
+                            default:
+                                navigate('Notifications');
+                                break;
+                        }
+                    } else {
+                        navigate('Notifications');
+                    }
+                };
+
+                showToast(`New ${newNotif.title}`, 'info', handleNotifClick);
             });
 
             // Presence tracking

@@ -121,7 +121,8 @@ export const TaskDetailScreen = ({ route, navigation }) => {
         triggerCancelModal,
         handleModalConfirm,
         handleReviewSubmit,
-        handleCancelApplication
+        handleCancelApplication,
+        handleInvitationResponse
     } = useTaskDetailActions(task, session, taskId, fetchTaskDetails, showToast, navigation, setTask, setApplications, setHasApplied);
 
     useEffect(() => {
@@ -393,6 +394,7 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                     onApply={triggerApplyModal} onMessagePoster={handleMessagePoster} onConfirmCompletion={triggerApproveModal}
                     onMarkAsComplete={triggerCompleteModal} onCancel={triggerCancelModal} onCancelApplication={handleCancelApplication}
                     onRaiseDispute={() => setDisputeModalVisible(true)}
+                    onInvitationResponse={handleInvitationResponse}
                 />
 
                 <TaskStatusBanner task={task} isPoster={isPoster} isWorker={isWorker} />

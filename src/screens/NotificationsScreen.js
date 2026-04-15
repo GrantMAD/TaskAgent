@@ -117,6 +117,7 @@ export const NotificationsScreen = ({ navigation, route }) => {
             case TASK_STATUS.COMPLETED:
             case 'INVITATION_ACCEPTED':
             case 'INVITATION_DECLINED':
+            case 'TASK_INVITATION':
             case 'dispute_raised':
             case 'dispute_resolved':
                 if (item.related_id) {

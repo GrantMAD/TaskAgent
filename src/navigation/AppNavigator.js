@@ -121,6 +121,9 @@ const NotificationDropdown = ({ visible, onClose, navigation }) => {
             case 'APPLICATION':
             case 'HIRED':
             case TASK_STATUS.COMPLETED:
+            case 'INVITATION_ACCEPTED':
+            case 'INVITATION_DECLINED':
+            case 'TASK_INVITATION':
             case 'dispute_raised':
             case 'dispute_resolved':
                 if (item.related_id) {
@@ -631,6 +634,9 @@ export const AppNavigator = () => {
                     case 'APPLICATION':
                     case 'HIRED':
                     case TASK_STATUS.COMPLETED:
+                    case 'INVITATION_ACCEPTED':
+                    case 'INVITATION_DECLINED':
+                    case 'TASK_INVITATION':
                     case 'dispute_raised':
                     case 'dispute_resolved':
                         navigate('MainDrawer', {

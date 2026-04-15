@@ -55,36 +55,62 @@ export const taskService = {
             ...sanitizeObject(taskData, ['title', 'description', 'address'])
         };
 
+        // If inviting a specific worker, set status to INVITED
+        if (sanitizedData.assigned_worker_id) {
+            sanitizedData.status = TASK_STATUS.INVITED;
+        }
+
         const { data, error } = await supabase.from('tasks').insert([sanitizedData]).select()
         if (error) throw error;
 
         const newTask = data[0];
 
-        // --- SKILL-BASED NOTIFICATIONS ---
-        // Fire and forget notifying matching workers asynchronously to not block task creation
-        try {
-            // Find users who have this task's category in their skills array
-            // And aren't the poster themselves
-            const { data: matchingUsers } = await supabase
-                .from('users')
-                .select('id')
-                .contains('skills', [newTask.category])
-                .neq('id', newTask.poster_id)
-                .limit(20);
+        // --- INVITATION NOTIFICATION ---
+        if (newTask.assigned_worker_id) {
+            try {
+                const { data: poster } = await supabase
+                    .from('users')
+                    .select('name')
+                    .eq('id', newTask.poster_id)
+                    .single();
 
-            if (matchingUsers && matchingUsers.length > 0) {
-                const notifications = matchingUsers.map(user => ({
-                    user_id: user.id,
-                    title: 'Perfect Match! 🎯',
-                    message: `A new ${newTask.category} task was just posted nearby: ${newTask.title}`,
-                    type: 'PERFECT_MATCH',
-                    related_id: newTask.id
-                }));
-
-                await supabase.from('notifications').insert(notifications);
+                await notificationService.createNotification(
+                    newTask.assigned_worker_id,
+                    'Private Task Invitation',
+                    `${poster?.name || 'A neighbor'} invited you to a task: ${newTask.title}`,
+                    'TASK_INVITATION',
+                    newTask.id
+                );
+            } catch (notifyError) {
+                console.warn('Error sending invitation notification:', notifyError);
             }
-        } catch (matchError) {
-            console.warn('Silent error sending skill notifications:', matchError);
+            return newTask;
+        }
+
+        // --- SKILL-BASED NOTIFICATIONS (Only for OPEN tasks) ---
+        if (newTask.status === TASK_STATUS.OPEN) {
+            try {
+                const { data: matchingUsers } = await supabase
+                    .from('users')
+                    .select('id')
+                    .contains('skills', [newTask.category])
+                    .neq('id', newTask.poster_id)
+                    .limit(20);
+
+                if (matchingUsers && matchingUsers.length > 0) {
+                    const notifications = matchingUsers.map(user => ({
+                        user_id: user.id,
+                        title: 'Perfect Match! 🎯',
+                        message: `A new ${newTask.category} task was just posted nearby: ${newTask.title}`,
+                        type: 'PERFECT_MATCH',
+                        related_id: newTask.id
+                    }));
+
+                    await supabase.from('notifications').insert(notifications);
+                }
+            } catch (matchError) {
+                console.warn('Silent error sending skill notifications:', matchError);
+            }
         }
 
         return newTask;
@@ -115,7 +141,7 @@ export const taskService = {
         const { data, error } = await supabase
             .from('tasks')
             .select('*, poster:users!poster_id(id, name, profile_image, rating)')
-            .eq('status', TASK_STATUS.OPEN)
+            .or(`status.eq.${TASK_STATUS.OPEN}${userId ? `,and(poster_id.eq.${userId},status.in.(${TASK_STATUS.INVITED},${TASK_STATUS.ASSIGNED},${TASK_STATUS.PENDING_CONFIRMATION},${TASK_STATUS.DISPUTED})),and(assigned_worker_id.eq.${userId},status.in.(${TASK_STATUS.INVITED},${TASK_STATUS.ASSIGNED},${TASK_STATUS.PENDING_CONFIRMATION},${TASK_STATUS.DISPUTED}))` : ''}`)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
         if (error) throw error
@@ -200,6 +226,30 @@ export const taskService = {
             .order('created_at', { ascending: false })
         if (error) throw error
         return data
+    },
+
+    getPastTaskers: async (userId) => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('worker:users!assigned_worker_id(id, name, profile_image, rating)')
+            .eq('poster_id', userId)
+            .eq('status', TASK_STATUS.COMPLETED)
+            .not('assigned_worker_id', 'is', null);
+        
+        if (error) throw error;
+        
+        // Return unique taskers
+        const uniqueTaskers = [];
+        const seenIds = new Set();
+        
+        for (const item of data) {
+            if (item.worker && !seenIds.has(item.worker.id)) {
+                uniqueTaskers.push(item.worker);
+                seenIds.add(item.worker.id);
+            }
+        }
+        
+        return uniqueTaskers;
     },
 
     getPersonalizedTasks: async (userId, lat = null, lng = null, limit = 10, offset = 0) => {
@@ -625,7 +675,7 @@ export const taskService = {
         }
     },
 
-    respondToRecurringInvitation: async (taskId, accept) => {
+    respondToInvitation: async (taskId, accept) => {
         const { data: task, error: fetchError } = await supabase
             .from('tasks')
             .select('title, poster_id, assigned_worker_id')
@@ -646,7 +696,7 @@ export const taskService = {
             await notificationService.createNotification(
                 task.poster_id,
                 'Invitation Accepted',
-                `The worker has accepted your recurring task: ${task.title}`,
+                `The worker has accepted your task: ${task.title}`,
                 'INVITATION_ACCEPTED',
                 taskId
             );
@@ -665,11 +715,16 @@ export const taskService = {
             await notificationService.createNotification(
                 task.poster_id,
                 'Invitation Declined',
-                `The worker declined your recurring task. It is now posted publicly: ${task.title}`,
+                `The worker declined your task invitation. It is now posted publicly: ${task.title}`,
                 'INVITATION_DECLINED',
                 taskId
             );
         }
+    },
+
+    // Alias for backward compatibility
+    respondToRecurringInvitation: async (taskId, accept) => {
+        return taskService.respondToInvitation(taskId, accept);
     },
 
     // Saved / Favorited Tasks

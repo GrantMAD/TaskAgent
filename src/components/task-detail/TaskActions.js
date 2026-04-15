@@ -17,7 +17,8 @@ export const TaskActions = ({
     onMarkAsComplete,
     onCancel,
     onCancelApplication,
-    onRaiseDispute
+    onRaiseDispute,
+    onInvitationResponse
 }) => {
     const { theme, shadows } = useTheme();
     const styles = createStyles(theme, shadows);
@@ -53,6 +54,26 @@ export const TaskActions = ({
                     <FontAwesome name="shield" size={14} color={theme.textMuted} style={styles.buttonIcon} />
                     <Text style={styles.disputeButtonText}>Raise a Dispute</Text>
                 </TouchableOpacity>
+            )}
+
+            {/* Invitation Action: Accept / Decline */}
+            {isWorker && task.status === TASK_STATUS.INVITED && (
+                <View style={styles.invitationRow}>
+                    <TouchableOpacity 
+                        style={[styles.completeButton, { flex: 1, backgroundColor: theme.success, marginBottom: 0 }]} 
+                        onPress={() => onInvitationResponse(true)}
+                    >
+                        <FontAwesome name="check-circle" size={18} color={theme.white} style={styles.buttonIcon} />
+                        <Text style={styles.applyButtonText}>Accept & Start</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.cancelButton, { flex: 1, marginBottom: 0 }]} 
+                        onPress={() => onInvitationResponse(false)}
+                    >
+                        <FontAwesome name="times-circle" size={18} color={theme.error} style={styles.buttonIcon} />
+                        <Text style={styles.cancelButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                </View>
             )}
 
             {/* Tasker Action: Apply / Withdraw */}
@@ -203,5 +224,10 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.textMuted,
         fontSize: 13,
         fontWeight: '700',
+    },
+    invitationRow: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+        marginBottom: Spacing.md,
     },
 });

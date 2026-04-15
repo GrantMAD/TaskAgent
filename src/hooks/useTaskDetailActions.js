@@ -266,6 +266,28 @@ export const useTaskDetailActions = (task, session, taskId, fetchTaskDetails, sh
         setModalVisible(true);
     };
 
+    const handleInvitationResponse = async (accept) => {
+        const previousStatus = task.status;
+        const previousWorkerId = task.assigned_worker_id;
+
+        // Optimistic Update
+        if (accept) {
+            setTask(prev => ({ ...prev, status: TASK_STATUS.ASSIGNED, assigned_worker_id: session.user.id }));
+        } else {
+            setTask(prev => ({ ...prev, status: TASK_STATUS.OPEN, assigned_worker_id: null }));
+        }
+
+        try {
+            await taskService.respondToInvitation(taskId, accept);
+            showToast(accept ? 'Invitation accepted! Get to work!' : 'Invitation declined.', accept ? 'success' : 'info');
+            fetchTaskDetails();
+        } catch (error) {
+            // Rollback
+            setTask(prev => ({ ...prev, status: previousStatus, assigned_worker_id: previousWorkerId }));
+            showToast(error.message, 'error');
+        }
+    };
+
     return {
         modalVisible,
         setModalVisible,
@@ -293,6 +315,7 @@ export const useTaskDetailActions = (task, session, taskId, fetchTaskDetails, sh
         triggerCancelModal,
         handleModalConfirm,
         handleReviewSubmit,
-        handleCancelApplication
+        handleCancelApplication,
+        handleInvitationResponse
     };
 };

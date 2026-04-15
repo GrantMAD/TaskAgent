@@ -92,6 +92,18 @@ export const TaskCard = memo(({ task, onPress }) => {
                             <Text style={styles.recurringText}>RECURRING</Text>
                         </View>
                     )}
+                    {task.status === 'INVITED' && (
+                        <View style={styles.invitedBadge}>
+                            <FontAwesome name="lock" size={10} color={theme.white} style={{ marginRight: 4 }} />
+                            <Text style={styles.invitedText}>PRIVATE</Text>
+                        </View>
+                    )}
+                    {task.status === 'ASSIGNED' && (
+                        <View style={styles.assignedBadge}>
+                            <FontAwesome name="check-circle" size={10} color={theme.white} style={{ marginRight: 4 }} />
+                            <Text style={styles.assignedText}>ACTIVE</Text>
+                        </View>
+                    )}
                 </View>
                 <View style={styles.statusBadge}>
                     <Text style={styles.status}>{task.status.replace('_', ' ')}</Text>
@@ -229,6 +241,36 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         fontWeight: '600',
         fontSize: 11,
         textTransform: 'capitalize',
+    },
+    invitedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#3b82f6', // blue-500
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        marginLeft: Spacing.xs,
+    },
+    invitedText: {
+        color: '#ffffff',
+        fontSize: 9,
+        fontWeight: '900',
+        letterSpacing: 0.5,
+    },
+    assignedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#10b981', // emerald-500
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        marginLeft: Spacing.xs,
+    },
+    assignedText: {
+        color: '#ffffff',
+        fontSize: 9,
+        fontWeight: '900',
+        letterSpacing: 0.5,
     }
 });
 

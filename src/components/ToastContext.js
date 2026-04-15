@@ -16,7 +16,7 @@ export const useToast = () => {
 
 export const ToastProvider = ({ children }) => {
     const { theme, shadows } = useTheme();
-    const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
+    const [toast, setToast] = useState({ visible: false, message: '', type: 'info', onPress: null });
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(-100)).current;
     const timerRef = useRef(null);
@@ -41,12 +41,12 @@ export const ToastProvider = ({ children }) => {
         });
     }, [fadeAnim, translateY, useNativeDriver]);
 
-    const showToast = useCallback((message, type = 'info') => {
+    const showToast = useCallback((message, type = 'info', onPress = null) => {
         console.log(`[Toast] Showing: ${message} (${type})`);
         // Clear existing timer
         if (timerRef.current) clearTimeout(timerRef.current);
 
-        setToast({ visible: true, message, type });
+        setToast({ visible: true, message, type, onPress });
 
         // Animate In
         Animated.parallel([
@@ -106,13 +106,21 @@ export const ToastProvider = ({ children }) => {
                             }
                         ]}
                     >
-                        <View style={styles.content}>
+                        <TouchableOpacity 
+                            activeOpacity={0.9} 
+                            onPress={() => {
+                                if (toast.onPress) toast.onPress();
+                                hideToast();
+                            }}
+                            disabled={!toast.onPress}
+                            style={styles.content}
+                        >
                             <FontAwesome name={getIcon()} size={20} color={theme.white} />
                             <Text style={styles.message}>{toast.message}</Text>
                             <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
                                 <FontAwesome name="times" size={16} color="rgba(255,255,100,0.7)" />
                             </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
                     </Animated.View>
                 </View>
             </Modal>
