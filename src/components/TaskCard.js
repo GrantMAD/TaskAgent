@@ -57,10 +57,22 @@ export const TaskCard = memo(({ task, onPress }) => {
             </View>
             
             <View style={styles.locationRow}>
-                <FontAwesome name="map-marker" size={14} color={theme.accent} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                    {distance ? `${distance.toFixed(1)} km away` : 'Location shared when hired'}
-                </Text>
+                <View style={styles.infoCol}>
+                    <View style={styles.row}>
+                        <FontAwesome name="map-marker" size={14} color={theme.accent} />
+                        <Text style={styles.locationText} numberOfLines={1}>
+                            {distance ? `${distance.toFixed(1)} km away` : 'Location shared when hired'}
+                        </Text>
+                    </View>
+                    {task.deadline && (
+                        <View style={[styles.row, { marginTop: 4 }]}>
+                            <FontAwesome name="clock-o" size={12} color={theme.primary} />
+                            <Text style={styles.deadlineText}>
+                                Due: {new Date(task.deadline).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                        </View>
+                    )}
+                </View>
             </View>
 
             <View style={styles.details}>
@@ -68,6 +80,12 @@ export const TaskCard = memo(({ task, onPress }) => {
                     <View style={styles.categoryBadge}>
                         <Text style={styles.category}>{task.category}</Text>
                     </View>
+                    {task.is_urgent && (
+                        <View style={styles.urgentBadge}>
+                            <FontAwesome name="fire" size={10} color={theme.white} style={{ marginRight: 4 }} />
+                            <Text style={styles.urgentText}>URGENT</Text>
+                        </View>
+                    )}
                     {task.parent_template_id && (
                         <View style={styles.recurringBadge}>
                             <FontAwesome name="refresh" size={10} color={theme.accent} style={{ marginRight: 4 }} />
@@ -135,6 +153,19 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         marginLeft: 6,
         fontWeight: '500',
     },
+    infoCol: {
+        flex: 1,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    deadlineText: {
+        fontSize: 11,
+        color: theme.primary,
+        marginLeft: 6,
+        fontWeight: '700',
+    },
     details: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -173,6 +204,21 @@ const createStyles = (theme, shadows) => StyleSheet.create({
         color: theme.accent,
         fontSize: 9,
         fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    urgentBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.error,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Rounding.pill,
+        marginLeft: Spacing.xs,
+    },
+    urgentText: {
+        color: theme.white,
+        fontSize: 9,
+        fontWeight: '900',
         letterSpacing: 0.5,
     },
     statusBadge: {

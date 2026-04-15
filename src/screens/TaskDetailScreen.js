@@ -340,8 +340,24 @@ export const TaskDetailScreen = ({ route, navigation }) => {
                 )}
 
                 <View style={styles.titleSection}>
-                    <View style={styles.categoryBadge}><Text style={styles.categoryText}>{task.category}</Text></View>
+                    <View style={[styles.badgeRow, { marginBottom: Spacing.sm }]}>
+                        <View style={styles.categoryBadge}><Text style={styles.categoryText}>{task.category}</Text></View>
+                        {task.is_urgent && (
+                            <View style={styles.urgentBadge}>
+                                <FontAwesome name="fire" size={12} color={theme.white} style={{ marginRight: 6 }} />
+                                <Text style={styles.urgentText}>URGENT TASK</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={styles.postedDate}>Posted {formatDate(task.created_at)}</Text>
+                    {task.deadline && (
+                        <View style={styles.deadlineRow}>
+                            <FontAwesome name="clock-o" size={14} color={theme.error} />
+                            <Text style={styles.deadlineDetailText}>
+                                Deadline: {new Date(task.deadline).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                        </View>
+                    )}
                     <Text style={styles.title}>{task.title}</Text>
                     <View style={styles.priceRow}>
                         <View>
@@ -433,6 +449,11 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     titleSection: { padding: Spacing.lg, backgroundColor: theme.card, borderBottomLeftRadius: Rounding.soft, borderBottomRightRadius: Rounding.soft, ...shadows.subtle, marginBottom: Spacing.md },
     categoryBadge: { backgroundColor: theme.isDarkMode ? 'rgba(255,255,255,0.05)' : '#E8EFF4', paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: Rounding.pill, alignSelf: 'flex-start', marginBottom: Spacing.sm },
     categoryText: { color: theme.primary, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    badgeRow: { flexDirection: 'row', alignItems: 'center' },
+    urgentBadge: { backgroundColor: theme.error, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: Rounding.pill, marginLeft: Spacing.sm, flexDirection: 'row', alignItems: 'center' },
+    urgentText: { color: theme.white, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+    deadlineRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, backgroundColor: theme.isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2', padding: Spacing.sm, borderRadius: Rounding.standard, borderLeftWidth: 4, borderLeftColor: theme.error },
+    deadlineDetailText: { fontSize: 13, color: theme.error, fontWeight: '800', marginLeft: 8 },
     postedDate: { fontSize: 12, color: theme.textMuted, fontWeight: '600', marginBottom: 4 },
     title: { fontSize: 26, fontWeight: '800', color: theme.primary, marginBottom: Spacing.md },
     priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: theme.border, paddingTop: Spacing.md },

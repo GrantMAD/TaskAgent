@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import { taskService } from '../services/taskService';
@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { TASK_CATEGORIES, CURRENCY_SYMBOL } from '../utils/constants';
 import { getMissingFields } from '../utils/validation';
 import { useAuth } from '../components/AuthContext';
+import DeadlinePicker from '../components/DeadlinePicker';
 
 export const CreateTaskScreen = ({ navigation, route }) => {
     const { theme, shadows } = useTheme();
@@ -29,6 +30,9 @@ export const CreateTaskScreen = ({ navigation, route }) => {
     const [image, setImage] = useState(null);
     const [existingImageUrl, setExistingImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [deadline, setDeadline] = useState(null);
+    const [isUrgent, setIsUrgent] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // Recurring Task State
     const [isRecurring, setIsRecurring] = useState(false);
@@ -45,7 +49,7 @@ export const CreateTaskScreen = ({ navigation, route }) => {
     const [isLocating, setIsLocating] = useState(false);
 
     // Modal State
-    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isModalVisible, setIsModalVisible] = useState(true);
 
     const styles = useMemo(() => createStyles(theme, shadows), [theme, shadows]);
 
@@ -64,7 +68,8 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                     setLocationLat(task.location_lat);
                     setLocationLng(task.location_lng);
                     setExistingImageUrl(task.image_url);
-                    setIsModalVisible(true);
+                    setDeadline(task.deadline ? new Date(task.deadline) : null);
+                    setIsUrgent(task.is_urgent || false);
                 } catch (_error) {
                     showToast('Could not load task for editing', 'error');
                 } finally {
@@ -74,6 +79,26 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             fetchTaskForEdit();
         }
     }, [isEditing, taskId, showToast]);
+
+    // Reset Form when switching back to "New Task" mode
+    useEffect(() => {
+        if (!isEditing) {
+            setTitle('');
+            setDescription('');
+            setCategory('');
+            setPaymentAmount('');
+            setAddress('');
+            setLocationLat(null);
+            setLocationLng(null);
+            setImage(null);
+            setExistingImageUrl(null);
+            setDeadline(null);
+            setIsUrgent(false);
+            setIsRecurring(false);
+            setFrequency('weekly');
+            setFairPriceEstimate(null);
+        }
+    }, [isEditing, taskId]);
 
     const pickImage = useCallback(async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -94,22 +119,33 @@ export const CreateTaskScreen = ({ navigation, route }) => {
         }
     }, [showToast]);
 
+    // Handle header visibility and navigation clean-up
     useEffect(() => {
         const parent = navigation.getParent();
-        if (parent) {
-            parent.setOptions({
-                headerShown: !isModalVisible
-            });
-        }
         
-        navigation.setParams({ isFormOpen: isModalVisible });
+        const hideHeader = () => {
+            if (parent) parent.setOptions({ headerShown: false });
+        };
+
+        const restoreHeader = () => {
+            if (parent) parent.setOptions({ headerShown: true });
+        };
+
+        const unsubscribeFocus = navigation.addListener('focus', hideHeader);
+        const unsubscribeBlur = navigation.addListener('blur', () => {
+            restoreHeader();
+            navigation.setParams({ taskId: undefined, isEditing: undefined });
+        });
+
+        // Initial check
+        hideHeader();
 
         return () => {
-            if (parent) {
-                parent.setOptions({ headerShown: true });
-            }
+            unsubscribeFocus();
+            unsubscribeBlur();
+            restoreHeader();
         };
-    }, [isModalVisible, navigation]);
+    }, [navigation]);
 
     useEffect(() => {
         const fetchEstimate = async () => {
@@ -281,7 +317,9 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                 address,
                 location_lat: locationLat,
                 location_lng: locationLng,
-                image_url: imageUrl
+                image_url: imageUrl,
+                deadline: deadline ? deadline.toISOString() : null,
+                is_urgent: isUrgent
             };
 
             if (isEditing && taskId) {
@@ -311,6 +349,8 @@ export const CreateTaskScreen = ({ navigation, route }) => {
             setLocationLng(null);
             setImage(null);
             setExistingImageUrl(null);
+            setDeadline(null);
+            setIsUrgent(false);
             setIsRecurring(false);
             setFrequency('weekly');
             setIsModalVisible(false);
@@ -325,71 +365,31 @@ export const CreateTaskScreen = ({ navigation, route }) => {
         } finally {
             setLoading(false);
         }
-    }, [title, description, category, paymentAmount, address, locationLat, locationLng, image, existingImageUrl, isEditing, taskId, isRecurring, frequency, session, navigation, showToast]);
+    }, [title, description, category, paymentAmount, address, locationLat, locationLng, image, existingImageUrl, isEditing, taskId, isRecurring, frequency, session, navigation, showToast, deadline, isUrgent]);
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.landingContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.heroSection}>
-                    <View style={styles.iconCircle}>
-                        <FontAwesome name="rocket" size={50} color={theme.white} />
+            <KeyboardAvoidingView 
+                style={styles.modalContainer} 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+                        <FontAwesome name="times" size={24} color={theme.primary} />
+                    </TouchableOpacity>
+                    <View style={styles.modalHeaderInfo}>
+                        <Text style={styles.modalHeaderTitle}>{isEditing ? 'Edit Task' : 'Post Task'}</Text>
+                        <Text style={styles.modalHeaderSubtitle}>Provide info to attract help</Text>
                     </View>
-                    <View style={styles.landingHeaderRow}>
-                        <FontAwesome name="pencil-square-o" size={32} color={theme.primary} style={styles.landingHeaderIcon} />
-                        <View>
-                            <Text style={styles.landingTitle}>Post a New Job</Text>
-                            <Text style={styles.landingSubtitle}>Get help from your neighbourhood</Text>
-                        </View>
-                    </View>
-                    <Text style={styles.landingDescription}>
-                        {"Whether it's moving furniture, cleaning, or a quick tech fix, find trusted local help for any task."}
-                    </Text>
+                    <View style={{ width: 40 }} />
                 </View>
 
-                <View style={styles.benefitList}>
-                    <View style={styles.benefitItem}>
-                        <FontAwesome name="check-circle" size={20} color={theme.accent} />
-                        <Text style={styles.benefitText}>Set your own fair price</Text>
-                    </View>
-                    <View style={styles.benefitItem}>
-                        <FontAwesome name="check-circle" size={20} color={theme.accent} />
-                        <Text style={styles.benefitText}>Choose from trusted neighbors</Text>
-                    </View>
-                    <View style={styles.benefitItem}>
-                        <FontAwesome name="check-circle" size={20} color={theme.accent} />
-                        <Text style={styles.benefitText}>Secure and easy communication</Text>
-                    </View>
-                </View>
-
-                <TouchableOpacity 
-                    style={styles.openModalButton}
-                    onPress={() => setIsModalVisible(true)}
+                <ScrollView 
+                    style={{ flex: 1 }}
+                    contentContainerStyle={styles.formScroll} 
+                    showsVerticalScrollIndicator={false} 
+                    keyboardShouldPersistTaps="handled"
                 >
-                    <Text style={styles.openModalButtonText}>CREATE TASK</Text>
-                    <FontAwesome name="arrow-right" size={18} color={theme.white} style={{ marginLeft: 10 }} />
-                </TouchableOpacity>
-            </ScrollView>
-
-            {/* Form Modal (Refactored to View for layered UI compatibility) */}
-            {isModalVisible && (
-                <View style={StyleSheet.absoluteFill}>
-                    <View style={styles.backdrop} />
-                    <KeyboardAvoidingView 
-                        style={styles.modalContainer} 
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    >
-                        <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
-                                <FontAwesome name="times" size={24} color={theme.primary} />
-                            </TouchableOpacity>
-                            <View style={styles.modalHeaderInfo}>
-                                <Text style={styles.modalHeaderTitle}>Task Details</Text>
-                                <Text style={styles.modalHeaderSubtitle}>Provide info to attract help</Text>
-                            </View>
-                            <View style={{ width: 40 }} />
-                        </View>
-
-                        <ScrollView contentContainerStyle={styles.formScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>WHAT DO YOU NEED HELP WITH? <Text style={styles.required}>*</Text></Text>
                                 <TextInput
@@ -451,6 +451,52 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                                         <Text style={styles.estimateText}>ðŸ’¡ Similar tasks average <Text style={styles.estimateHighlight}>{CURRENCY_SYMBOL}{fairPriceEstimate}</Text></Text>
                                     </View>
                                 ) : null}
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>PRIORITY & TIMING</Text>
+                                <View style={styles.priorityRow}>
+                                    <TouchableOpacity 
+                                        style={[
+                                            styles.urgencyToggle,
+                                            isUrgent && { backgroundColor: theme.error, borderColor: theme.error }
+                                        ]}
+                                        onPress={() => setIsUrgent(!isUrgent)}
+                                    >
+                                        <FontAwesome 
+                                            name="fire" 
+                                            size={16} 
+                                            color={isUrgent ? theme.white : theme.error} 
+                                        />
+                                        <Text style={[styles.urgencyText, isUrgent && { color: theme.white }]}>
+                                            {isUrgent ? 'URGENT TASK' : 'NORMAL PRIORITY'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    
+                                    <TouchableOpacity 
+                                        style={styles.deadlineButton}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <FontAwesome name="clock-o" size={16} color={theme.primary} />
+                                        <Text style={styles.deadlineButtonText}>
+                                            {deadline ? deadline.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'SET DEADLINE'}
+                                        </Text>
+                                        {deadline && (
+                                            <TouchableOpacity onPress={() => setDeadline(null)} style={styles.clearDeadline}>
+                                                <FontAwesome name="times-circle" size={14} color={theme.textMuted} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+
+                                <DeadlinePicker
+                                    value={deadline}
+                                    show={showDatePicker}
+                                    setShow={setShowDatePicker}
+                                    onChange={(selectedDate) => {
+                                        setDeadline(selectedDate);
+                                    }}
+                                />
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -575,10 +621,8 @@ export const CreateTaskScreen = ({ navigation, route }) => {
                                     </>
                                 )}
                             </TouchableOpacity>
-                        </ScrollView>
-                    </KeyboardAvoidingView>
-                </View>
-            )}
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 };
@@ -712,7 +756,7 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     },
     formScroll: {
         padding: Spacing.lg,
-        paddingBottom: 50,
+        paddingBottom: 150,
     },
     inputGroup: {
         marginBottom: Spacing.md,
@@ -745,6 +789,47 @@ const createStyles = (theme, shadows) => StyleSheet.create({
     required: {
         color: theme.error,
         marginLeft: 2,
+    },
+    priorityRow: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+        marginTop: Spacing.xs,
+    },
+    urgencyToggle: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+        borderWidth: 1.5,
+        borderColor: theme.border,
+        backgroundColor: theme.input,
+    },
+    urgencyText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: theme.textMuted,
+        marginLeft: 8,
+    },
+    deadlineButton: {
+        flex: 1.2,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing.md,
+        borderRadius: Rounding.standard,
+        borderWidth: 1.5,
+        borderColor: theme.border,
+        backgroundColor: theme.input,
+    },
+    deadlineButtonText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: theme.primary,
+        marginLeft: 8,
+        flex: 1,
+    },
+    clearDeadline: {
+        padding: 4,
     },
     locateButton: {
         flexDirection: 'row',
